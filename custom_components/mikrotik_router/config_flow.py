@@ -5,7 +5,7 @@ import logging
 import voluptuous as vol
 from homeassistant.config_entries import (
     ConfigFlow,
-    OptionsFlow,
+    OptionsFlowWithConfigEntry,
 )
 from homeassistant.const import (
     CONF_NAME,
@@ -94,7 +94,7 @@ class MikrotikControllerConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return MikrotikControllerOptionsFlowHandler()
+        return MikrotikControllerOptionsFlowHandler(config_entry)
 
     async def async_step_import(self, user_input=None):
         """Occurs when a previously entry setup fails and is re-initiated."""
@@ -168,12 +168,11 @@ class MikrotikControllerConfigFlow(ConfigFlow, domain=DOMAIN):
 # ---------------------------
 #   MikrotikControllerOptionsFlowHandler
 # ---------------------------
-class MikrotikControllerOptionsFlowHandler(OptionsFlow):
+class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
     """Handle options."""
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
-        self.options = dict(self.config_entry.options)
         return await self.async_step_basic_options(user_input)
 
     async def async_step_basic_options(self, user_input=None):
