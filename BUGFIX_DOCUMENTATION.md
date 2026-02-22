@@ -1,9 +1,10 @@
 # Bugfix Documentation: OptionsFlow HA 2025.12+ Compatibility Fix
 
-## Version: v2.2.1 (proposed)
+## Version: v2.2.2 (current fork)
 
 **Base version:** v2.2 (upstream tomaae/homeassistant-mikrotik_router)
 **Fork:** jnctech/homeassistant-mikrotik_router
+**Upstream PR:** tomaae/homeassistant-mikrotik_router#464 (open, awaiting review)
 
 ---
 
@@ -27,47 +28,40 @@ All users running Home Assistant 2025.12 or later with Mikrotik Router integrati
 
 ---
 
-## Fix Details
+## Fix History
 
-### Commit 1: `84706a2` — Core Fix (on master)
+### Iteration 1: `84706a2` — Initial Fix
 
 **"Fix 500 error on configure by updating OptionsFlow for HA 2025.12+"**
 
-Changes to `custom_components/mikrotik_router/config_flow.py`:
+Switched from broken manual `__init__` pattern to plain `OptionsFlow`. Removed deprecated `CONN_CLASS_LOCAL_POLL`. Options initialised manually in `async_step_init`.
 
-| Change | Before | After |
-|--------|--------|-------|
-| Constructor | Custom `__init__` storing `self._config_entry` | Removed entirely |
-| Base class import | `CONN_CLASS_LOCAL_POLL` imported | Removed deprecated import |
-| Options flow factory | `MikrotikControllerOptionsFlowHandler(config_entry)` | `MikrotikControllerOptionsFlowHandler()` (no args) |
-| Config entry access | `self._config_entry` (20+ references) | `self.config_entry` (framework property) |
-| Options init | Done in constructor | Moved to `async_step_init()` |
+### Iteration 2: `c54b209` — Switch to OptionsFlowWithConfigEntry (SUPERSEDED)
 
-### Commit 2: `25464c1` — Housekeeping (on master)
+Switched to `OptionsFlowWithConfigEntry` for automatic `self.options` management. Added unit test suite. This was later found to be using a deprecated class.
 
-**"Add .gitignore to exclude __pycache__ directories"**
+> **Note:** `OptionsFlowWithConfigEntry` is explicitly deprecated in HA core (phased out for core/built-in integrations; kept only for custom integration backward compatibility). `custom_integration_behavior=ReportBehavior.IGNORE` means it produces no warnings at runtime for custom integrations, but it is not the recommended pattern.
 
-Added `.gitignore` with `__pycache__/` rule.
+### Iteration 3: `14131fc` / `57ce6db` — Final Fix (current) ✓
 
-### Commit 3: `c54b209` — Refined Fix (on branch)
+**"Use plain OptionsFlow instead of deprecated OptionsFlowWithConfigEntry"**
 
-**"Add unit tests for config flow and use OptionsFlowWithConfigEntry"**
+This is the correct, recommended pattern per HA core documentation.
 
-Refined the fix by switching from `OptionsFlow` to `OptionsFlowWithConfigEntry`:
+| Change | Upstream (broken) | Iteration 2 | **Current (correct)** |
+|--------|-------------------|-------------|----------------------|
+| Base class | `OptionsFlow` (misused) | `OptionsFlowWithConfigEntry` (deprecated) | **`OptionsFlow`** |
+| `__init__` | Manually set `self._config_entry` | Removed (base handled it) | **No `__init__` at all** |
+| Handler factory arg | `config_entry` passed | `config_entry` passed | **No args** |
+| Options dict | `self._config_entry.options.get(...)` | `self.options` (deepcopy from base) | **`self._options`** (init'd in `async_step_init`) |
 
-| Change | Before (84706a2) | After (c54b209) |
-|--------|-------------------|------------------|
-| Base class | `OptionsFlow` | `OptionsFlowWithConfigEntry` |
-| Constructor args | No args | `config_entry` passed to super |
-| `self.options` init | Manual in `async_step_init` | Automatic (handled by base class) |
+**Why plain `OptionsFlow` is correct:**
+- `OptionsFlowWithConfigEntry` docstring: *"This class is being phased out, and should not be referenced in new code."*
+- `self.config_entry` is injected by the framework as a property after construction — no need to pass it manually
+- `self.config_entry` is **not** available in `__init__`; it becomes available from `async_step_init` onward
+- `self._options` is initialised in `async_step_init` as `dict(self.config_entry.options)` — a mutable working copy accumulated across the two-step form
 
-**Why `OptionsFlowWithConfigEntry` is better:**
-- Available since HA 2024.3 (our minimum supported version)
-- Explicitly manages `self.config_entry` and `self.options` across all HA versions
-- Forward-compatible with future HA changes
-- Recommended by HA development documentation
-
-**Test suite added (352 lines):**
+**Test suite (12 tests):**
 
 | Test | Coverage |
 |------|----------|
@@ -80,7 +74,7 @@ Refined the fix by switching from `OptionsFlow` to `OptionsFlowWithConfigEntry`:
 | `test_flow_import` | Import source delegation |
 | `test_options_flow_init` | Options form display |
 | `test_options_flow_basic_to_sensor_select` | Step progression |
-| `test_options_flow_complete` | Full options flow |
+| `test_options_flow_complete` | Full two-step options flow |
 | `test_options_flow_preserves_existing_options` | Option defaults preserved |
 | `test_options_flow_no_explicit_config_entry_set` | **Regression test for HA 2025.12+ fix** |
 
@@ -122,7 +116,22 @@ Refined the fix by switching from `OptionsFlow` to `OptionsFlowWithConfigEntry`:
 
 ### Unit Tests
 
+Tests require `pytest-homeassistant-custom-component`. Run in the docker-dev environment:
+
 ```bash
+# SSH into docker-dev
+ssh jc@192.168.30.10 -p 2222
+
+# Navigate to repo
+cd /workspace/hacs/Mikrotik   # or wherever the repo is mounted
+
+# Install deps (first time only)
 pip install -r requirements_test.txt
+
+# Run tests
 pytest tests/ -v
 ```
+
+Expected output: all 12 tests pass.
+
+> **Important:** Tests were **not** run before pushing to the upstream PR. They should be run in docker-dev to validate the current fix before any further upstream engagement.
