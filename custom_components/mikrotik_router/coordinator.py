@@ -63,6 +63,11 @@ from .const import (
     DEFAULT_SENSOR_ENVIRONMENT,
     CONF_SENSOR_NETWATCH_TRACKER,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
+    PKG_PPP,
+    PKG_WIRELESS,
+    PKG_UPS,
+    PKG_GPS,
+    WIFI_PACKAGES,
 )
 from .apiparser import parse_api
 from .mikrotikapi import MikrotikAPI
@@ -70,6 +75,11 @@ from .mikrotikapi import MikrotikAPI
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TIME_ZONE = None
+
+
+def _pkg_enabled(packages, name):
+    """Check if a RouterOS package is present and enabled."""
+    return name in packages and packages[name]["enabled"]
 
 
 def is_valid_ip(address):
@@ -486,53 +496,28 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         )
 
         if 0 < self.major_fw_version < 7:
-            if "ppp" in packages:
-                self.support_ppp = packages["ppp"]["enabled"]
+            if _pkg_enabled(packages, PKG_PPP):
+                self.support_ppp = True
 
-            if "wireless" in packages:
-                self.support_capsman = packages["wireless"]["enabled"]
-                self.support_wireless = packages["wireless"]["enabled"]
-            else:
-                self.support_capsman = False
-                self.support_wireless = False
-
-        elif 0 < self.major_fw_version >= 7:
-            self.support_ppp = True
-            if "wifiwave2" in packages and packages["wifiwave2"]["enabled"]:
-                self.support_capsman = False
-                self.support_wireless = True
-                self._wifimodule = "wifiwave2"
-
-            elif "wifi" in packages and packages["wifi"]["enabled"]:
-                self.support_capsman = False
-                self.support_wireless = True
-                self._wifimodule = "wifi"
-
-            elif "wifi-qcom" in packages and packages["wifi-qcom"]["enabled"]:
-                self.support_capsman = False
-                self.support_wireless = True
-                self._wifimodule = "wifi"
-
-            elif "wifi-qcom-ac" in packages and packages["wifi-qcom-ac"]["enabled"]:
-                self.support_capsman = False
-                self.support_wireless = True
-                self._wifimodule = "wifi"
-
-            elif "wireless" in packages and packages["wireless"]["enabled"]:
+            if _pkg_enabled(packages, PKG_WIRELESS):
                 self.support_capsman = True
                 self.support_wireless = True
-                self._wifimodule = "wireless"
 
-            elif (
-                self.major_fw_version == 7 and self.minor_fw_version >= 13
-            ) or self.major_fw_version > 7:
-                self.support_capsman = False
-                self.support_wireless = False
-                self._wifimodule = "wifi"
+        elif self.major_fw_version >= 7:
+            self.support_ppp = True
 
+            # Check modern wifi packages in priority order
+            for pkg_name, module_name in WIFI_PACKAGES:
+                if _pkg_enabled(packages, pkg_name):
+                    self.support_wireless = True
+                    self._wifimodule = module_name
+                    break
             else:
-                self.support_capsman = False
-                self.support_wireless = False
+                # No modern package found; check legacy wireless
+                if _pkg_enabled(packages, PKG_WIRELESS):
+                    self.support_capsman = True
+                    self.support_wireless = True
+                    self._wifimodule = "wireless"
 
             _LOGGER.debug(
                 "Mikrotik %s wifi module=%s",
@@ -540,10 +525,10 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self._wifimodule,
             )
 
-        if "ups" in packages and packages["ups"]["enabled"]:
+        if _pkg_enabled(packages, PKG_UPS):
             self.support_ups = True
 
-        if "gps" in packages and packages["gps"]["enabled"]:
+        if _pkg_enabled(packages, PKG_GPS):
             self.support_gps = True
 
     # ---------------------------
