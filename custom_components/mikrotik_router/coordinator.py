@@ -63,13 +63,11 @@ from .const import (
     DEFAULT_SENSOR_ENVIRONMENT,
     CONF_SENSOR_NETWATCH_TRACKER,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
+    PKG_PPP,
     PKG_WIRELESS,
-    PKG_WIFIWAVE2,
-    PKG_WIFI,
-    PKG_WIFI_QCOM,
-    PKG_WIFI_QCOM_AC,
     PKG_UPS,
     PKG_GPS,
+    WIFI_PACKAGES,
 )
 from .apiparser import parse_api
 from .mikrotikapi import MikrotikAPI
@@ -498,38 +496,28 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         )
 
         if 0 < self.major_fw_version < 7:
-            if "ppp" in packages:
-                self.support_ppp = packages["ppp"]["enabled"]
+            if _pkg_enabled(packages, PKG_PPP):
+                self.support_ppp = True
 
-            if PKG_WIRELESS in packages:
-                self.support_capsman = packages[PKG_WIRELESS]["enabled"]
-                self.support_wireless = packages[PKG_WIRELESS]["enabled"]
-            else:
-                self.support_capsman = False
-                self.support_wireless = False
+            if _pkg_enabled(packages, PKG_WIRELESS):
+                self.support_capsman = True
+                self.support_wireless = True
 
         elif self.major_fw_version >= 7:
             self.support_ppp = True
-            if _pkg_enabled(packages, PKG_WIFIWAVE2):
-                self.support_wireless = True
-                self._wifimodule = "wifiwave2"
 
-            elif _pkg_enabled(packages, PKG_WIFI):
-                self.support_wireless = True
-                self._wifimodule = "wifi"
-
-            elif _pkg_enabled(packages, PKG_WIFI_QCOM):
-                self.support_wireless = True
-                self._wifimodule = "wifi"
-
-            elif _pkg_enabled(packages, PKG_WIFI_QCOM_AC):
-                self.support_wireless = True
-                self._wifimodule = "wifi"
-
-            elif _pkg_enabled(packages, PKG_WIRELESS):
-                self.support_capsman = True
-                self.support_wireless = True
-                self._wifimodule = "wireless"
+            # Check modern wifi packages in priority order
+            for pkg_name, module_name in WIFI_PACKAGES:
+                if _pkg_enabled(packages, pkg_name):
+                    self.support_wireless = True
+                    self._wifimodule = module_name
+                    break
+            else:
+                # No modern package found; check legacy wireless
+                if _pkg_enabled(packages, PKG_WIRELESS):
+                    self.support_capsman = True
+                    self.support_wireless = True
+                    self._wifimodule = "wireless"
 
             _LOGGER.debug(
                 "Mikrotik %s wifi module=%s",
