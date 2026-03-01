@@ -1,4 +1,4 @@
-# Mikrotik Router (Community Fork)
+# Mikrotik Router Integration for Home Assistant (Community Fork)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/jnctech/homeassistant-mikrotik_router?style=plastic)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=plastic)](https://github.com/hacs/integration)
 ![Project Stage](https://img.shields.io/badge/project%20stage-Production%20Ready-green.svg?style=plastic)
@@ -10,9 +10,39 @@
 
 > **This is a community-maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The original author built an incredible integration that many of us rely on daily. Life gets busy and open-source maintainers are volunteers -- we're grateful for all the work that went into this project. This fork exists to keep things running while the upstream repo is on a break, and we're happy to contribute fixes back anytime.
 
-## Fix: Error 500 / Internal Server Error on Configure
+## Dev Release Available for Testing
 
-If you are experiencing any of the following issues with the Mikrotik Router integration, this fork fixes them:
+We have a **pre-release build** with several community-reported bug fixes ready for testing. If you're experiencing any of the issues below, please try the dev release and report back.
+
+### What's fixed in the dev release
+
+| Issue | Problem | Upstream ref |
+|-------|---------|--------------|
+| **Integration crash on non-wireless routers** | RB4011, RB5009, CCR routers crash because the integration queries wireless API endpoints on devices with no wireless hardware | [upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433) |
+| **Temperature always shows Celsius** | Temperature sensors ignore HA unit preferences — users with imperial/Fahrenheit settings still see Celsius | [upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230) |
+| **Error 500 on Configure** | Clicking "Configure" on the integration in HA 2025.12+ returns Internal Server Error | [upstream #464](https://github.com/tomaae/homeassistant-mikrotik_router/issues/464) |
+| **WiFi package detection** | Correct detection of all RouterOS 7 WiFi package variants: `wifiwave2`, `wifi`, `wifi-qcom`, `wifi-qcom-ac` | — |
+
+### How to install the dev release
+
+1. In HACS, add this repo as a custom repository (if not already):
+   - HACS > Integrations > 3-dot menu > Custom repositories
+   - URL: `https://github.com/jnctech/homeassistant-mikrotik_router`
+   - Category: Integration
+2. In HACS, go to the Mikrotik Router integration and select **Redownload**
+3. In the redownload dialog, enable **"Show beta versions"**
+4. Select the latest pre-release version and install
+5. Restart Home Assistant
+
+### How to report results
+
+Open an issue or comment on the relevant upstream issue. Even "works for me on RB5009 / RouterOS 7.16" is helpful — it tells us the fix is safe to ship.
+
+---
+
+## Fixes in the Current Stable Release
+
+If you are experiencing any of the following issues with the Mikrotik Router integration, the stable release already fixes them:
 
 - **Error 500 when clicking "Configure"** on the Mikrotik Router integration
 - **Internal Server Error** when trying to change options for Mikrotik Router
@@ -223,9 +253,9 @@ Select sensors you want to use in Home Assistant.
 
 # Known Issues & Workarounds
 
-## Wireless clients always showing 0 (hAP ac2, ax devices, RouterOS 7.x)
+## Wireless clients always showing 0 (hAP ac2, hAP ax2, hAP ax3, Audience, RouterOS 7.x)
 
-**Affected devices:** hAP ac2, hAP ax2, hAP ax3, Audience, and any device using MikroTik's newer **WiFi package** (not the legacy **Wireless package**).
+**Affected devices:** hAP ac2, hAP ax2, hAP ax3, Audience, and any MikroTik device using the newer **WiFi package** (not the legacy **Wireless package**).
 
 **What's happening:** MikroTik introduced a new WiFi system starting with 802.11ax (WiFi 6) devices. The newer WiFi package uses different API endpoints (`/interface/wifi`) compared to the legacy Wireless package (`/interface/wireless`). The integration currently only queries the legacy endpoints, so wireless client counts return 0 on newer devices.
 
@@ -246,15 +276,21 @@ This gives you device presence detection and per-client traffic stats via Kid Co
 
 **Status:** We're looking at adding support for the new WiFi package API endpoints in a future release ([upstream #421](https://github.com/tomaae/homeassistant-mikrotik_router/issues/421)).
 
-## Integration fails on routers without wireless package
+## Integration crashes on routers without wireless package (RB4011, RB5009, CCR series)
 
-**Affected devices:** RB4011, RB5009, CCR series, and any router where you've disabled the wireless package.
+**Affected devices:** RB4011, RB5009, CCR1009, CCR1016, CCR1036, CCR2004, CCR2116, and any MikroTik router where the wireless package is absent or disabled.
 
-**What's happening:** The integration tries to query `/caps-man/registration-table` even on routers that don't have wireless functionality, causing the whole integration to fail.
+**What's happening:** On RouterOS 7+, the integration unconditionally queries wireless API endpoints (`/interface/wireless`, `/caps-man/registration-table`) even on devices that have no wireless hardware. This causes the integration to crash on startup.
 
-**Workaround:** There is currently no workaround other than re-enabling the wireless package (even if unused).
+**Status:** Fixed in the [dev release](#dev-release-available-for-testing). The fix correctly checks which WiFi packages are installed before querying wireless endpoints. Please test and report back so we can ship it in the next stable release. ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
 
-**Status:** We're working on a fix to gracefully handle missing wireless packages ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433)).
+## MikroTik temperature sensors always show Celsius, ignore Fahrenheit preference
+
+**Affected users:** Anyone with Home Assistant configured for imperial units (Fahrenheit).
+
+**What's happening:** Temperature sensors (CPU temperature, board temperature, switch temperature, PHY temperature) always display in Celsius even when your HA instance is set to Fahrenheit. The sensors were overriding HA's automatic unit conversion.
+
+**Status:** Fixed in the [dev release](#dev-release-available-for-testing). Temperature sensors now respect your HA unit preference and auto-convert between Celsius and Fahrenheit. ([upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
 
 ---
 
