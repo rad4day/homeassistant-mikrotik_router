@@ -1,4 +1,4 @@
-# Mikrotik Router (Fixed Fork)
+# Mikrotik Router (Community Fork)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/jnctech/homeassistant-mikrotik_router?style=plastic)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=plastic)](https://github.com/hacs/integration)
 ![Project Stage](https://img.shields.io/badge/project%20stage-Production%20Ready-green.svg?style=plastic)
@@ -8,7 +8,7 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/jnctech/homeassistant-mikrotik_router?style=plastic)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/jnctech/homeassistant-mikrotik_router/ci.yml?style=plastic)
 
-> **This is an actively maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The upstream repository is no longer maintained and has not accepted fixes for critical bugs. This fork provides the fix for the **Error 500 on Configure** issue affecting Home Assistant 2025.12 and later.
+> **This is a community-maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The original author built an incredible integration that many of us rely on daily. Life gets busy and open-source maintainers are volunteers -- we're grateful for all the work that went into this project. This fork exists to keep things running while the upstream repo is on a break, and we're happy to contribute fixes back anytime.
 
 ## Fix: Error 500 / Internal Server Error on Configure
 
@@ -21,7 +21,7 @@ If you are experiencing any of the following issues with the Mikrotik Router int
 - **Mikrotik Router integration options page crashes** after updating Home Assistant
 - **Cannot reconfigure Mikrotik Router** after Home Assistant 2025.12 update
 
-This issue affects all users of the original `tomaae/homeassistant-mikrotik_router` integration who have updated to **Home Assistant 2025.12 or later**. The upstream repository has not merged the fix despite an open pull request.
+This issue affects users of the original `tomaae/homeassistant-mikrotik_router` integration on **Home Assistant 2025.12 or later**.
 
 ### How to switch to this fork
 
@@ -36,6 +36,8 @@ If you installed the original via HACS:
 4. Restart Home Assistant
 
 Your existing configuration and entities will be preserved -- no need to reconfigure.
+
+If and when the upstream repo is updated, switching back is just as easy.
 
 ---
 
