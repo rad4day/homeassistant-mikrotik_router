@@ -19,20 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code from GitHub
-        uses: "actions/checkout@v3"
-      - name: Black Code Format Check
-        uses: lgeiger/black-action@master
+        uses: "actions/checkout@v4"
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          args: ". --check --fast --diff"
+          python-version: '3.13'
+      - name: Install black
+        run: pip install black
+      - name: Black Code Format Check
+        run: black . --check --fast --diff
 
   tests:
     name: Python Tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out code from GitHub
-        uses: "actions/checkout@v3"
+        uses: "actions/checkout@v4"
       - name: Set up Python 3.13
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Generate Requirements lists
@@ -48,10 +52,11 @@ jobs:
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --ignore W503,E722,F722  --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=15 --max-line-length=127 --statistics
-  #     - name: Test with pytest
-  #       run: |
-  #         pip install pytest
-  #         pytest
+      - name: Test with pytest
+        run: |
+          pip install pytest pytest-homeassistant-custom-component
+          pip install mac-vendor-lookup librouteros
+          pytest
 
   security:
     name: Security check - Bandit
@@ -59,15 +64,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code from GitHub
-        uses: "actions/checkout@v3"
-      - name: Security check - Bandit
-        uses: ioggstream/bandit-report-artifacts@v0.0.2
+        uses: "actions/checkout@v4"
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          project_path: custom_components/mikrotik_router
-          config_file: .github/bandit.yaml
-          ignore_failure: false
+          python-version: '3.13'
+      - name: Install bandit
+        run: pip install bandit
+      - name: Run Bandit security check
+        run: |
+          bandit -r custom_components/mikrotik_router -c .github/bandit.yaml -f txt -o output/security_report.txt || true
+          cat output/security_report.txt
+          bandit -r custom_components/mikrotik_router -c .github/bandit.yaml
       - name: Security check report artifacts
-        uses: actions/upload-artifact@v3
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: Security report
           path: output/security_report.txt
@@ -78,6 +89,6 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: Check out code from GitHub
-        uses: "actions/checkout@v3"
+        uses: "actions/checkout@v4"
       - name: Run hassfest
         uses: home-assistant/actions/hassfest@master

@@ -1,37 +1,43 @@
-# Mikrotik Router
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/tomaae/homeassistant-mikrotik_router?style=plastic)
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=plastic)](https://github.com/hacs/integration)
+# Mikrotik Router (Fixed Fork)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/jnctech/homeassistant-mikrotik_router?style=plastic)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=plastic)](https://github.com/hacs/integration)
 ![Project Stage](https://img.shields.io/badge/project%20stage-Production%20Ready-green.svg?style=plastic)
-![GitHub all releases](https://img.shields.io/github/downloads/tomaae/homeassistant-mikrotik_router/total?style=plastic)
+![GitHub all releases](https://img.shields.io/github/downloads/jnctech/homeassistant-mikrotik_router/total?style=plastic)
 
-![GitHub commits since latest release](https://img.shields.io/github/commits-since/tomaae/homeassistant-mikrotik_router/latest?style=plastic)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/tomaae/homeassistant-mikrotik_router?style=plastic)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/tomaae/homeassistant-mikrotik_router/ci.yml?style=plastic)
+![GitHub commits since latest release](https://img.shields.io/github/commits-since/jnctech/homeassistant-mikrotik_router/latest?style=plastic)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/jnctech/homeassistant-mikrotik_router?style=plastic)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/jnctech/homeassistant-mikrotik_router/ci.yml?style=plastic)
 
-[![Help localize](https://img.shields.io/badge/lokalise-join-green?style=plastic&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyhpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMTQ1IDc5LjE2MzQ5OSwgMjAxOC8wOC8xMy0xNjo0MDoyMiAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6REVCNzgzOEY4NDYxMTFFQUIyMEY4Njc0NzVDOUZFMkMiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6REVCNzgzOEU4NDYxMTFFQUIyMEY4Njc0NzVDOUZFMkMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTcgKE1hY2ludG9zaCkiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDozN0ZDRUY4Rjc0M0UxMUU3QUQ2MDg4M0Q0MkE0NjNCNSIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDozN0ZDRUY5MDc0M0UxMUU3QUQ2MDg4M0Q0MkE0NjNCNSIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/Pjs1zyIAAABVSURBVHjaYvz//z8DOYCJgUxAtkYW9+mXyXIrI7l+ZGHc0k5nGxkupdHZxve1yQR1CjbPZURXh9dGoGJZIPUI2QC4JEgjIfyuJuk/uhgj3dMqQIABAPEGTZ/+h0kEAAAAAElFTkSuQmCC)](https://app.lokalise.com/public/581188395e9778a6060128.17699416/)
+> **This is an actively maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The upstream repository is no longer maintained and has not accepted fixes for critical bugs. This fork provides the fix for the **Error 500 on Configure** issue affecting Home Assistant 2025.12 and later.
 
-![English](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/us.png)
-![Arabic](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/eg.png)
-![Chinese](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/cn.png)
-![Czech](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/cz.png)
-![Dutch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/nl.png)
-![French](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/fr.png)
-![German](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/de.png)
-![Greek](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/gr.png)
-![Hindi](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/in.png)
-![Hungarian](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/hu.png)
-![Icelandic](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/is.png)
-![Italian](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/it.png)
-![Japanese](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/jp.png)
-![Korean](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/kr.png)
-![Latvian](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/lv.png)
-![Polish](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/pl.png)
-![Portuguese](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/pt.png)
-![Russian](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/ru.png)
-![Slovak](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/sk.png)
-![Spanish](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/es.png)
-![Turkish](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/tr.png)
-![Vietnamese](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/flags/vn.png)
+## Fix: Error 500 / Internal Server Error on Configure
+
+If you are experiencing any of the following issues with the Mikrotik Router integration, this fork fixes them:
+
+- **Error 500 when clicking "Configure"** on the Mikrotik Router integration
+- **Internal Server Error** when trying to change options for Mikrotik Router
+- **"OptionsFlow has no attribute config_entry"** error in Home Assistant logs
+- **AttributeError: property 'config_entry' of 'OptionsFlow' object has no setter** in HA 2025.12+
+- **Mikrotik Router integration options page crashes** after updating Home Assistant
+- **Cannot reconfigure Mikrotik Router** after Home Assistant 2025.12 update
+
+This issue affects all users of the original `tomaae/homeassistant-mikrotik_router` integration who have updated to **Home Assistant 2025.12 or later**. The upstream repository has not merged the fix despite an open pull request.
+
+### How to switch to this fork
+
+If you installed the original via HACS:
+
+1. Remove the original `tomaae/homeassistant-mikrotik_router` repository from HACS
+2. Add this repository as a **custom repository** in HACS:
+   - Go to HACS > Integrations > 3-dot menu > Custom repositories
+   - Add `https://github.com/jnctech/homeassistant-mikrotik_router`
+   - Category: Integration
+3. Install **Mikrotik Router** from HACS
+4. Restart Home Assistant
+
+Your existing configuration and entities will be preserved -- no need to reconfigure.
+
+---
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
