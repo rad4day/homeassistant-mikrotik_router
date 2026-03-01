@@ -498,32 +498,41 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         elif 0 < self.major_fw_version >= 7:
             self.support_ppp = True
-            self.support_wireless = True
             if "wifiwave2" in packages and packages["wifiwave2"]["enabled"]:
                 self.support_capsman = False
+                self.support_wireless = True
                 self._wifimodule = "wifiwave2"
 
             elif "wifi" in packages and packages["wifi"]["enabled"]:
                 self.support_capsman = False
+                self.support_wireless = True
                 self._wifimodule = "wifi"
 
             elif "wifi-qcom" in packages and packages["wifi-qcom"]["enabled"]:
                 self.support_capsman = False
+                self.support_wireless = True
                 self._wifimodule = "wifi"
 
             elif "wifi-qcom-ac" in packages and packages["wifi-qcom-ac"]["enabled"]:
                 self.support_capsman = False
+                self.support_wireless = True
                 self._wifimodule = "wifi"
+
+            elif "wireless" in packages and packages["wireless"]["enabled"]:
+                self.support_capsman = True
+                self.support_wireless = True
+                self._wifimodule = "wireless"
 
             elif (
                 self.major_fw_version == 7 and self.minor_fw_version >= 13
             ) or self.major_fw_version > 7:
                 self.support_capsman = False
+                self.support_wireless = False
                 self._wifimodule = "wifi"
 
             else:
-                self.support_capsman = True
-                self.support_wireless = bool(self.minor_fw_version < 13)
+                self.support_capsman = False
+                self.support_wireless = False
 
             _LOGGER.debug(
                 "Mikrotik %s wifi module=%s",
