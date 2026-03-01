@@ -1,4 +1,4 @@
-# Mikrotik Router (Fixed Fork)
+# Mikrotik Router (Community Fork)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/jnctech/homeassistant-mikrotik_router?style=plastic)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=plastic)](https://github.com/hacs/integration)
 ![Project Stage](https://img.shields.io/badge/project%20stage-Production%20Ready-green.svg?style=plastic)
@@ -8,7 +8,7 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/jnctech/homeassistant-mikrotik_router?style=plastic)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/jnctech/homeassistant-mikrotik_router/ci.yml?style=plastic)
 
-> **This is an actively maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The upstream repository is no longer maintained and has not accepted fixes for critical bugs. This fork provides the fix for the **Error 500 on Configure** issue affecting Home Assistant 2025.12 and later.
+> **This is a community-maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The original author built an incredible integration that many of us rely on daily. Life gets busy and open-source maintainers are volunteers -- we're grateful for all the work that went into this project. This fork exists to keep things running while the upstream repo is on a break, and we're happy to contribute fixes back anytime.
 
 ## Fix: Error 500 / Internal Server Error on Configure
 
@@ -21,7 +21,7 @@ If you are experiencing any of the following issues with the Mikrotik Router int
 - **Mikrotik Router integration options page crashes** after updating Home Assistant
 - **Cannot reconfigure Mikrotik Router** after Home Assistant 2025.12 update
 
-This issue affects all users of the original `tomaae/homeassistant-mikrotik_router` integration who have updated to **Home Assistant 2025.12 or later**. The upstream repository has not merged the fix despite an open pull request.
+This issue affects users of the original `tomaae/homeassistant-mikrotik_router` integration on **Home Assistant 2025.12 or later**.
 
 ### How to switch to this fork
 
@@ -36,6 +36,8 @@ If you installed the original via HACS:
 4. Restart Home Assistant
 
 Your existing configuration and entities will be preserved -- no need to reconfigure.
+
+If and when the upstream repo is updated, switching back is just as easy.
 
 ---
 
@@ -218,6 +220,43 @@ Second options page:
 ![Integration sensors](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/integration_options_sensors.png)
 
 Select sensors you want to use in Home Assistant.
+
+# Known Issues & Workarounds
+
+## Wireless clients always showing 0 (hAP ac2, ax devices, RouterOS 7.x)
+
+**Affected devices:** hAP ac2, hAP ax2, hAP ax3, Audience, and any device using MikroTik's newer **WiFi package** (not the legacy **Wireless package**).
+
+**What's happening:** MikroTik introduced a new WiFi system starting with 802.11ax (WiFi 6) devices. The newer WiFi package uses different API endpoints (`/interface/wifi`) compared to the legacy Wireless package (`/interface/wireless`). The integration currently only queries the legacy endpoints, so wireless client counts return 0 on newer devices.
+
+**Workaround — use Kid Control for device tracking:**
+
+This gives you per-device tracking and bandwidth monitoring even when wireless client counts don't work.
+
+1. SSH or open a terminal to your MikroTik router
+2. Create a dummy Kid Control entry that covers all days:
+```
+/ip kid-control add name=Monitor mon=0s-1d tue=0s-1d wed=0s-1d thu=0s-1d fri=0s-1d sat=0s-1d sun=0s-1d
+```
+3. MikroTik will now automatically track all known devices under **IP > Kid Control > Devices**
+4. In the integration options (Configure), enable **"Track network devices"**
+5. Reload the integration
+
+This gives you device presence detection and per-client traffic stats via Kid Control Devices, bypassing the broken wireless client counter entirely.
+
+**Status:** We're looking at adding support for the new WiFi package API endpoints in a future release ([upstream #421](https://github.com/tomaae/homeassistant-mikrotik_router/issues/421)).
+
+## Integration fails on routers without wireless package
+
+**Affected devices:** RB4011, RB5009, CCR series, and any router where you've disabled the wireless package.
+
+**What's happening:** The integration tries to query `/caps-man/registration-table` even on routers that don't have wireless functionality, causing the whole integration to fail.
+
+**Workaround:** There is currently no workaround other than re-enabling the wireless package (even if unused).
+
+**Status:** We're working on a fix to gracefully handle missing wireless packages ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433)).
+
+---
 
 # Development
 
