@@ -34,6 +34,14 @@ DEFAULT_TRACK_HOSTS = False
 CONF_TRACK_HOSTS_TIMEOUT = "track_network_hosts_timeout"
 DEFAULT_TRACK_HOST_TIMEOUT = 180
 
+PKG_WIRELESS = "wireless"
+PKG_WIFIWAVE2 = "wifiwave2"
+PKG_WIFI = "wifi"
+PKG_WIFI_QCOM = "wifi-qcom"
+PKG_WIFI_QCOM_AC = "wifi-qcom-ac"
+PKG_UPS = "ups"
+PKG_GPS = "gps"
+
 CONF_SENSOR_PORT_TRACKER = "sensor_port_tracker"
 DEFAULT_SENSOR_PORT_TRACKER = False
 CONF_SENSOR_PORT_TRAFFIC = "sensor_port_traffic"
