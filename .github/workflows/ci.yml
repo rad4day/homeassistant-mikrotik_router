@@ -54,9 +54,14 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=15 --max-line-length=127 --statistics
       - name: Test with pytest
         run: |
-          pip install pytest pytest-homeassistant-custom-component
+          pip install pytest pytest-homeassistant-custom-component pytest-cov
           pip install mac-vendor-lookup librouteros
-          pytest
+          pytest --cov=custom_components/mikrotik_router --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
 
   security:
     name: Security check - Bandit
