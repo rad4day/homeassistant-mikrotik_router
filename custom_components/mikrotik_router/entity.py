@@ -90,7 +90,10 @@ def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
 
     # Skip PoE-out sensors if disabled or interface doesn't support PoE
     if entity_description.data_attribute in (
-        "poe-out-status", "poe-out-voltage", "poe-out-current", "poe-out-power"
+        "poe-out-status",
+        "poe-out-voltage",
+        "poe-out-current",
+        "poe-out-power",
     ):
         if not config_entry.options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE):
             return True

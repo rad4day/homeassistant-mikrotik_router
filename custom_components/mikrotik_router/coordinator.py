@@ -904,7 +904,11 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                         ],
                     )
 
-                if self.option_sensor_poe and vals.get("poe-out") not in (None, "N/A", ""):
+                if self.option_sensor_poe and vals.get("poe-out") not in (
+                    None,
+                    "N/A",
+                    "",
+                ):
                     self.ds["interface"] = parse_api(
                         data=self.ds["interface"],
                         source=self.api.query(

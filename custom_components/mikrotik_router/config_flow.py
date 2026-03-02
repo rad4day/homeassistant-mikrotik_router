@@ -308,9 +308,7 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
                     ): bool,
                     vol.Optional(
                         CONF_SENSOR_POE,
-                        default=self._options.get(
-                            CONF_SENSOR_POE, DEFAULT_SENSOR_POE
-                        ),
+                        default=self._options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE),
                     ): bool,
                 },
             ),
