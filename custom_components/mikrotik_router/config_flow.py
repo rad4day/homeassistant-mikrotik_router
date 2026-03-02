@@ -62,6 +62,8 @@ from .const import (
     DEFAULT_VERIFY_SSL,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
     CONF_SENSOR_NETWATCH_TRACKER,
+    CONF_SENSOR_POE,
+    DEFAULT_SENSOR_POE,
 )
 from .mikrotikapi import MikrotikAPI
 
@@ -308,6 +310,12 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlow):
                         CONF_SENSOR_ENVIRONMENT,
                         default=self._options.get(
                             CONF_SENSOR_ENVIRONMENT, DEFAULT_SENSOR_ENVIRONMENT
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_SENSOR_POE,
+                        default=self._options.get(
+                            CONF_SENSOR_POE, DEFAULT_SENSOR_POE
                         ),
                     ): bool,
                 },

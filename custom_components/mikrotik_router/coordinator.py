@@ -63,6 +63,8 @@ from .const import (
     DEFAULT_SENSOR_ENVIRONMENT,
     CONF_SENSOR_NETWATCH_TRACKER,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
+    CONF_SENSOR_POE,
+    DEFAULT_SENSOR_POE,
 )
 from .apiparser import parse_api
 from .mikrotikapi import MikrotikAPI
@@ -412,6 +414,14 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     def option_sensor_ppp(self):
         """Config entry option to not track ARP."""
         return self.config_entry.options.get(CONF_SENSOR_PPP, DEFAULT_SENSOR_PPP)
+
+    # ---------------------------
+    #   option_sensor_poe
+    # ---------------------------
+    @property
+    def option_sensor_poe(self):
+        """Config entry option for PoE monitoring sensors."""
+        return self.config_entry.options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE)
 
     # ---------------------------
     #   option_sensor_scripts
@@ -891,6 +901,23 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                             {"name": "rate", "default": "unknown"},
                             {"name": "full-duplex", "default": "unknown"},
                             {"name": "auto-negotiation", "default": "unknown"},
+                        ],
+                    )
+
+                if self.option_sensor_poe and vals.get("poe-out") not in (None, "N/A", ""):
+                    self.ds["interface"] = parse_api(
+                        data=self.ds["interface"],
+                        source=self.api.query(
+                            "/interface/ethernet/poe",
+                            command="monitor",
+                            args={".id": vals[".id"], "once": True},
+                        ),
+                        key_search="name",
+                        vals=[
+                            {"name": "poe-out-status", "default": "unknown"},
+                            {"name": "poe-out-voltage", "default": 0},
+                            {"name": "poe-out-current", "default": 0},
+                            {"name": "poe-out-power", "default": 0},
                         ],
                     )
 
@@ -1451,6 +1478,8 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     {"name": "phy-temperature", "default": 0},
                     {"name": "fan1-speed", "default": 0},
                     {"name": "fan2-speed", "default": 0},
+                    {"name": "poe-in-voltage", "default": 0},
+                    {"name": "poe-in-current", "default": 0},
                 ],
             )
         elif 0 < self.major_fw_version >= 7:
