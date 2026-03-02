@@ -39,7 +39,8 @@ Monitor and control your Mikrotik device from Home Assistant.
  * Interfaces:
    * Enable/disable interfaces
    * SFP status and information
-   * POE status, control and information
+   * PoE-out per-port sensors: status, voltage, current and power consumption
+   * PoE-in sensors: input voltage and current for PoE-powered devices
    * Monitor RX/TX traffic per interface
    * Monitor device presence per interface
    * IP, MAC, Link information per an interface for connected devices
@@ -69,6 +70,33 @@ Monitor and control status on each Mikrotik interface, both lan and wlan. Both p
 ![Interface Info](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface.png)
 ![Interface Switch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface_switch.png)
 ![Interface Sensor](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface_sensor.png)
+
+## PoE Monitoring
+Monitor Power over Ethernet (PoE) status and power metrics for each PoE-capable port on your MikroTik switch or router directly in Home Assistant.
+
+More information about PoE-Out can be found on the [MikroTik support page](https://help.mikrotik.com/docs/display/ROS/PoE-Out).
+
+### PoE-Out sensors (per port)
+Enable **PoE port sensors** in the integration options to add the following diagnostic sensors for each PoE-capable ethernet port:
+
+| Sensor | Description | Example values |
+|--------|-------------|----------------|
+| PoE out status | Current PoE port operational state | `powered-on`, `waiting-for-load`, `short-circuit`, `overload`, `voltage-too-low`, `off` |
+| PoE out voltage | Output voltage to the connected device | 48.0 V |
+| PoE out current | Output current to the connected device | 120 mA |
+| PoE out power | Power consumed by the connected device | 5.76 W |
+
+Use `poe-out-status` in automations to detect PoE faults (overload, short-circuit) or trigger actions when a device is powered on or off. Combine `poe-out-power` with energy dashboards to track per-port power consumption on managed PoE switches such as the CRS series.
+
+> **Note:** PoE port sensors are opt-in. Enable them under **Settings → Devices & Services → Mikrotik Router → Configure → PoE port sensors**. Sensors only appear for ports that report PoE capability (i.e. `poe-out` is set on the interface). Implements [upstream feature request #259](https://github.com/tomaae/homeassistant-mikrotik_router/issues/259).
+
+### PoE-In sensors (system)
+For MikroTik devices that are themselves powered via PoE (such as hAP series access points), the following sensors appear automatically under the System device when the hardware reports them — no opt-in required:
+
+| Sensor | Description |
+|--------|-------------|
+| PoE in voltage | Input voltage supplied to the device via PoE |
+| PoE in current | Input current supplied to the device via PoE |
 
 ## NAT
 Monitor and control individual NAT rules.
