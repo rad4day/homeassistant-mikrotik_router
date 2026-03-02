@@ -96,7 +96,7 @@ class MikrotikControllerConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return MikrotikControllerOptionsFlowHandler()
+        return MikrotikControllerOptionsFlowHandler(config_entry)
 
     async def async_step_import(self, user_input=None):
         """Occurs when a previously entry setup fails and is re-initiated."""
@@ -172,6 +172,11 @@ class MikrotikControllerConfigFlow(ConfigFlow, domain=DOMAIN):
 # ---------------------------
 class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
     """Handle options."""
+
+    def __init__(self, config_entry=None):
+        """Initialize; accepts config_entry for HA < 2025.12 compatibility."""
+        if config_entry is not None:
+            super().__init__(config_entry)
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
