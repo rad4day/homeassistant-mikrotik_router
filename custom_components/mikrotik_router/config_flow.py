@@ -5,7 +5,7 @@ import logging
 import voluptuous as vol
 from homeassistant.config_entries import (
     ConfigFlow,
-    OptionsFlow,
+    OptionsFlowWithConfigEntry,
 )
 from homeassistant.const import (
     CONF_NAME,
@@ -96,7 +96,7 @@ class MikrotikControllerConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return MikrotikControllerOptionsFlowHandler(config_entry)
+        return MikrotikControllerOptionsFlowHandler()
 
     async def async_step_import(self, user_input=None):
         """Occurs when a previously entry setup fails and is re-initiated."""
@@ -170,15 +170,12 @@ class MikrotikControllerConfigFlow(ConfigFlow, domain=DOMAIN):
 # ---------------------------
 #   MikrotikControllerOptionsFlowHandler
 # ---------------------------
-class MikrotikControllerOptionsFlowHandler(OptionsFlow):
+class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
     """Handle options."""
 
-    def __init__(self, config_entry):
-        """Initialize options flow with a mutable copy of the current options."""
-        self._options = dict(config_entry.options)
-
     async def async_step_init(self, user_input=None):
-        """Delegate to the first options step."""
+        """Manage the options."""
+        self._options = dict(self.config_entry.options)
         return await self.async_step_basic_options(user_input)
 
     async def async_step_basic_options(self, user_input=None):
@@ -266,9 +263,7 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlow):
                     ): bool,
                     vol.Optional(
                         CONF_SENSOR_NAT,
-                        default=self._options.get(
-                            CONF_SENSOR_NAT, DEFAULT_SENSOR_NAT
-                        ),
+                        default=self._options.get(CONF_SENSOR_NAT, DEFAULT_SENSOR_NAT),
                     ): bool,
                     vol.Optional(
                         CONF_SENSOR_MANGLE,
@@ -297,9 +292,7 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlow):
                     ): bool,
                     vol.Optional(
                         CONF_SENSOR_PPP,
-                        default=self._options.get(
-                            CONF_SENSOR_PPP, DEFAULT_SENSOR_PPP
-                        ),
+                        default=self._options.get(CONF_SENSOR_PPP, DEFAULT_SENSOR_PPP),
                     ): bool,
                     vol.Optional(
                         CONF_SENSOR_SCRIPTS,

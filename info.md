@@ -1,33 +1,32 @@
-Monitor and control your Mikrotik device from Home Assistant.
+Monitor and control your MikroTik router from Home Assistant.
+
+**Community-maintained fork** with active bug fixes for HA 2025.12+ compatibility, RouterOS 7 support, and more.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
- * Interfaces:
-   * Enable/disable interfaces
-   * SFP status and information
-   * POE status, control and information
-   * Monitor RX/TX traffic per interface
-   * Monitor device presence per interface
-   * IP, MAC, Link information per an interface for connected devices
- * Enable/disable NAT rule switches
- * Enable/disable Simple Queue switches
- * Enable/disable Mangle switches
- * Enable/disable Filter switches
- * Monitor and control PPP users
+
+### Recent fixes (dev release)
+- **RB4011 / RB5009 / CCR crash fix** — integration no longer fails on routers without wireless package ([#433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
+- **Temperature unit conversion** — sensors now respect Fahrenheit preference ([#230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
+- **Error 500 on Configure** — fixed for HA 2025.12+ ([#464](https://github.com/tomaae/homeassistant-mikrotik_router/issues/464))
+- **WiFi package detection** — supports wifiwave2, wifi, wifi-qcom, wifi-qcom-ac on RouterOS 7
+
+### Features
+ * Interfaces: enable/disable, SFP info, POE control, RX/TX traffic, device presence
+ * NAT / Mangle / Filter / Simple Queue rule switches
+ * PPP user monitoring and control
  * Kid Control
- * Mikrotik Accounting traffic sensors per hosts for RX/TX WAN/LAN
- * Device tracker for hosts in network
- * System sensors (CPU, Memory, HDD, Temperature)
- * Check firmware update
- * Execute scripts
- * View environment variables
- * Configurable update interval
- * Configurable traffic unit (bps, Kbps, Mbps, B/s, KB/s, MB/s)
- * Supports monitoring of multiple mikrotik devices simultaneously
+ * Client traffic monitoring (Accounting on v6, Kid Control Devices on v7+)
+ * Device tracker for all network hosts
+ * System sensors (CPU, Memory, HDD, Temperature, Voltage, Fan speed)
+ * RouterOS and firmware update sensors
+ * Script execution
+ * Environment variables
+ * GPS and UPS monitoring
+ * Configurable scan interval and traffic units
 
 ## Links
-- [Documentation](https://github.com/tomaae/homeassistant-mikrotik_router/tree/master)
-- [Configuration](https://github.com/tomaae/homeassistant-mikrotik_router/tree/master#setup-integration)
-- [Report a Bug](https://github.com/tomaae/homeassistant-mikrotik_router/issues/new?labels=bug&template=bug_report.md&title=%5BBug%5D)
-- [Suggest an idea](https://github.com/tomaae/homeassistant-mikrotik_router/issues/new?labels=enhancement&template=feature_request.md&title=%5BFeature%5D)
-
-[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/G2G71MKZG)
+- [Documentation](https://github.com/jnctech/homeassistant-mikrotik_router/tree/master)
+- [Configuration](https://github.com/jnctech/homeassistant-mikrotik_router/tree/master#setup-integration)
+- [Report a Bug](https://github.com/jnctech/homeassistant-mikrotik_router/issues/new?labels=bug&template=bug_report.md&title=%5BBug%5D)
+- [Suggest an idea](https://github.com/jnctech/homeassistant-mikrotik_router/issues/new?labels=enhancement&template=feature_request.md&title=%5BFeature%5D)
+- [Upstream repo](https://github.com/tomaae/homeassistant-mikrotik_router) (original by tomaae)

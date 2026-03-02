@@ -136,9 +136,7 @@ async def test_flow_user_ssl_error(hass):
     """Test the user config flow handles SSL errors."""
     with patch(
         "custom_components.mikrotik_router.config_flow.MikrotikAPI",
-        return_value=_mock_api(
-            connect_return=False, error="ssl_handshake_failure"
-        ),
+        return_value=_mock_api(connect_return=False, error="ssl_handshake_failure"),
     ):
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": "user"}, data=MOCK_USER_INPUT
