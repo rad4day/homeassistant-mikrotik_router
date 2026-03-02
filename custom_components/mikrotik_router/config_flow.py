@@ -174,15 +174,15 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlow):
     """Handle options."""
 
     def __init__(self, config_entry):
-        """Initialise options flow with a mutable copy of the current options."""
+        """Initialize options flow with a mutable copy of the current options."""
         self._options = dict(config_entry.options)
 
     async def async_step_init(self, user_input=None):
-        """Manage the options."""
+        """Delegate to the first options step."""
         return await self.async_step_basic_options(user_input)
 
     async def async_step_basic_options(self, user_input=None):
-        """Manage the basic options options."""
+        """Manage the basic options."""
         if user_input is not None:
             self._options.update(user_input)
             return await self.async_step_sensor_select()
