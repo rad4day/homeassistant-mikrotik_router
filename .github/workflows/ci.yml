@@ -75,6 +75,7 @@ jobs:
         run: pip install bandit
       - name: Run Bandit security check
         run: |
+          mkdir -p output
           bandit -r custom_components/mikrotik_router -c .github/bandit.yaml -f txt -o output/security_report.txt || true
           cat output/security_report.txt
           bandit -r custom_components/mikrotik_router -c .github/bandit.yaml
