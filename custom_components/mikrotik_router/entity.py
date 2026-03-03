@@ -99,6 +99,13 @@ def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
             return True
         if data[uid].get("poe-out-status") is None:
             return True
+        # Skip measurement sensors on hardware that doesn't report power monitoring
+        if entity_description.data_attribute in (
+            "poe-out-voltage",
+            "poe-out-current",
+            "poe-out-power",
+        ) and data[uid].get(entity_description.data_attribute) is None:
+            return True
 
     return False
 

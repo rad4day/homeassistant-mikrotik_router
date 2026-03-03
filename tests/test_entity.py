@@ -174,6 +174,46 @@ def test_skip_poe_voltage_sensor_on_non_poe_interface():
     assert _skip_sensor(cfg, desc, data, "ether1") is True
 
 
+def test_skip_poe_measurement_sensor_when_value_is_none():
+    """PoE measurement sensors are skipped when API returns None (passive PoE hardware).
+
+    Passive PoE ports (e.g. hAP ax3 ether1) report poe-out-status but the
+    measurement fields are absent from the API response and default to None.
+    """
+    desc = make_entity_desc(data_attribute="poe-out-voltage")
+    data = {
+        "ether1": {
+            "type": "ether",
+            "poe-out": "auto-on",
+            "poe-out-status": "powered-on",
+            "poe-out-voltage": None,
+            "poe-out-current": None,
+            "poe-out-power": None,
+        }
+    }
+    cfg = make_config_entry({CONF_SENSOR_POE: True})
+
+    assert _skip_sensor(cfg, desc, data, "ether1") is True
+
+
+def test_no_skip_poe_measurement_sensor_when_hardware_reports_values():
+    """PoE measurement sensors are shown when hardware returns real values (CRS, etc.)."""
+    desc = make_entity_desc(data_attribute="poe-out-voltage")
+    data = {
+        "ether1": {
+            "type": "ether",
+            "poe-out": "auto-on",
+            "poe-out-status": "powered-on",
+            "poe-out-voltage": 23.8,
+            "poe-out-current": 180,
+            "poe-out-power": 4.3,
+        }
+    }
+    cfg = make_config_entry({CONF_SENSOR_POE: True})
+
+    assert _skip_sensor(cfg, desc, data, "ether1") is False
+
+
 # ---------------------------------------------------------------------------
 # Client traffic test
 # ---------------------------------------------------------------------------

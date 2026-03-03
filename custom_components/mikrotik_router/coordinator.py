@@ -919,9 +919,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                         key_search="name",
                         vals=[
                             {"name": "poe-out-status", "default": "unknown"},
-                            {"name": "poe-out-voltage", "default": 0},
-                            {"name": "poe-out-current", "default": 0},
-                            {"name": "poe-out-power", "default": 0},
+                            {"name": "poe-out-voltage", "default": None},
+                            {"name": "poe-out-current", "default": None},
+                            {"name": "poe-out-power", "default": None},
                         ],
                     )
 

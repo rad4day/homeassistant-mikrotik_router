@@ -342,8 +342,13 @@ def test_poe_monitor_merges_all_four_fields():
     assert result["ether1"]["poe-out-power"] == 7.6
 
 
-def test_poe_monitor_uses_defaults_for_missing_fields():
-    """parse_api with partial PoE monitor response uses defaults for missing fields."""
+def test_poe_monitor_uses_none_defaults_for_missing_fields():
+    """parse_api with partial PoE monitor response uses None defaults for missing fields.
+
+    This mirrors the real coordinator behaviour: if the hardware doesn't return
+    poe-out-voltage/current/power, they default to None so _skip_sensor() can
+    hide those sensors on passive-PoE hardware (e.g. hAP ax3).
+    """
     data = {
         "ether1": {
             "name": "ether1",
@@ -358,12 +363,12 @@ def test_poe_monitor_uses_defaults_for_missing_fields():
         key_search="name",
         vals=[
             {"name": "poe-out-status", "default": "unknown"},
-            {"name": "poe-out-voltage", "default": 0},
-            {"name": "poe-out-current", "default": 0},
-            {"name": "poe-out-power", "default": 0},
+            {"name": "poe-out-voltage", "default": None},
+            {"name": "poe-out-current", "default": None},
+            {"name": "poe-out-power", "default": None},
         ],
     )
     assert result["ether1"]["poe-out-status"] == "waiting-for-load"
-    assert result["ether1"]["poe-out-voltage"] == 0
-    assert result["ether1"]["poe-out-current"] == 0
-    assert result["ether1"]["poe-out-power"] == 0
+    assert result["ether1"]["poe-out-voltage"] is None
+    assert result["ether1"]["poe-out-current"] is None
+    assert result["ether1"]["poe-out-power"] is None
