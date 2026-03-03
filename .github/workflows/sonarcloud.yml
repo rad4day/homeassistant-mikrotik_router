@@ -5,6 +5,12 @@ on:
     paths:
       - 'custom_components/**'
       - 'tests/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'custom_components/**'
+      - 'tests/**'
+  workflow_dispatch:
 
 jobs:
 
@@ -13,7 +19,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code from GitHub
-        uses: "actions/checkout@v2"
+        uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Generate coverage report
+        run: |
+          pip install pytest pytest-homeassistant-custom-component pytest-cov
+          pip install mac-vendor-lookup librouteros
+          pytest --cov=custom_components/mikrotik_router --cov-report=xml
       - name: SonarCloud Code Analysis
         uses: sonarsource/sonarcloud-github-action@master
         env:

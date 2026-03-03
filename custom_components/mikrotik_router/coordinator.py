@@ -63,6 +63,8 @@ from .const import (
     DEFAULT_SENSOR_ENVIRONMENT,
     CONF_SENSOR_NETWATCH_TRACKER,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
+    CONF_SENSOR_POE,
+    DEFAULT_SENSOR_POE,
 )
 from .apiparser import parse_api
 from .mikrotikapi import MikrotikAPI
@@ -412,6 +414,14 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     def option_sensor_ppp(self):
         """Config entry option to not track ARP."""
         return self.config_entry.options.get(CONF_SENSOR_PPP, DEFAULT_SENSOR_PPP)
+
+    # ---------------------------
+    #   option_sensor_poe
+    # ---------------------------
+    @property
+    def option_sensor_poe(self):
+        """Config entry option for PoE monitoring sensors."""
+        return self.config_entry.options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE)
 
     # ---------------------------
     #   option_sensor_scripts
@@ -891,6 +901,27 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                             {"name": "rate", "default": "unknown"},
                             {"name": "full-duplex", "default": "unknown"},
                             {"name": "auto-negotiation", "default": "unknown"},
+                        ],
+                    )
+
+                if self.option_sensor_poe and vals.get("poe-out") not in (
+                    None,
+                    "N/A",
+                    "",
+                ):
+                    self.ds["interface"] = parse_api(
+                        data=self.ds["interface"],
+                        source=self.api.query(
+                            "/interface/ethernet/poe",
+                            command="monitor",
+                            args={".id": vals[".id"], "once": True},
+                        ),
+                        key_search="name",
+                        vals=[
+                            {"name": "poe-out-status", "default": "unknown"},
+                            {"name": "poe-out-voltage", "default": None},
+                            {"name": "poe-out-current", "default": None},
+                            {"name": "poe-out-power", "default": None},
                         ],
                     )
 
@@ -1451,6 +1482,8 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     {"name": "phy-temperature", "default": 0},
                     {"name": "fan1-speed", "default": 0},
                     {"name": "fan2-speed", "default": 0},
+                    {"name": "poe-in-voltage", "default": 0},
+                    {"name": "poe-in-current", "default": 0},
                 ],
             )
         elif 0 < self.major_fw_version >= 7:
@@ -1835,7 +1868,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     def get_arp(self) -> None:
         """Get ARP data from Mikrotik"""
         self.ds["arp"] = parse_api(
-            data=self.ds["arp"],
+            data={},
             source=self.api.query("/ip/arp"),
             key="mac-address",
             vals=[{"name": "mac-address"}, {"name": "address"}, {"name": "interface"}],
@@ -2157,7 +2190,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self.ds["host"][uid][key] = vals[key]
 
         # Add hosts from ARP
+        arp_detected = {}
         for uid, vals in self.ds["arp"].items():
+            arp_detected[uid] = True
             if uid not in self.ds["host"]:
                 self.ds["host"][uid] = {"source": "arp"}
             elif self.ds["host"][uid]["source"] != "arp":
@@ -2219,6 +2254,14 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             # Wireless availability
             if vals["source"] == "wireless" and uid not in wireless_detected:
                 self.ds["host"][uid]["available"] = False
+
+            # Wired (ARP/DHCP) availability — present in current ARP table = online
+            if vals["source"] in ["arp", "dhcp"]:
+                if uid in arp_detected:
+                    self.ds["host"][uid]["available"] = True
+                    self.ds["host"][uid]["last-seen"] = utcnow()
+                else:
+                    self.ds["host"][uid]["available"] = False
 
             # Update IP and interface (DHCP/returned host)
             if (

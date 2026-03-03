@@ -17,7 +17,7 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ## What's New — v2.3.x Pre-Release
 
-The latest pre-release ([v2.3.1](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.1)) adds new features and fixes reported by the community. Install via HACS with "Show beta versions" enabled.
+The latest pre-release ([v2.3.2](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.2)) adds new features and fixes reported by the community. Install via HACS with "Show beta versions" enabled.
 
 ### New feature: PoE monitoring (v2.3.x)
 
@@ -38,6 +38,7 @@ Voltage, current and power sensors are **automatically hidden** on passive-PoE h
 |-----|--------|
 | PoE measurement sensors showing 0 on passive PoE ports | Sensors now hidden when hardware does not report measurements |
 | Wireless client count (`sensor.*_wireless_clients_api`) | Confirmed working on hAP ac2 and compatible devices |
+| **`clients_wired` always reports 0** | ARP/DHCP hosts now correctly marked available — wired client counter works ([upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468)) |
 
 ### How to install the pre-release
 
