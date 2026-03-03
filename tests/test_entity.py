@@ -17,6 +17,7 @@ from custom_components.mikrotik_router.const import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_entity_desc(**kwargs):
     """Build a minimal entity_description MagicMock with given attributes."""
     desc = MagicMock()

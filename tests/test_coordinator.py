@@ -15,10 +15,10 @@ from custom_components.mikrotik_router.const import (
 
 from .conftest import MockMikrotikAPI
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_coordinator(options=None, api_responses=None, major_fw_version=6):
     """Build a minimal MikrotikCoordinator without triggering __init__."""
