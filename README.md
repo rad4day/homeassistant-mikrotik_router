@@ -167,12 +167,16 @@ Use `poe-out-status` in automations to detect PoE faults (overload, short-circui
 5. If no sensors appear, check that the port has `poe-out` set in RouterOS (`/interface ethernet poe print`) and that a device is connected
 
 ### PoE-In sensors (system)
-For MikroTik devices that are themselves powered via PoE (such as the CRS310-8G+2S+IN, hAP series, and other PoE-powered devices), the following sensors appear automatically under the System device when the hardware reports them — no opt-in required:
+For MikroTik devices that are themselves powered via PoE, the following sensors appear automatically under the System device when the hardware reports them — no opt-in required:
 
 | Sensor | Description |
 |--------|-------------|
 | PoE in voltage | Input voltage supplied to the device via PoE |
 | PoE in current | Input current supplied to the device via PoE |
+
+Example devices with PoE-In:
+- **CRS310-8G+2S+IN** — management port accepts 802.3af/at (standard PoE) and passive PoE 18–57 V DC
+- **hAP series** access points powered via passive PoE injector
 
 PoE-In sensors only appear if your device reports these values via `/system/health`. Not all PoE-powered devices expose these measurements — verify with `/system health print` in RouterOS terminal. If `poe-in-voltage` and `poe-in-current` appear in the output, the sensors will be available.
 
