@@ -386,7 +386,8 @@ def make_coordinator_for_host(arp_entries=None, dhcp_entries=None, host_entries=
     # Required attributes for async_process_host
     coordinator.support_capsman = False
     coordinator.support_wireless = False
-    coordinator.option_sensor_client_captive = False
+    # option_sensor_client_captive is a @property reading from config_entry.options;
+    # make_coordinator() sets options={} so it defaults to DEFAULT_SENSOR_CLIENT_CAPTIVE=False
     coordinator.host_hass_recovered = True  # skip HA registry recovery
 
     mac_lookup = MagicMock()
