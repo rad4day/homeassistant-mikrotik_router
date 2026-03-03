@@ -1,4 +1,5 @@
-# Mikrotik Router Integration for Home Assistant (Community Fork)
+# MikroTik Router Integration for Home Assistant
+
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/jnctech/homeassistant-mikrotik_router?style=plastic)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=plastic)](https://github.com/hacs/integration)
 ![Project Stage](https://img.shields.io/badge/project%20stage-Production%20Ready-green.svg?style=plastic)
@@ -8,111 +9,111 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/jnctech/homeassistant-mikrotik_router?style=plastic)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/jnctech/homeassistant-mikrotik_router/ci.yml?style=plastic)
 
-> **This is a community-maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The original author built an incredible integration that many of us rely on daily. Life gets busy and open-source maintainers are volunteers -- we're grateful for all the work that went into this project. This fork exists to keep things running while the upstream repo is on a break, and we're happy to contribute fixes back anytime.
+Monitor and control your entire MikroTik network from Home Assistant. This HACS integration connects to MikroTik routers, switches and access points running RouterOS v6 or v7, surfacing interface status, PoE monitoring, traffic sensors, wireless client counts, network device tracking, system health, firmware updates and more — all as native Home Assistant entities on a configurable polling interval.
 
-## Dev Release Available for Testing
+> **This is a community-maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The original author built an incredible integration that many of us rely on daily. This fork exists to keep things running and ship bug fixes while the upstream repo is quiet. We're happy to contribute fixes back anytime.
 
-We have a **pre-release build** with several community-reported bug fixes ready for testing. If you're experiencing any of the issues below, please try the dev release and report back.
+---
 
-### What's fixed in the dev release
+## What's New — v2.3.x Pre-Release
 
-| Issue | Problem | Upstream ref |
-|-------|---------|--------------|
-| **Integration crash on non-wireless routers** | RB4011, RB5009, CCR routers crash because the integration queries wireless API endpoints on devices with no wireless hardware | [upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433) |
-| **Temperature always shows Celsius** | Temperature sensors ignore HA unit preferences — users with imperial/Fahrenheit settings still see Celsius | [upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230) |
-| **Error 500 on Configure** | Clicking "Configure" on the integration in HA 2025.12+ returns Internal Server Error | [upstream #464](https://github.com/tomaae/homeassistant-mikrotik_router/issues/464) |
-| **WiFi package detection** | Correct detection of all RouterOS 7 WiFi package variants: `wifiwave2`, `wifi`, `wifi-qcom`, `wifi-qcom-ac` | — |
-| **PoE-out monitoring** | Per-port PoE status, voltage, current, and power sensors for managed PoE switches | — |
-| **PoE-in monitoring** | Input voltage and current sensors for PoE-powered devices; passive PoE status-only on compatible hardware | — |
-| **`clients_wired` always reports 0** | Wired client counter was permanently stuck at 0 — ARP/DHCP hosts were never marked as available in the host tracking code | [upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468) |
+The latest pre-release ([v2.3.2](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.2)) adds new features and fixes reported by the community. Install via HACS with "Show beta versions" enabled.
 
-### How to install the dev release
+### New feature: PoE monitoring (v2.3.x)
+
+Monitor Power over Ethernet status and power metrics for each PoE-capable port on your MikroTik switch or router directly in Home Assistant. Enable **PoE port sensors** under **Settings → Devices & Services → Mikrotik Router → Configure**.
+
+| Sensor | Description | Hardware |
+|--------|-------------|----------|
+| PoE out status | Port operational state (`powered-on`, `waiting-for-load`, `overload`, etc.) | All PoE ports |
+| PoE out voltage | Output voltage to connected device | Full monitoring hardware (CRS/CSS/hEX PoE) |
+| PoE out current | Output current to connected device | Full monitoring hardware (CRS/CSS/hEX PoE) |
+| PoE out power | Power consumed by connected device | Full monitoring hardware (CRS/CSS/hEX PoE) |
+
+Voltage, current and power sensors are **automatically hidden** on passive-PoE hardware that does not report measurements (e.g. hAP ax3 ether1). Only `poe-out-status` appears on those ports.
+
+### Fixes in v2.3.x
+
+| Fix | Detail |
+|-----|--------|
+| PoE measurement sensors showing 0 on passive PoE ports | Sensors now hidden when hardware does not report measurements |
+| Wireless client count (`sensor.*_wireless_clients_api`) | Confirmed working on hAP ac2 and compatible devices |
+| **`clients_wired` always reports 0** | ARP/DHCP hosts now correctly marked available — wired client counter works ([upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468)) |
+
+### How to install the pre-release
 
 1. In HACS, add this repo as a custom repository (if not already):
    - HACS > Integrations > 3-dot menu > Custom repositories
    - URL: `https://github.com/jnctech/homeassistant-mikrotik_router`
    - Category: Integration
-2. In HACS, go to the Mikrotik Router integration and select **Redownload**
-3. In the redownload dialog, enable **"Show beta versions"**
-4. Select the latest pre-release version and install
-5. Restart Home Assistant
-
-### How to report results
-
-Open an issue or comment on the relevant upstream issue. Even "works for me on RB5009 / RouterOS 7.16" is helpful — it tells us the fix is safe to ship.
+2. Go to the Mikrotik Router integration in HACS and select **Redownload**
+3. Enable **"Show beta versions"** and select the latest pre-release
+4. Restart Home Assistant
 
 ---
 
 ## Fixes in the Current Stable Release
 
-If you are experiencing any of the following issues with the Mikrotik Router integration, the stable release already fixes them:
+The current stable release fixes a critical crash introduced in **Home Assistant 2025.12**. If you are on the original `tomaae/homeassistant-mikrotik_router` integration and experience any of the following, switch to this fork:
 
 - **Error 500 when clicking "Configure"** on the Mikrotik Router integration
-- **Internal Server Error** when trying to change options for Mikrotik Router
-- **"OptionsFlow has no attribute config_entry"** error in Home Assistant logs
-- **AttributeError: property 'config_entry' of 'OptionsFlow' object has no setter** in HA 2025.12+
-- **Mikrotik Router integration options page crashes** after updating Home Assistant
+- **Internal Server Error** when changing integration options
+- **"OptionsFlow has no attribute config_entry"** in Home Assistant logs
+- **AttributeError: property 'config_entry' of 'OptionsFlow' object has no setter**
 - **Cannot reconfigure Mikrotik Router** after Home Assistant 2025.12 update
 
-This issue affects users of the original `tomaae/homeassistant-mikrotik_router` integration on **Home Assistant 2025.12 or later**.
+Additional fixes included in the stable release (pre-release status, pending broader testing):
 
-### How to switch to this fork
+| Fix | Upstream ref |
+|-----|--------------|
+| Integration crash on non-wireless routers (RB4011, RB5009, CCR series) | [#433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433) |
+| Temperature sensors ignore Fahrenheit preference | [#230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230) |
+| RouterOS 7 WiFi package detection (`wifiwave2`, `wifi`, `wifi-qcom`, `wifi-qcom-ac`) | — |
 
-If you installed the original via HACS:
+### How to switch from the upstream fork
 
-1. Remove the original `tomaae/homeassistant-mikrotik_router` repository from HACS
-2. Add this repository as a **custom repository** in HACS:
-   - Go to HACS > Integrations > 3-dot menu > Custom repositories
-   - Add `https://github.com/jnctech/homeassistant-mikrotik_router`
-   - Category: Integration
-3. Install **Mikrotik Router** from HACS
-4. Restart Home Assistant
+1. Remove `tomaae/homeassistant-mikrotik_router` from HACS custom repositories
+2. Add `https://github.com/jnctech/homeassistant-mikrotik_router` as a custom repository in HACS
+3. Install **Mikrotik Router** from HACS and restart Home Assistant
 
-Your existing configuration and entities will be preserved -- no need to reconfigure.
-
-If and when the upstream repo is updated, switching back is just as easy.
+Your existing configuration and entities are preserved — no reconfiguration needed.
 
 ---
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-Monitor and control your Mikrotik device from Home Assistant.
- * Interfaces:
-   * Enable/disable interfaces
-   * SFP status and information
-   * PoE-out per-port sensors: status, voltage, current and power consumption
-   * PoE-in sensors: input voltage and current for PoE-powered devices
-   * Monitor RX/TX traffic per interface
-   * Monitor device presence per interface
-   * IP, MAC, Link information per an interface for connected devices
- * Enable/disable NAT rule switches
- * Enable/disable Simple Queue switches
- * Enable/disable Mangle switches
- * Enable/disable Filter switches
- * Monitor and control PPP users
- * Monitor UPS
- * Monitor GPS coordinates
- * Captive Portal
- * Kid Control
- * Client Traffic RX/TX WAN/LAN monitoring though Accounting or Kid Control Devices (depending on RouterOS FW version)
- * Device tracker for hosts in network
- * System sensors (CPU, Memory, HDD, Temperature)
- * Check and update RouterOS and RouterBOARD firmware
- * Execute scripts
- * View environment variables
- * Configurable update interval
- * Configurable traffic unit (bps, Kbps, Mbps, B/s, KB/s, MB/s)
- * Supports monitoring of multiple mikrotik devices simultaneously
+## Feature Highlights
+
+- **Interfaces** — enable/disable, SFP info, RX/TX traffic, connected device IP/MAC, interface presence
+- **PoE monitoring** *(new in v2.3.x)* — per-port status, voltage, current and power for PoE-capable switches
+- **NAT rules** — enable/disable individual rules
+- **Mangle rules** — enable/disable individual rules
+- **Filter rules** — enable/disable individual rules
+- **Simple Queues** — control bandwidth queues
+- **PPP users** — monitor and control PPP connections
+- **Host tracking** — presence detection for all LAN, wireless and CAPsMAN devices
+- **Netwatch** — track netwatch probe status
+- **Client traffic** — per-client RX/TX via Accounting (RouterOS v6) or Kid Control Devices (RouterOS v7)
+- **System sensors** — CPU, memory, HDD, temperature (Celsius/Fahrenheit)
+- **System health** — PoE-in voltage/current on supported hardware, UPS, environment sensors
+- **Firmware updates** — check and update RouterOS and RouterBOARD firmware from HA
+- **Scripts** — execute RouterOS scripts from HA
+- **GPS** — monitor GPS coordinates
+- **Kid Control** — monitor and control internet schedules
+- **Multiple devices** — monitor several MikroTik devices simultaneously
+
+---
 
 # Features
+
 ## Interfaces
-Monitor and control status on each Mikrotik interface, both lan and wlan. Both physical and virtual.
+Monitor and control status on each MikroTik interface — LAN, WLAN, physical and virtual.
 
 ![Interface Info](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface.png)
 ![Interface Switch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface_switch.png)
 ![Interface Sensor](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface_sensor.png)
 
-## PoE Monitoring
+## PoE Monitoring *(new — v2.3.x pre-release)*
 Monitor Power over Ethernet (PoE) status and power metrics for each PoE-capable port on your MikroTik switch or router directly in Home Assistant.
 
 More information about PoE-Out can be found on the [MikroTik support page](https://help.mikrotik.com/docs/display/ROS/PoE-Out).
@@ -128,8 +129,6 @@ PoE-Out sensors are available on MikroTik devices with managed PoE-Out ports, in
 
 #### Two tiers of PoE-Out monitoring
 
-Not all PoE-capable hardware reports the same level of detail:
-
 | Tier | Hardware examples | Sensors available |
 |------|-------------------|-------------------|
 | **Full monitoring** | CRS series managed switches, CSS series, hEX PoE | Status + voltage + current + power |
@@ -140,12 +139,6 @@ On **status-only** ports the voltage, current and power sensors are automaticall
 To confirm your device capability, run in RouterOS terminal:
 ```
 /interface ethernet poe monitor ether1 once
-```
-If the output includes `poe-out-voltage`, `poe-out-current` and `poe-out-power` fields, full monitoring is available. If only `poe-out-status` is returned, the port is status-only.
-
-You can also check which ports have PoE configured:
-```
-/interface ethernet poe print
 ```
 
 ### PoE-Out sensors (per port)
@@ -158,19 +151,10 @@ Enable **PoE port sensors** in the integration options to add the following diag
 | PoE out current | Output current to the connected device | 120 mA | Full monitoring only |
 | PoE out power | Power consumed by the connected device | 5.76 W | Full monitoring only |
 
-Use `poe-out-status` in automations to detect PoE faults (overload, short-circuit) or trigger actions when a device is powered on or off. Combine `poe-out-power` with energy dashboards to track per-port power consumption on managed PoE switches such as the CRS series.
-
-> **Note:** PoE port sensors are opt-in. Enable them under **Settings → Devices & Services → Mikrotik Router → Configure → PoE port sensors**. Sensors only appear for ports that report PoE capability (i.e. `poe-out` is set on the interface). Voltage, current and power sensors are automatically hidden on hardware that does not report those measurements. Implements [upstream feature request #259](https://github.com/tomaae/homeassistant-mikrotik_router/issues/259).
-
-### How to enable and verify
-1. Go to **Settings → Devices & Services → Mikrotik Router → Configure**
-2. Check **PoE port sensors** and save
-3. After the next poll cycle (default 60 s), new sensors appear under the **Interface** device for each PoE-capable port
-4. Verify in **Developer Tools → States** by searching for `poe_out` — you should see entities such as `sensor.ether2_poe_out_status`, `sensor.ether2_poe_out_power`, etc.
-5. If no sensors appear, check that the port has `poe-out` set in RouterOS (`/interface ethernet poe print`) and that a device is connected
+> **Note:** PoE port sensors are opt-in. Enable them under **Settings → Devices & Services → Mikrotik Router → Configure → PoE port sensors**. Voltage, current and power sensors are automatically hidden on hardware that does not report those measurements. Implements [upstream feature request #259](https://github.com/tomaae/homeassistant-mikrotik_router/issues/259).
 
 ### PoE-In sensors (system)
-For MikroTik devices that are themselves powered via PoE, the following sensors appear automatically under the System device when the hardware reports them — no opt-in required:
+For MikroTik devices powered via PoE, the following sensors appear automatically under the System device when the hardware reports them — no opt-in required:
 
 | Sensor | Description |
 |--------|-------------|
@@ -180,11 +164,7 @@ For MikroTik devices that are themselves powered via PoE, the following sensors 
 Example devices with PoE-In:
 - **CRS310-8G+2S+IN** — management port accepts 802.3af/at (standard PoE) and passive PoE 18–57 V DC
 
-PoE-In sensors only appear if your device exposes these values via `/system/health`. Not all PoE-powered devices support this command or report these measurements (for example, the hAP ac2 does not). Verify in RouterOS terminal:
-```
-/system health print
-```
-If the command returns `poe-in-voltage` and `poe-in-current` values, the sensors will appear. If the command gives a `bad command name health` error, your device does not support PoE-In monitoring.
+PoE-In sensors only appear if your device exposes these values via `/system/health`. Not all PoE-powered devices support this command (e.g. hAP ac2 returns `bad command name health`). Verify with `/system health print` in RouterOS terminal.
 
 ## NAT
 Monitor and control individual NAT rules.
@@ -218,23 +198,22 @@ Control and monitor PPP users.
 ![PPP tracker](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/ppp_tracker.png)
 
 ## Host Tracking
-Track availability of all network devices. All devices visible to Mikrotik device can be tracked, including: LAN connected devices and both Wireless and CAPsMAN from Mikrotik wireless package.
+Track availability of all network devices. All devices visible to the MikroTik device can be tracked, including LAN connected devices and both Wireless and CAPsMAN clients.
 
 ![Host tracker](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/host_tracker.png)
 
 ## Netwatch Tracking
-Track netwatch status.
+Track netwatch probe status.
 
 ![Netwatch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/netwatch_tracker.png)
 
 ## Scripts
-Execute Mikrotik Router scripts.
-You can execute scripts by automatically created switches or using services.
+Execute MikroTik Router scripts from Home Assistant via automatically created switches or services.
 
 ![Script Switch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/script_switch.png)
 
 ## Kid Control
-Monitor and control Kid Control.
+Monitor and control Kid Control internet schedules.
 
 ![Kid Control Enable](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/kidcontrol_switch.png)
 ![Kid Control Pause](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/kidcontrol_pause_switch.png)
@@ -242,25 +221,18 @@ Monitor and control Kid Control.
 ## Client Traffic
 
 ### Client Traffic for RouterOS v6
-Monitor per-IP throughput tracking based on Mikrotik Accounting.
+Monitor per-IP throughput based on MikroTik Accounting (Winbox: IP → Accounting).
 
-Feature is present in Winbox IP-Accounting. Make sure that threshold is set to reasonable value to store all connections between user defined scan interval. Max value is 8192 so for piece of mind I recommend setting that value.
+Set the threshold to a reasonable value — max is 8192. FastTracked packets are not counted.
 
-More information about Accounting can be found on [Mikrotik support page](https://wiki.mikrotik.com/wiki/Manual:IP/Accounting).
-
-NOTE: Accounting does not count in FastTracked packets.
-
+More information: [MikroTik Accounting](https://wiki.mikrotik.com/wiki/Manual:IP/Accounting).
 
 ### Client Traffic for RouterOS v7+
-In RouterOS v7 Accounting feature is deprecated so alternative approach for is to use 
-Kid Control Devices feature (IP - Kid Control - Devices).
+In RouterOS v7 the Accounting feature is deprecated. Use Kid Control Devices instead (IP → Kid Control → Devices). Requires at least one Kid entry to be defined — a dummy entry works:
 
-This feature requires at least one 'kid' to be defined, 
-after that Mikrotik will dynamically start tracking bandwidth usage of all known devices.
-
-Simple dummy Kid entry can be defined with
-
-```/ip kid-control add name=Monitor mon=0s-1d tue=0s-1d wed=0s-1d thu=0s-1d fri=0s-1d sat=0s-1d sun=0s-1d```
+```
+/ip kid-control add name=Monitor mon=0s-1d tue=0s-1d wed=0s-1d thu=0s-1d fri=0s-1d sat=0s-1d sun=0s-1d
+```
 
 ![Accounting sensor](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/accounting_sensor.png)
 
@@ -270,124 +242,104 @@ Monitor your UPS.
 ![UPS sensor](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/ups.png)
 
 ## GPS sensors
-Monitor your GPS coordinates.
+Monitor GPS coordinates.
 
 ![GPS sensor](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/gps.png)
 
 ## Update sensor
-Update Mikrotik OS and firmare directly from Home Assistant.
+Check and update RouterOS and RouterBOARD firmware directly from Home Assistant.
 
 ![RouterOS update](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/routeros_update.png)
 ![Firmware update](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/firmware_update.png)
 
-# Install integration
+---
+
+# Install Integration
+
 This integration is distributed using [HACS](https://hacs.xyz/).
 
-You can find it under "Integrations", named "Mikrotik Router"
+**Minimum requirements:**
+- RouterOS v6.43 or v7.1+
+- Home Assistant 0.114.0+
 
-Minimum requirements:
-* RouterOS v6.43/v7.1
-* Home Assistant 0.114.0
+## Setup
 
-## Using Mikrotik development branch
-If you are using development branch for mikrotik, some features may stop working due to major changes in RouterOS.
-Use integration master branch instead of latest release to keep up with RouterOS beta adjustments.
+1. Create a dedicated Home Assistant user on your MikroTik device with these permissions:
+   - `read, write, api, reboot, policy, test`
+   - `read` and `api` are mandatory; lower permissions will limit functionality
+   - System health sensors require `write` and `reboot` (MikroTik limitation)
+2. For script execution, the script itself needs only `read, write` — or check "Don't Require Permissions"
+3. Add the integration: **Settings → Devices & Services → Add Integration → Mikrotik Router**
 
-## Setup integration
-1. Create user for homeassistant on your mikrotik router with following permissions:
-   * read, write, api, reboot, policy, test
-   * lower permissions are supported, but it will limit functionality (read and api permissions are mandatory).
-   * system health sensors won't be available without write & reboot permissions. this limitation is on mikrotik side.
-2. If you want to be able to execute scripts on your mikrotik router from HA, script needs to have only following policies:
-   * read, write
-or check "Don't Require Permissions" option
-3. Setup this integration for your Mikrotik device in Home Assistant via `Configuration -> Integrations -> Add -> Mikrotik Router`.
-You can add this integration several times for different devices.
-
-NOTES: 
-- Do not mistake "Mikrotik Router" integration with HA build-in integration named "Mikrotik".
-- If you dont see "Mikrotik Router" integration, clear your browser cache.
+> Do not confuse "Mikrotik Router" with the built-in Home Assistant "Mikrotik" integration. If you don't see it, clear your browser cache.
 
 ![Add Integration](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/setup_integration.png)
-* "Name of the integration" - Friendly name for this router
-* "Host" - Use hostname or IP
-* "Port" - Leave at 0 for defaults
 
-## Configuration
-First options page:
+## Configuration options
 
 ![Integration options](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/integration_options.png)
-* "Scan interval" - Scan/refresh time in seconds. HA needs to be reloaded for scan interval change to be applied
-* "Unit of measurement" - Traffic sensor measurement (bps, Kbps, Mbps, B/s, KB/s, MB/s)
-* "Show client MAC and IP on interfaces" - Display connected IP and MAC address for devices connected to ports on router
-* "Track network devices timeout" - Tracked devices will be marked as away after timeout (does not apply to Mikrotik wireless and caps-man)
-* "Zone for device tracker" - Add new tracked devices to a specified Home Assistant zone
 
-Second options page:
+- **Scan interval** — poll frequency in seconds (HA reload required after change)
+- **Unit of measurement** — traffic sensor units: bps, Kbps, Mbps, B/s, KB/s, MB/s
+- **Show client MAC and IP on interfaces** — display connected device info per port
+- **Track network devices timeout** — mark tracked devices away after this period
+- **Zone for device tracker** — assign new tracked devices to a Home Assistant zone
 
 ![Integration sensors](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/integration_options_sensors.png)
 
-Select sensors you want to use in Home Assistant.
+---
 
 # Known Issues & Workarounds
 
-## Wireless clients always showing 0 (hAP ac2, hAP ax2, hAP ax3, Audience, RouterOS 7.x)
+## Wireless clients count (hAP ax2, hAP ax3, Audience, RouterOS 7 WiFi package)
 
-**Affected devices:** hAP ac2, hAP ax2, hAP ax3, Audience, and any MikroTik device using the newer **WiFi package** (not the legacy **Wireless package**).
+**Affected devices:** hAP ax2, hAP ax3, Audience, and devices using the newer **WiFi package** (not the legacy **Wireless package**).
 
-**What's happening:** MikroTik introduced a new WiFi system starting with 802.11ax (WiFi 6) devices. The newer WiFi package uses different API endpoints (`/interface/wifi`) compared to the legacy Wireless package (`/interface/wireless`). The integration currently only queries the legacy endpoints, so wireless client counts return 0 on newer devices.
+**What's happening:** Devices running the newer WiFi package (802.11ax/WiFi 6 hardware) use `/interface/wifi` API endpoints instead of the legacy `/interface/wireless`. The `sensor.*_wireless_clients_api` sensor works correctly on legacy Wireless package devices (confirmed on hAP ac2). Devices on the newer WiFi package may report 0.
 
 **Workaround — use Kid Control for device tracking:**
 
-This gives you per-device tracking and bandwidth monitoring even when wireless client counts don't work.
-
 1. SSH or open a terminal to your MikroTik router
-2. Create a dummy Kid Control entry that covers all days:
+2. Create a dummy Kid Control entry:
 ```
 /ip kid-control add name=Monitor mon=0s-1d tue=0s-1d wed=0s-1d thu=0s-1d fri=0s-1d sat=0s-1d sun=0s-1d
 ```
-3. MikroTik will now automatically track all known devices under **IP > Kid Control > Devices**
-4. In the integration options (Configure), enable **"Track network devices"**
-5. Reload the integration
+3. In integration options, enable **"Track network devices"**
+4. Reload the integration
 
-This gives you device presence detection and per-client traffic stats via Kid Control Devices, bypassing the broken wireless client counter entirely.
+This provides device presence detection and per-client traffic stats regardless of WiFi package version.
 
-**Status:** We're looking at adding support for the new WiFi package API endpoints in a future release ([upstream #421](https://github.com/tomaae/homeassistant-mikrotik_router/issues/421)).
+**Status:** Native support for the new WiFi package API is planned ([upstream #421](https://github.com/tomaae/homeassistant-mikrotik_router/issues/421)).
 
 ## Integration crashes on routers without wireless package (RB4011, RB5009, CCR series)
 
-**Affected devices:** RB4011, RB5009, CCR1009, CCR1016, CCR1036, CCR2004, CCR2116, and any MikroTik router where the wireless package is absent or disabled.
+**Affected devices:** RB4011, RB5009, CCR1009, CCR1016, CCR1036, CCR2004, CCR2116, and any MikroTik router where the wireless package is absent.
 
-**What's happening:** On RouterOS 7+, the integration unconditionally queries wireless API endpoints (`/interface/wireless`, `/caps-man/registration-table`) even on devices that have no wireless hardware. This causes the integration to crash on startup.
+**Status:** Fixed in the [v2.3.x pre-release](#whats-new--v23x-pre-release). The fix checks which WiFi packages are installed before querying wireless endpoints. ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
 
-**Status:** Fixed in the [dev release](#dev-release-available-for-testing). The fix correctly checks which WiFi packages are installed before querying wireless endpoints. Please test and report back so we can ship it in the next stable release. ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
+## Temperature sensors always show Celsius, ignore Fahrenheit preference
 
-## MikroTik temperature sensors always show Celsius, ignore Fahrenheit preference
+**Affected users:** Home Assistant instances configured for imperial/Fahrenheit units.
 
-**Affected users:** Anyone with Home Assistant configured for imperial units (Fahrenheit).
-
-**What's happening:** Temperature sensors (CPU temperature, board temperature, switch temperature, PHY temperature) always display in Celsius even when your HA instance is set to Fahrenheit. The sensors were overriding HA's automatic unit conversion.
-
-**Status:** Fixed in the [dev release](#dev-release-available-for-testing). Temperature sensors now respect your HA unit preference and auto-convert between Celsius and Fahrenheit. ([upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
+**Status:** Fixed in the [v2.3.x pre-release](#whats-new--v23x-pre-release). Temperature sensors now respect HA unit preferences and auto-convert. ([upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
 
 ---
 
 # Development
 
 ## Translation
-To help out with the translation you need an account on Lokalise, the easiest way to get one is to [click here](https://lokalise.com/login/) then select "Log in with GitHub".
-After you have created your account [click here to join Mikrotik Router project on Lokalise](https://app.lokalise.com/public/581188395e9778a6060128.17699416/).
+To help with translation, [log in to Lokalise with GitHub](https://lokalise.com/login/) then [join the Mikrotik Router project](https://app.lokalise.com/public/581188395e9778a6060128.17699416/).
 
-If you want to add translations for a language that is not listed please [open a Feature request](https://github.com/tomaae/homeassistant-mikrotik_router/issues/new?labels=enhancement&title=%5BLokalise%5D%20Add%20new%20translations%20language).
+To request a new language, [open a Feature request](https://github.com/tomaae/homeassistant-mikrotik_router/issues/new?labels=enhancement&title=%5BLokalise%5D%20Add%20new%20translations%20language).
 
 ## Diagnostics
 Download diagnostics data for investigation:
 
 ![Diagnostics](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/diagnostics.png)
 
-## Enabling debug
-To enable debug for Mikrotik router integration, add following to your configuration.yaml:
-```
+## Enabling debug logging
+Add to `configuration.yaml`:
+```yaml
 logger:
   default: info
   logs:
