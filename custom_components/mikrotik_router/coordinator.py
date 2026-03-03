@@ -1868,7 +1868,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     def get_arp(self) -> None:
         """Get ARP data from Mikrotik"""
         self.ds["arp"] = parse_api(
-            data=self.ds["arp"],
+            data={},
             source=self.api.query("/ip/arp"),
             key="mac-address",
             vals=[{"name": "mac-address"}, {"name": "address"}, {"name": "interface"}],
@@ -2190,7 +2190,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self.ds["host"][uid][key] = vals[key]
 
         # Add hosts from ARP
+        arp_detected = {}
         for uid, vals in self.ds["arp"].items():
+            arp_detected[uid] = True
             if uid not in self.ds["host"]:
                 self.ds["host"][uid] = {"source": "arp"}
             elif self.ds["host"][uid]["source"] != "arp":
@@ -2252,6 +2254,14 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             # Wireless availability
             if vals["source"] == "wireless" and uid not in wireless_detected:
                 self.ds["host"][uid]["available"] = False
+
+            # Wired (ARP/DHCP) availability — present in current ARP table = online
+            if vals["source"] in ["arp", "dhcp"]:
+                if uid in arp_detected:
+                    self.ds["host"][uid]["available"] = True
+                    self.ds["host"][uid]["last-seen"] = utcnow()
+                else:
+                    self.ds["host"][uid]["available"] = False
 
             # Update IP and interface (DHCP/returned host)
             if (

@@ -372,3 +372,197 @@ def test_poe_monitor_uses_none_defaults_for_missing_fields():
     assert result["ether1"]["poe-out-voltage"] is None
     assert result["ether1"]["poe-out-current"] is None
     assert result["ether1"]["poe-out-power"] is None
+
+
+# ---------------------------------------------------------------------------
+# Group D: async_process_host() — wired client availability
+# ---------------------------------------------------------------------------
+
+
+def make_coordinator_for_host(arp_entries=None, dhcp_entries=None, host_entries=None):
+    """Build a coordinator pre-configured for async_process_host() testing."""
+    coordinator = make_coordinator()
+
+    # Required attributes for async_process_host
+    coordinator.support_capsman = False
+    coordinator.support_wireless = False
+    coordinator.option_sensor_client_captive = False
+    coordinator.host_hass_recovered = True  # skip HA registry recovery
+
+    mac_lookup = MagicMock()
+    mac_lookup.lookup = MagicMock(return_value="Vendor")
+    coordinator.async_mac_lookup = mac_lookup
+
+    coordinator.ds["arp"] = arp_entries or {}
+    coordinator.ds["dhcp"] = dhcp_entries or {}
+    coordinator.ds["host"] = host_entries or {}
+    coordinator.ds["resource"] = {"clients_wired": 0, "clients_wireless": 0}
+    coordinator.ds["capsman_hosts"] = {}
+    coordinator.ds["wireless_hosts"] = {}
+    coordinator.ds["dns"] = {}
+    coordinator.ds["hostspot_host"] = {}
+
+    return coordinator
+
+
+@pytest.mark.asyncio
+async def test_arp_host_becomes_available():
+    """ARP host present in current ARP table is marked available=True."""
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            "AA:BB:CC:DD:EE:01": {
+                "mac-address": "AA:BB:CC:DD:EE:01",
+                "address": "192.168.1.10",
+                "interface": "ether1",
+            }
+        }
+    )
+
+    await coordinator.async_process_host()
+
+    host = coordinator.ds["host"]["AA:BB:CC:DD:EE:01"]
+    assert host["available"] is True
+    assert host["last-seen"] is not False
+
+
+@pytest.mark.asyncio
+async def test_arp_host_becomes_unavailable_when_not_in_arp():
+    """ARP host previously tracked but absent from current ARP table is unavailable."""
+    coordinator = make_coordinator_for_host(
+        arp_entries={},  # empty — device left the network
+        host_entries={
+            "AA:BB:CC:DD:EE:02": {
+                "source": "arp",
+                "mac-address": "AA:BB:CC:DD:EE:02",
+                "address": "192.168.1.11",
+                "interface": "ether1",
+                "host-name": "mypc",
+                "manufacturer": "Vendor",
+                "last-seen": False,
+                "available": True,  # was available before
+            }
+        },
+    )
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:02"]["available"] is False
+
+
+@pytest.mark.asyncio
+async def test_dhcp_host_available_when_in_arp():
+    """DHCP-sourced host is available when its MAC appears in the current ARP table."""
+    mac = "AA:BB:CC:DD:EE:03"
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            mac: {
+                "mac-address": mac,
+                "address": "192.168.1.12",
+                "interface": "ether2",
+            }
+        },
+        dhcp_entries={
+            mac: {
+                "enabled": True,
+                "mac-address": mac,
+                "address": "192.168.1.12",
+                "interface": "ether2",
+                "host-name": "laptop",
+                "comment": "",
+            }
+        },
+    )
+
+    await coordinator.async_process_host()
+
+    host = coordinator.ds["host"][mac]
+    assert host["available"] is True
+
+
+@pytest.mark.asyncio
+async def test_dhcp_host_unavailable_when_not_in_arp():
+    """DHCP host with a valid lease but absent from ARP table is unavailable."""
+    mac = "AA:BB:CC:DD:EE:04"
+    coordinator = make_coordinator_for_host(
+        arp_entries={},  # not in ARP
+        dhcp_entries={
+            mac: {
+                "enabled": True,
+                "mac-address": mac,
+                "address": "192.168.1.13",
+                "interface": "ether2",
+                "host-name": "phone",
+                "comment": "",
+            }
+        },
+    )
+
+    await coordinator.async_process_host()
+
+    host = coordinator.ds["host"][mac]
+    assert host["available"] is False
+
+
+@pytest.mark.asyncio
+async def test_clients_wired_count_increments_for_arp_hosts():
+    """clients_wired increments once per available ARP host."""
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            "AA:BB:CC:DD:EE:05": {
+                "mac-address": "AA:BB:CC:DD:EE:05",
+                "address": "192.168.1.20",
+                "interface": "ether1",
+            },
+            "AA:BB:CC:DD:EE:06": {
+                "mac-address": "AA:BB:CC:DD:EE:06",
+                "address": "192.168.1.21",
+                "interface": "ether1",
+            },
+        }
+    )
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["resource"]["clients_wired"] == 2
+    assert coordinator.ds["resource"]["clients_wireless"] == 0
+
+
+@pytest.mark.asyncio
+async def test_wireless_host_not_counted_as_wired():
+    """Wireless-sourced host is never counted as a wired client."""
+    mac = "AA:BB:CC:DD:EE:07"
+    coordinator = make_coordinator_for_host(
+        host_entries={
+            mac: {
+                "source": "wireless",
+                "mac-address": mac,
+                "address": "192.168.1.30",
+                "interface": "wlan1",
+                "host-name": "tablet",
+                "manufacturer": "Vendor",
+                "last-seen": False,
+                "available": True,
+                "signal-strength": -65,
+                "tx-ccq": 90,
+                "tx-rate": "54Mbps",
+                "rx-rate": "54Mbps",
+            }
+        }
+    )
+    coordinator.support_wireless = True
+    coordinator.ds["wireless_hosts"] = {
+        mac: {
+            "mac-address": mac,
+            "interface": "wlan1",
+            "ap": False,
+            "signal-strength": -65,
+            "tx-ccq": 90,
+            "tx-rate": "54Mbps",
+            "rx-rate": "54Mbps",
+        }
+    }
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["resource"]["clients_wired"] == 0
+    assert coordinator.ds["resource"]["clients_wireless"] == 1
