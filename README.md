@@ -37,7 +37,7 @@ Voltage, current and power sensors are **automatically hidden** on passive-PoE h
 | Fix | Detail |
 |-----|--------|
 | PoE measurement sensors showing 0 on passive PoE ports | Sensors now hidden when hardware does not report measurements |
-| Wireless client count (`sensor.*_wireless_clients_api`) | Confirmed working on hAP ac2 and compatible devices |
+| Wireless client count (`sensor.*_wireless_clients_api`) | Confirmed working on hAP ac2 and compatible devices ([upstream #421](https://github.com/tomaae/homeassistant-mikrotik_router/issues/421)) |
 | **`clients_wired` always reports 0** | ARP/DHCP hosts now correctly marked available — wired client counter works ([upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468)) |
 
 ### How to install the pre-release
