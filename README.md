@@ -176,9 +176,12 @@ For MikroTik devices that are themselves powered via PoE, the following sensors 
 
 Example devices with PoE-In:
 - **CRS310-8G+2S+IN** — management port accepts 802.3af/at (standard PoE) and passive PoE 18–57 V DC
-- **hAP series** access points powered via passive PoE injector
 
-PoE-In sensors only appear if your device reports these values via `/system/health`. Not all PoE-powered devices expose these measurements — verify with `/system health print` in RouterOS terminal. If `poe-in-voltage` and `poe-in-current` appear in the output, the sensors will be available.
+PoE-In sensors only appear if your device exposes these values via `/system/health`. Not all PoE-powered devices support this command or report these measurements (for example, the hAP ac2 does not). Verify in RouterOS terminal:
+```
+/system health print
+```
+If the command returns `poe-in-voltage` and `poe-in-current` values, the sensors will appear. If the command gives a `bad command name health` error, your device does not support PoE-In monitoring.
 
 ## NAT
 Monitor and control individual NAT rules.
