@@ -50,6 +50,8 @@ from custom_components.mikrotik_router.const import (
     DEFAULT_SENSOR_ENVIRONMENT,
     CONF_SENSOR_NETWATCH_TRACKER,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
+    CONF_SENSOR_POE,
+    DEFAULT_SENSOR_POE,
 )
 
 MOCK_USER_INPUT = {
@@ -265,6 +267,7 @@ async def test_options_flow_complete(hass):
             CONF_SENSOR_PPP: False,
             CONF_SENSOR_SCRIPTS: False,
             CONF_SENSOR_ENVIRONMENT: False,
+            CONF_SENSOR_POE: False,
         },
     )
 
@@ -324,6 +327,7 @@ async def test_options_flow_preserves_existing_options(hass):
             CONF_SENSOR_PPP: False,
             CONF_SENSOR_SCRIPTS: False,
             CONF_SENSOR_ENVIRONMENT: False,
+            CONF_SENSOR_POE: False,
         },
     )
 

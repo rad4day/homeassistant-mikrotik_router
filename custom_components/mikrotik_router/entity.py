@@ -29,6 +29,8 @@ from .const import (
     DEFAULT_SENSOR_PORT_TRACKER,
     CONF_SENSOR_NETWATCH_TRACKER,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
+    CONF_SENSOR_POE,
+    DEFAULT_SENSOR_POE,
 )
 from .coordinator import MikrotikCoordinator, MikrotikTrackerCoordinator
 from .helper import format_attribute
@@ -85,6 +87,18 @@ def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
         and not config_entry.options.get(CONF_TRACK_HOSTS, DEFAULT_TRACK_HOSTS)
     ):
         return True
+
+    # Skip PoE-out sensors if disabled or interface doesn't support PoE
+    if entity_description.data_attribute in (
+        "poe-out-status",
+        "poe-out-voltage",
+        "poe-out-current",
+        "poe-out-power",
+    ):
+        if not config_entry.options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE):
+            return True
+        if data[uid].get("poe-out-status") is None:
+            return True
 
     return False
 

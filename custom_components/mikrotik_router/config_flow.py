@@ -62,6 +62,8 @@ from .const import (
     DEFAULT_VERIFY_SSL,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
     CONF_SENSOR_NETWATCH_TRACKER,
+    CONF_SENSOR_POE,
+    DEFAULT_SENSOR_POE,
 )
 from .mikrotikapi import MikrotikAPI
 
@@ -171,15 +173,18 @@ class MikrotikControllerConfigFlow(ConfigFlow, domain=DOMAIN):
 class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
     """Handle options."""
 
+    def __init__(self, config_entry=None):
+        """Initialize; accepts config_entry for HA < 2025.12 compatibility."""
+        if config_entry is not None:
+            super().__init__(config_entry)
+
     async def async_step_init(self, user_input=None):
         """Manage the options."""
-        # Initialise a mutable working copy of the current options.
-        # self.config_entry is available here (injected by the framework after __init__).
         self._options = dict(self.config_entry.options)
         return await self.async_step_basic_options(user_input)
 
     async def async_step_basic_options(self, user_input=None):
-        """Manage the basic options options."""
+        """Manage the basic options."""
         if user_input is not None:
             self._options.update(user_input)
             return await self.async_step_sensor_select()
@@ -305,6 +310,10 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
                         default=self._options.get(
                             CONF_SENSOR_ENVIRONMENT, DEFAULT_SENSOR_ENVIRONMENT
                         ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_SENSOR_POE,
+                        default=self._options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE),
                     ): bool,
                 },
             ),
