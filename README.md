@@ -117,31 +117,47 @@ More information about PoE-Out can be found on the [MikroTik support page](https
 ### Compatible hardware
 PoE-Out sensors are available on MikroTik devices with managed PoE-Out ports, including (but not limited to):
 
-- **CRS series** managed switches: CRS106, CRS112, CRS210, CRS212, CRS226, CRS317, CRS328, CRS354
+- **CRS series** managed switches: CRS106, CRS112, CRS210, CRS212, CRS226, CRS317, CRS328, CRS354, **CRS310-8G+2S+IN**
 - **CSS series** with PoE: CSS106, CSS326, CSS610
 - **RB series** with PoE-Out: RB260, RB2011, RB3011, RB4011, RB5009
 - **hEX PoE**, **hEX PoE lite**
 - Any RouterOS device where `/interface/ethernet/poe` returns data
 
-To confirm your device is supported, run in RouterOS terminal:
+#### Two tiers of PoE-Out monitoring
+
+Not all PoE-capable hardware reports the same level of detail:
+
+| Tier | Hardware examples | Sensors available |
+|------|-------------------|-------------------|
+| **Full monitoring** | CRS series managed switches, CSS series, hEX PoE | Status + voltage + current + power |
+| **Status only** | hAP ax3 ether1 (passive 24 V PoE), some RB series ports | Status only |
+
+On **status-only** ports the voltage, current and power sensors are automatically hidden because the hardware does not report those measurements. Only `poe-out-status` will appear.
+
+To confirm your device capability, run in RouterOS terminal:
+```
+/interface ethernet poe monitor ether1 once
+```
+If the output includes `poe-out-voltage`, `poe-out-current` and `poe-out-power` fields, full monitoring is available. If only `poe-out-status` is returned, the port is status-only.
+
+You can also check which ports have PoE configured:
 ```
 /interface ethernet poe print
 ```
-If the command returns port entries with a `poe-out` property, your device is supported.
 
 ### PoE-Out sensors (per port)
 Enable **PoE port sensors** in the integration options to add the following diagnostic sensors for each PoE-capable ethernet port:
 
-| Sensor | Description | Example values |
-|--------|-------------|----------------|
-| PoE out status | Current PoE port operational state | `powered-on`, `waiting-for-load`, `short-circuit`, `overload`, `voltage-too-low`, `off` |
-| PoE out voltage | Output voltage to the connected device | 48.0 V |
-| PoE out current | Output current to the connected device | 120 mA |
-| PoE out power | Power consumed by the connected device | 5.76 W |
+| Sensor | Description | Example values | Hardware requirement |
+|--------|-------------|----------------|---------------------|
+| PoE out status | Current PoE port operational state | `powered-on`, `waiting-for-load`, `short-circuit`, `overload`, `voltage-too-low`, `off` | All PoE ports |
+| PoE out voltage | Output voltage to the connected device | 48.0 V | Full monitoring only |
+| PoE out current | Output current to the connected device | 120 mA | Full monitoring only |
+| PoE out power | Power consumed by the connected device | 5.76 W | Full monitoring only |
 
 Use `poe-out-status` in automations to detect PoE faults (overload, short-circuit) or trigger actions when a device is powered on or off. Combine `poe-out-power` with energy dashboards to track per-port power consumption on managed PoE switches such as the CRS series.
 
-> **Note:** PoE port sensors are opt-in. Enable them under **Settings → Devices & Services → Mikrotik Router → Configure → PoE port sensors**. Sensors only appear for ports that report PoE capability (i.e. `poe-out` is set on the interface). Implements [upstream feature request #259](https://github.com/tomaae/homeassistant-mikrotik_router/issues/259).
+> **Note:** PoE port sensors are opt-in. Enable them under **Settings → Devices & Services → Mikrotik Router → Configure → PoE port sensors**. Sensors only appear for ports that report PoE capability (i.e. `poe-out` is set on the interface). Voltage, current and power sensors are automatically hidden on hardware that does not report those measurements. Implements [upstream feature request #259](https://github.com/tomaae/homeassistant-mikrotik_router/issues/259).
 
 ### How to enable and verify
 1. Go to **Settings → Devices & Services → Mikrotik Router → Configure**
@@ -151,14 +167,14 @@ Use `poe-out-status` in automations to detect PoE faults (overload, short-circui
 5. If no sensors appear, check that the port has `poe-out` set in RouterOS (`/interface ethernet poe print`) and that a device is connected
 
 ### PoE-In sensors (system)
-For MikroTik devices that are themselves powered via PoE (such as hAP series access points), the following sensors appear automatically under the System device when the hardware reports them — no opt-in required:
+For MikroTik devices that are themselves powered via PoE (such as the CRS310-8G+2S+IN, hAP series, and other PoE-powered devices), the following sensors appear automatically under the System device when the hardware reports them — no opt-in required:
 
 | Sensor | Description |
 |--------|-------------|
 | PoE in voltage | Input voltage supplied to the device via PoE |
 | PoE in current | Input current supplied to the device via PoE |
 
-PoE-In sensors only appear if your device reports these values via `/system/health`. Verify with `/system health print` in RouterOS terminal.
+PoE-In sensors only appear if your device reports these values via `/system/health`. Not all PoE-powered devices expose these measurements — verify with `/system health print` in RouterOS terminal. If `poe-in-voltage` and `poe-in-current` appear in the output, the sensors will be available.
 
 ## NAT
 Monitor and control individual NAT rules.
