@@ -80,9 +80,9 @@ def make_coordinator(options=None, api_responses=None, major_fw_version=6):
 
 
 def test_parse_api_no_source_returns_data_unchanged():
-    """parse_api with no source and no key/key_search returns data as-is."""
+    """parse_api with no source and empty vals returns data as-is."""
     data = {"existing": "value"}
-    result = parse_api(data=data, source=None)
+    result = parse_api(data=data, source=None, vals=[])
     assert result == {"existing": "value"}
 
 

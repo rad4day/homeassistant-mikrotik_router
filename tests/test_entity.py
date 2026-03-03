@@ -13,7 +13,6 @@ from custom_components.mikrotik_router.const import (
     CONF_SENSOR_POE,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -129,7 +128,13 @@ def test_skip_host_tracker_when_option_disabled():
 def test_skip_poe_sensor_when_option_disabled():
     """PoE-out sensor is skipped when CONF_SENSOR_POE is False."""
     desc = make_entity_desc(data_attribute="poe-out-status")
-    data = {"ether1": {"type": "ether", "poe-out": "auto-on", "poe-out-status": "powered-on"}}
+    data = {
+        "ether1": {
+            "type": "ether",
+            "poe-out": "auto-on",
+            "poe-out-status": "powered-on",
+        }
+    }
     cfg = make_config_entry({CONF_SENSOR_POE: False})
 
     assert _skip_sensor(cfg, desc, data, "ether1") is True
@@ -147,7 +152,13 @@ def test_skip_poe_sensor_when_interface_not_poe_capable():
 def test_no_skip_poe_sensor_on_poe_capable_interface():
     """PoE-out sensor is not skipped when poe-out-status is set and option enabled."""
     desc = make_entity_desc(data_attribute="poe-out-status")
-    data = {"ether1": {"type": "ether", "poe-out": "auto-on", "poe-out-status": "powered-on"}}
+    data = {
+        "ether1": {
+            "type": "ether",
+            "poe-out": "auto-on",
+            "poe-out-status": "powered-on",
+        }
+    }
     cfg = make_config_entry({CONF_SENSOR_POE: True})
 
     assert _skip_sensor(cfg, desc, data, "ether1") is False
