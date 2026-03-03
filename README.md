@@ -22,6 +22,9 @@ We have a **pre-release build** with several community-reported bug fixes ready 
 | **Temperature always shows Celsius** | Temperature sensors ignore HA unit preferences — users with imperial/Fahrenheit settings still see Celsius | [upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230) |
 | **Error 500 on Configure** | Clicking "Configure" on the integration in HA 2025.12+ returns Internal Server Error | [upstream #464](https://github.com/tomaae/homeassistant-mikrotik_router/issues/464) |
 | **WiFi package detection** | Correct detection of all RouterOS 7 WiFi package variants: `wifiwave2`, `wifi`, `wifi-qcom`, `wifi-qcom-ac` | — |
+| **PoE-out monitoring** | Per-port PoE status, voltage, current, and power sensors for managed PoE switches | — |
+| **PoE-in monitoring** | Input voltage and current sensors for PoE-powered devices; passive PoE status-only on compatible hardware | — |
+| **`clients_wired` always reports 0** | Wired client counter was permanently stuck at 0 — ARP/DHCP hosts were never marked as available in the host tracking code | [upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468) |
 
 ### How to install the dev release
 
