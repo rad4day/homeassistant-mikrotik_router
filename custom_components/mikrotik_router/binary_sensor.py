@@ -90,9 +90,7 @@ class MikrotikPPPSecretBinarySensor(MikrotikBinarySensor):
 # ---------------------------
 #   MikrotikPortBinarySensor
 # ---------------------------
-class MikrotikPortBinarySensor(
-    MikrotikInterfaceEntityMixin, MikrotikBinarySensor
-):
+class MikrotikPortBinarySensor(MikrotikInterfaceEntityMixin, MikrotikBinarySensor):
     """Representation of a network port."""
 
     @property
