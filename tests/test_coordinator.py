@@ -148,9 +148,9 @@ def test_parse_api_key_search_merges_into_existing_entry():
         ],
     )
     assert result["uid-abc"]["poe-out-status"] == "powered-on"
-    assert result["uid-abc"]["poe-out-voltage"] == 24.2
-    assert result["uid-abc"]["poe-out-current"] == 0.5
-    assert result["uid-abc"]["poe-out-power"] == 12.1
+    assert result["uid-abc"]["poe-out-voltage"] == pytest.approx(24.2)
+    assert result["uid-abc"]["poe-out-current"] == pytest.approx(0.5)
+    assert result["uid-abc"]["poe-out-power"] == pytest.approx(12.1)
 
 
 def test_parse_api_default_used_when_field_missing():
@@ -183,8 +183,8 @@ def test_parse_api_ensure_vals_adds_missing_keys():
             {"name": "tx-previous", "default": 0.0},
         ],
     )
-    assert result["ether1"]["rx-previous"] == 0.0
-    assert result["ether1"]["tx-previous"] == 0.0
+    assert result["ether1"]["rx-previous"] == pytest.approx(0.0)
+    assert result["ether1"]["tx-previous"] == pytest.approx(0.0)
 
 
 def test_parse_api_skip_filters_entries():
@@ -239,7 +239,7 @@ def test_health_fw6_populates_poe_in_keys():
 
     coordinator.get_system_health()
 
-    assert coordinator.ds["health"]["poe-in-voltage"] == 48.1
+    assert coordinator.ds["health"]["poe-in-voltage"] == pytest.approx(48.1)
     assert coordinator.ds["health"]["poe-in-current"] == 220
     assert coordinator.ds["health"]["temperature"] == 45
 
@@ -280,8 +280,8 @@ def test_health_fw7_flattens_name_value_pairs():
     coordinator.get_system_health()
 
     assert coordinator.ds["health"]["temperature"] == 50
-    assert coordinator.ds["health"]["voltage"] == 12.1
-    assert coordinator.ds["health"]["poe-in-voltage"] == 48.0
+    assert coordinator.ds["health"]["voltage"] == pytest.approx(12.1)
+    assert coordinator.ds["health"]["poe-in-voltage"] == pytest.approx(48.0)
 
 
 # ---------------------------------------------------------------------------
@@ -337,9 +337,9 @@ def test_poe_monitor_merges_all_four_fields():
         ],
     )
     assert result["ether1"]["poe-out-status"] == "powered-on"
-    assert result["ether1"]["poe-out-voltage"] == 24.5
+    assert result["ether1"]["poe-out-voltage"] == pytest.approx(24.5)
     assert result["ether1"]["poe-out-current"] == 310
-    assert result["ether1"]["poe-out-power"] == 7.6
+    assert result["ether1"]["poe-out-power"] == pytest.approx(7.6)
 
 
 def test_poe_monitor_uses_none_defaults_for_missing_fields():
