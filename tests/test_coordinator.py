@@ -1,11 +1,19 @@
 """Unit tests for Mikrotik Router coordinator and apiparser logic."""
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.mikrotik_router.apiparser import parse_api
-from custom_components.mikrotik_router.coordinator import MikrotikCoordinator
+from custom_components.mikrotik_router.apiparser import (
+    parse_api,
+    utc_from_timestamp as apiparser_utc_from_timestamp,
+)
+from custom_components.mikrotik_router.coordinator import (
+    MikrotikCoordinator,
+    as_local,
+    utc_from_timestamp,
+)
 from custom_components.mikrotik_router.const import (
     CONF_SENSOR_POE,
     CONF_SENSOR_PORT_TRAFFIC,
@@ -619,3 +627,38 @@ async def test_mac_lookup_cancelled_error_propagates():
 
     with pytest.raises(asyncio.CancelledError):
         await coordinator.async_process_host()
+
+
+# ---------------------------------------------------------------------------
+# utc_from_timestamp and as_local tests
+# ---------------------------------------------------------------------------
+
+
+def test_utc_from_timestamp_returns_utc_aware_datetime():
+    """utc_from_timestamp produces a UTC-aware datetime from a Unix timestamp."""
+    result = utc_from_timestamp(0)
+    assert result == datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert result.tzinfo is timezone.utc
+
+
+def test_utc_from_timestamp_apiparser_matches_coordinator():
+    """Both apiparser and coordinator produce identical results."""
+    ts = 1_700_000_000.0
+    assert apiparser_utc_from_timestamp(ts) == utc_from_timestamp(ts)
+
+
+def test_as_local_returns_naive_datetime_unchanged_when_no_tz_configured():
+    """as_local returns naive datetime unchanged when DEFAULT_TIME_ZONE is None."""
+    naive = datetime(2024, 1, 15, 12, 0, 0)
+    result = as_local(naive)
+    assert result == naive
+
+
+def test_as_local_attaches_utc_to_naive_datetime_when_tz_configured(monkeypatch):
+    """as_local attaches UTC tzinfo to naive datetime when DEFAULT_TIME_ZONE is set."""
+    import custom_components.mikrotik_router.coordinator as coord_module
+
+    monkeypatch.setattr(coord_module, "DEFAULT_TIME_ZONE", timezone.utc)
+    naive = datetime(2024, 1, 15, 12, 0, 0)
+    result = as_local(naive)
+    assert result.tzinfo is not None

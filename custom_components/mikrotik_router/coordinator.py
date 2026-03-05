@@ -6,9 +6,7 @@ import asyncio
 import ipaddress
 import logging
 import re
-import pytz
-
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from ipaddress import ip_address, IPv4Network
 from mac_vendor_lookup import AsyncMacLookup
@@ -85,7 +83,7 @@ def is_valid_ip(address):
 
 def utc_from_timestamp(timestamp: float) -> datetime:
     """Return a UTC time from a timestamp."""
-    return pytz.utc.localize(datetime.utcfromtimestamp(timestamp))
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
 
 def as_local(dattim: datetime) -> datetime:
@@ -93,7 +91,7 @@ def as_local(dattim: datetime) -> datetime:
     if dattim.tzinfo == DEFAULT_TIME_ZONE:
         return dattim
     if dattim.tzinfo is None:
-        dattim = pytz.utc.localize(dattim)
+        dattim = dattim.replace(tzinfo=timezone.utc)
 
     return dattim.astimezone(DEFAULT_TIME_ZONE)
 
