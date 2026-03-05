@@ -15,7 +15,20 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.4
+## What's New — v2.3.5
+
+The [v2.3.5](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.5) release is a Python compatibility patch.
+
+### Bug fixes in v2.3.5
+
+| Fix | Detail |
+|-----|--------|
+| **Python 3.12 compatibility** | Replaced deprecated `datetime.utcfromtimestamp()` with `datetime.fromtimestamp(ts, tz=UTC)` |
+| **Removed `pytz` dependency** | Replaced with stdlib `datetime.timezone.utc` — no behavioural change |
+
+---
+
+## v2.3.4 — Reliability Patch
 
 The [v2.3.4](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.4) release is a reliability patch.
 
