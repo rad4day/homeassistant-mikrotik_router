@@ -567,3 +567,55 @@ async def test_wireless_host_not_counted_as_wired():
 
     assert coordinator.ds["resource"]["clients_wired"] == 0
     assert coordinator.ds["resource"]["clients_wireless"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Group E: bug-fix regression tests
+# ---------------------------------------------------------------------------
+
+
+def test_get_accounting_uid_by_ip_uses_equality_not_identity():
+    """_get_accounting_uid_by_ip returns correct MAC using == not 'is'.
+
+    Regression test for the 'is' vs '==' string comparison fix.
+    String interning means 'is' works for short literals but fails for
+    dynamically built strings — == is always correct.
+    """
+    coordinator = make_coordinator()
+    coordinator.ds["client_traffic"] = {
+        "AA:BB:CC:DD:EE:01": {"address": "192.168.1.10"},
+        "AA:BB:CC:DD:EE:02": {"address": "192.168.1.20"},
+    }
+
+    # Build IP as a non-interned string to ensure 'is' would fail
+    target_ip = "192.168.1." + "20"
+    result = coordinator._get_accounting_uid_by_ip(target_ip)
+
+    assert result == "AA:BB:CC:DD:EE:02"
+
+
+@pytest.mark.asyncio
+async def test_mac_lookup_cancelled_error_propagates():
+    """asyncio.CancelledError from mac lookup is re-raised, not swallowed.
+
+    Regression test for the bare except swallowing CancelledError fix.
+    """
+    import asyncio
+
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            "AA:BB:CC:DD:EE:FF": {
+                "mac-address": "AA:BB:CC:DD:EE:FF",
+                "address": "192.168.1.99",
+                "interface": "ether1",
+            }
+        }
+    )
+
+    async def raise_cancelled():
+        raise asyncio.CancelledError()
+
+    coordinator.async_mac_lookup.lookup = raise_cancelled
+
+    with pytest.raises(asyncio.CancelledError):
+        await coordinator.async_process_host()

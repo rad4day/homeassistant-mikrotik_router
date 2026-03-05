@@ -226,3 +226,15 @@ def test_skip_client_traffic_when_attribute_missing():
     cfg = make_config_entry()
 
     assert _skip_sensor(cfg, desc, data, "aa:bb:cc:dd:ee:ff") is True
+
+
+def test_skip_poe_sensor_when_uid_absent_from_data():
+    """PoE sensor is skipped when uid is not present in the data dict at all.
+
+    Guards against KeyError introduced in the PoE uid-not-in-data fix.
+    """
+    desc = make_entity_desc(data_attribute="poe-out-status")
+    data = {}  # uid not present
+    cfg = make_config_entry({CONF_SENSOR_POE: True})
+
+    assert _skip_sensor(cfg, desc, data, "ether1") is True
