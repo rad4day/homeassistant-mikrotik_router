@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import logging
 import re
@@ -1634,8 +1635,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 full_version = self.ds["fw-update"].get("installed-version")
                 split_end = min(len(full_version), 4)
                 version = re.sub("[^0-9\\.]", "", full_version[0:split_end])
-                self.major_fw_version = int(version.split(".")[0])
-                self.minor_fw_version = int(version.split(".")[1])
+                version_parts = version.split(".")
+                self.major_fw_version = int(version_parts[0])
+                self.minor_fw_version = int(version_parts[1]) if len(version_parts) > 1 else 0
                 _LOGGER.debug(
                     "Mikrotik %s FW version major=%s minor=%s (%s)",
                     self.host,
@@ -2341,6 +2343,8 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     self.ds["host"][uid]["manufacturer"] = (
                         await self.async_mac_lookup.lookup(vals["mac-address"])
                     )
+                except asyncio.CancelledError:
+                    raise
                 except Exception:
                     self.ds["host"][uid]["manufacturer"] = ""
 
@@ -2405,17 +2409,18 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 ],
             )
 
-            threshold = self.api.query("/ip/accounting")[0].get("threshold")
+            accounting_config = self.api.query("/ip/accounting")
+            threshold = accounting_config[0].get("threshold") if accounting_config else None
             entry_count = len(accounting_data)
 
-            if entry_count == threshold:
+            if threshold is not None and entry_count == threshold:
                 _LOGGER.warning(
                     f"Accounting entries count reached the threshold of {threshold}!"
                     " Some entries were not saved by Mikrotik so accounting calculation won't be correct."
                     " Consider shortening update interval or"
                     " increasing the accounting threshold value in Mikrotik."
                 )
-            elif entry_count > threshold * 0.9:
+            elif threshold is not None and entry_count > threshold * 0.9:
                 _LOGGER.info(
                     f"Accounting entries count ({entry_count} reached 90% of the threshold,"
                     f" currently set to {threshold}! Consider shortening update interval or"
@@ -2499,7 +2504,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     # ---------------------------
     def _get_accounting_uid_by_ip(self, requested_ip):
         for mac, vals in self.ds["client_traffic"].items():
-            if vals.get("address") is requested_ip:
+            if vals.get("address") == requested_ip:
                 return mac
         return None
 
