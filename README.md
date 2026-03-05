@@ -60,6 +60,10 @@ Voltage, current and power sensors are **automatically hidden** on passive-PoE h
 
 ### Install via HACS
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jnctech&repository=homeassistant-mikrotik_router&category=integration)
+
+Or manually:
+
 1. In HACS, add this repo as a custom repository (if not already):
    - HACS > Integrations > 3-dot menu > Custom repositories
    - URL: `https://github.com/jnctech/homeassistant-mikrotik_router`
