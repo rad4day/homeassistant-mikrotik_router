@@ -43,6 +43,13 @@ from .iface_attributes import (
 _LOGGER = getLogger(__name__)
 
 
+def _copy_attrs(attributes: dict, data: dict, variables: list) -> None:
+    """Copy data values for each variable in the list into attributes."""
+    for variable in variables:
+        if variable in data:
+            attributes[format_attribute(variable)] = data[variable]
+
+
 class MikrotikInterfaceEntityMixin:
     """Mixin providing interface-type-aware extra state attributes.
 
@@ -56,19 +63,11 @@ class MikrotikInterfaceEntityMixin:
         attributes = super().extra_state_attributes
 
         if self._data.get("type") == "ether":
-            for variable in DEVICE_ATTRIBUTES_IFACE_ETHER:
-                if variable in self._data:
-                    attributes[format_attribute(variable)] = self._data[variable]
-
+            _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
             if "sfp-shutdown-temperature" in self._data:
-                for variable in DEVICE_ATTRIBUTES_IFACE_SFP:
-                    if variable in self._data:
-                        attributes[format_attribute(variable)] = self._data[variable]
-
+                _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_SFP)
         elif self._data.get("type") == "wlan":
-            for variable in DEVICE_ATTRIBUTES_IFACE_WIRELESS:
-                if variable in self._data:
-                    attributes[format_attribute(variable)] = self._data[variable]
+            _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_WIRELESS)
 
         return attributes
 
@@ -373,10 +372,7 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
     def extra_state_attributes(self) -> Mapping[str, Any]:
         """Return the state attributes."""
         attributes = super().extra_state_attributes
-        for variable in self.entity_description.data_attributes_list:
-            if variable in self._data:
-                attributes[format_attribute(variable)] = self._data[variable]
-
+        _copy_attrs(attributes, self._data, self.entity_description.data_attributes_list)
         return attributes
 
     async def start(self):
