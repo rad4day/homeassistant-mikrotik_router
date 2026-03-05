@@ -4,7 +4,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.mikrotik_router.entity import _skip_sensor, MikrotikInterfaceEntityMixin
+from custom_components.mikrotik_router.entity import (
+    _skip_sensor,
+    MikrotikInterfaceEntityMixin,
+)
 from custom_components.mikrotik_router.const import (
     CONF_SENSOR_PORT_TRAFFIC,
     CONF_SENSOR_PORT_TRACKER,
@@ -297,7 +300,9 @@ def test_mixin_ether_with_sfp_adds_sfp_attributes():
 
 def test_mixin_ether_without_sfp_does_not_add_sfp_attributes():
     """SFP attributes are omitted when sfp-shutdown-temperature is absent."""
-    entity = _ConcreteEntity({"type": "ether", "status": "link-ok", "sfp-temperature": "45C"})
+    entity = _ConcreteEntity(
+        {"type": "ether", "status": "link-ok", "sfp-temperature": "45C"}
+    )
     attrs = entity.extra_state_attributes
     # sfp-temperature present in data but sfp-shutdown-temperature is not → SFP block skipped
     assert "sfp_temperature" not in attrs
