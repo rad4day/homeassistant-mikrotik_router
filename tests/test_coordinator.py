@@ -647,15 +647,18 @@ def test_utc_from_timestamp_apiparser_matches_coordinator():
     assert apiparser_utc_from_timestamp(ts) == utc_from_timestamp(ts)
 
 
-def test_as_local_attaches_utc_to_naive_datetime():
-    """as_local attaches UTC tzinfo when datetime has no tzinfo."""
+def test_as_local_returns_naive_datetime_unchanged_when_no_tz_configured():
+    """as_local returns naive datetime unchanged when DEFAULT_TIME_ZONE is None."""
     naive = datetime(2024, 1, 15, 12, 0, 0)
     result = as_local(naive)
-    assert result.tzinfo is not None
+    assert result == naive
 
 
-def test_as_local_leaves_aware_datetime_unchanged_tzinfo():
-    """as_local does not strip tzinfo from an already-aware datetime."""
-    aware = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
-    result = as_local(aware)
+def test_as_local_attaches_utc_to_naive_datetime_when_tz_configured(monkeypatch):
+    """as_local attaches UTC tzinfo to naive datetime when DEFAULT_TIME_ZONE is set."""
+    import custom_components.mikrotik_router.coordinator as coord_module
+
+    monkeypatch.setattr(coord_module, "DEFAULT_TIME_ZONE", timezone.utc)
+    naive = datetime(2024, 1, 15, 12, 0, 0)
+    result = as_local(naive)
     assert result.tzinfo is not None
