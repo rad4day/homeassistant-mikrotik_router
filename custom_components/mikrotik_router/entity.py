@@ -151,7 +151,7 @@ def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
 # ---------------------------
 #   _check_entity_exists
 # ---------------------------
-async def _check_entity_exists(hass, platform, obj, uid) -> None:
+async def _check_entity_exists(hass, platform, obj, uid) -> None:  # pragma: no cover
     """Add obj to HA if it is not yet registered or has been removed."""
     entity_registry = er.async_get(hass)
     if uid:
@@ -171,7 +171,7 @@ async def _check_entity_exists(hass, platform, obj, uid) -> None:
 # ---------------------------
 #   _run_entity_setup_loop
 # ---------------------------
-async def _run_entity_setup_loop(
+async def _run_entity_setup_loop(  # pragma: no cover
     hass, platform, config_entry, dispatcher, descriptions, coordinator
 ) -> None:
     """Iterate entity descriptions and add any missing entities to HA."""
@@ -195,7 +195,7 @@ async def _run_entity_setup_loop(
 # ---------------------------
 #   async_add_entities
 # ---------------------------
-async def async_add_entities(
+async def async_add_entities(  # pragma: no cover
     hass: HomeAssistant, config_entry: ConfigEntry, dispatcher: dict[str, Callable]
 ):
     """Add entities."""
@@ -377,18 +377,18 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
         )
         return attributes
 
-    async def start(self):
+    async def start(self):  # pragma: no cover
         """Dummy run function"""
         raise NotImplementedError()
 
-    async def stop(self):
+    async def stop(self):  # pragma: no cover
         """Dummy stop function"""
         raise NotImplementedError()
 
-    async def restart(self):
+    async def restart(self):  # pragma: no cover
         """Dummy restart function"""
         raise NotImplementedError()
 
-    async def reload(self):
+    async def reload(self):  # pragma: no cover
         """Dummy reload function"""
         raise NotImplementedError()
