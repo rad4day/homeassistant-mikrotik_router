@@ -11,20 +11,16 @@ from homeassistant.components.device_tracker.config_entry import ScannerEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import STATE_NOT_HOME
-from homeassistant.helpers import (
-    entity_platform as ep,
-    entity_registry as er,
-)
+from homeassistant.helpers import entity_platform as ep
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util import slugify
 from homeassistant.util.dt import utcnow
 
 from homeassistant.components.device_tracker.const import SourceType
 
 from .device_tracker_types import SENSOR_TYPES, SENSOR_SERVICES
 from .coordinator import MikrotikCoordinator
-from .entity import _skip_sensor, MikrotikEntity
+from .entity import _run_entity_setup_loop, MikrotikEntity
 from .helper import format_attribute
 from .const import (
     DOMAIN,
@@ -53,42 +49,9 @@ async def async_add_entities(
         """Update the values of the controller."""
         if coordinator.data is None:
             return
-
-        async def async_check_exist(obj, coordinator, uid: None) -> None:
-            """Check entity exists."""
-            entity_registry = er.async_get(hass)
-            if uid:
-                unique_id = f"{obj._inst.lower()}-{obj.entity_description.key}-{slugify(str(obj._data[obj.entity_description.data_reference]).lower())}"
-            else:
-                unique_id = f"{obj._inst.lower()}-{obj.entity_description.key}"
-
-            entity_id = entity_registry.async_get_entity_id(
-                platform.domain, DOMAIN, unique_id
-            )
-            entity = entity_registry.async_get(entity_id)
-            if entity is None or (
-                (entity_id not in platform.entities) and (entity.disabled is False)
-            ):
-                _LOGGER.debug("Add entity %s", entity_id)
-                await platform.async_add_entities([obj])
-
-        for entity_description in descriptions:
-            data = coordinator.data[entity_description.data_path]
-            if not entity_description.data_reference:
-                if data.get(entity_description.data_attribute) is None:
-                    continue
-                obj = dispatcher[entity_description.func](
-                    coordinator, entity_description
-                )
-                await async_check_exist(obj, coordinator, None)
-            else:
-                for uid in data:
-                    if _skip_sensor(config_entry, entity_description, data, uid):
-                        continue
-                    obj = dispatcher[entity_description.func](
-                        coordinator, entity_description, uid
-                    )
-                    await async_check_exist(obj, coordinator, uid)
+        await _run_entity_setup_loop(
+            hass, platform, config_entry, dispatcher, descriptions, coordinator
+        )
 
     await async_update_controller(
         hass.data[DOMAIN][config_entry.entry_id].tracker_coordinator

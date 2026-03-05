@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from logging import getLogger
-from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -15,15 +13,8 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import MikrotikCoordinator
-from .entity import MikrotikEntity, async_add_entities
-from .helper import format_attribute
-from .sensor_types import (
-    SENSOR_TYPES,
-    SENSOR_SERVICES,
-    DEVICE_ATTRIBUTES_IFACE_ETHER,
-    DEVICE_ATTRIBUTES_IFACE_SFP,
-    DEVICE_ATTRIBUTES_IFACE_WIRELESS,
-)
+from .entity import MikrotikEntity, MikrotikInterfaceEntityMixin, async_add_entities
+from .sensor_types import SENSOR_TYPES, SENSOR_SERVICES
 
 _LOGGER = getLogger(__name__)
 
@@ -84,30 +75,8 @@ class MikrotikSensor(MikrotikEntity, SensorEntity):
 # ---------------------------
 #   MikrotikInterfaceTrafficSensor
 # ---------------------------
-class MikrotikInterfaceTrafficSensor(MikrotikSensor):
+class MikrotikInterfaceTrafficSensor(MikrotikInterfaceEntityMixin, MikrotikSensor):
     """Define an Mikrotik MikrotikInterfaceTrafficSensor sensor."""
-
-    @property
-    def extra_state_attributes(self) -> Mapping[str, Any]:
-        """Return the state attributes."""
-        attributes = super().extra_state_attributes
-
-        if self._data["type"] == "ether":
-            for variable in DEVICE_ATTRIBUTES_IFACE_ETHER:
-                if variable in self._data:
-                    attributes[format_attribute(variable)] = self._data[variable]
-
-            if "sfp-shutdown-temperature" in self._data:
-                for variable in DEVICE_ATTRIBUTES_IFACE_SFP:
-                    if variable in self._data:
-                        attributes[format_attribute(variable)] = self._data[variable]
-
-        elif self._data["type"] == "wlan":
-            for variable in DEVICE_ATTRIBUTES_IFACE_WIRELESS:
-                if variable in self._data:
-                    attributes[format_attribute(variable)] = self._data[variable]
-
-        return attributes
 
 
 # ---------------------------
