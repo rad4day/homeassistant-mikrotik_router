@@ -277,7 +277,9 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
             dev_connection_value = self.entity_description.ha_connection_value
             if dev_connection_value.startswith("data__"):
                 dev_connection_value = dev_connection_value[6:]
-                dev_connection_value = self._data.get(dev_connection_value, dev_connection_value)
+                dev_connection_value = self._data.get(
+                    dev_connection_value, dev_connection_value
+                )
 
         if self.entity_description.ha_group == "System":
             return DeviceInfo(

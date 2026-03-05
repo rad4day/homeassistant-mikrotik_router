@@ -1637,7 +1637,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 version = re.sub("[^0-9\\.]", "", full_version[0:split_end])
                 version_parts = version.split(".")
                 self.major_fw_version = int(version_parts[0])
-                self.minor_fw_version = int(version_parts[1]) if len(version_parts) > 1 else 0
+                self.minor_fw_version = (
+                    int(version_parts[1]) if len(version_parts) > 1 else 0
+                )
                 _LOGGER.debug(
                     "Mikrotik %s FW version major=%s minor=%s (%s)",
                     self.host,
@@ -2410,7 +2412,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             )
 
             accounting_config = self.api.query("/ip/accounting")
-            threshold = accounting_config[0].get("threshold") if accounting_config else None
+            threshold = (
+                accounting_config[0].get("threshold") if accounting_config else None
+            )
             entry_count = len(accounting_data)
 
             if threshold is not None and entry_count == threshold:
