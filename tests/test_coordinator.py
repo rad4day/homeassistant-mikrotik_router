@@ -148,9 +148,9 @@ def test_parse_api_key_search_merges_into_existing_entry():
         ],
     )
     assert result["uid-abc"]["poe-out-status"] == "powered-on"
-    assert result["uid-abc"]["poe-out-voltage"] == 24.2
-    assert result["uid-abc"]["poe-out-current"] == 0.5
-    assert result["uid-abc"]["poe-out-power"] == 12.1
+    assert result["uid-abc"]["poe-out-voltage"] == pytest.approx(24.2)
+    assert result["uid-abc"]["poe-out-current"] == pytest.approx(0.5)
+    assert result["uid-abc"]["poe-out-power"] == pytest.approx(12.1)
 
 
 def test_parse_api_default_used_when_field_missing():
@@ -183,8 +183,8 @@ def test_parse_api_ensure_vals_adds_missing_keys():
             {"name": "tx-previous", "default": 0.0},
         ],
     )
-    assert result["ether1"]["rx-previous"] == 0.0
-    assert result["ether1"]["tx-previous"] == 0.0
+    assert result["ether1"]["rx-previous"] == pytest.approx(0.0)
+    assert result["ether1"]["tx-previous"] == pytest.approx(0.0)
 
 
 def test_parse_api_skip_filters_entries():
@@ -239,7 +239,7 @@ def test_health_fw6_populates_poe_in_keys():
 
     coordinator.get_system_health()
 
-    assert coordinator.ds["health"]["poe-in-voltage"] == 48.1
+    assert coordinator.ds["health"]["poe-in-voltage"] == pytest.approx(48.1)
     assert coordinator.ds["health"]["poe-in-current"] == 220
     assert coordinator.ds["health"]["temperature"] == 45
 
@@ -280,8 +280,8 @@ def test_health_fw7_flattens_name_value_pairs():
     coordinator.get_system_health()
 
     assert coordinator.ds["health"]["temperature"] == 50
-    assert coordinator.ds["health"]["voltage"] == 12.1
-    assert coordinator.ds["health"]["poe-in-voltage"] == 48.0
+    assert coordinator.ds["health"]["voltage"] == pytest.approx(12.1)
+    assert coordinator.ds["health"]["poe-in-voltage"] == pytest.approx(48.0)
 
 
 # ---------------------------------------------------------------------------
@@ -337,9 +337,9 @@ def test_poe_monitor_merges_all_four_fields():
         ],
     )
     assert result["ether1"]["poe-out-status"] == "powered-on"
-    assert result["ether1"]["poe-out-voltage"] == 24.5
+    assert result["ether1"]["poe-out-voltage"] == pytest.approx(24.5)
     assert result["ether1"]["poe-out-current"] == 310
-    assert result["ether1"]["poe-out-power"] == 7.6
+    assert result["ether1"]["poe-out-power"] == pytest.approx(7.6)
 
 
 def test_poe_monitor_uses_none_defaults_for_missing_fields():
@@ -567,3 +567,55 @@ async def test_wireless_host_not_counted_as_wired():
 
     assert coordinator.ds["resource"]["clients_wired"] == 0
     assert coordinator.ds["resource"]["clients_wireless"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Group E: bug-fix regression tests
+# ---------------------------------------------------------------------------
+
+
+def test_get_accounting_uid_by_ip_uses_equality_not_identity():
+    """_get_accounting_uid_by_ip returns correct MAC using == not 'is'.
+
+    Regression test for the 'is' vs '==' string comparison fix.
+    String interning means 'is' works for short literals but fails for
+    dynamically built strings — == is always correct.
+    """
+    coordinator = make_coordinator()
+    coordinator.ds["client_traffic"] = {
+        "AA:BB:CC:DD:EE:01": {"address": "192.168.1.10"},
+        "AA:BB:CC:DD:EE:02": {"address": "192.168.1.20"},
+    }
+
+    # Build IP as a non-interned string to ensure 'is' would fail
+    target_ip = "192.168.1." + "20"
+    result = coordinator._get_accounting_uid_by_ip(target_ip)
+
+    assert result == "AA:BB:CC:DD:EE:02"
+
+
+@pytest.mark.asyncio
+async def test_mac_lookup_cancelled_error_propagates():
+    """asyncio.CancelledError from mac lookup is re-raised, not swallowed.
+
+    Regression test for the bare except swallowing CancelledError fix.
+    """
+    import asyncio
+
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            "AA:BB:CC:DD:EE:FF": {
+                "mac-address": "AA:BB:CC:DD:EE:FF",
+                "address": "192.168.1.99",
+                "interface": "ether1",
+            }
+        }
+    )
+
+    async def raise_cancelled(_mac):
+        raise asyncio.CancelledError()
+
+    coordinator.async_mac_lookup.lookup = raise_cancelled
+
+    with pytest.raises(asyncio.CancelledError):
+        await coordinator.async_process_host()

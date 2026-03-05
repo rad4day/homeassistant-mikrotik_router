@@ -97,7 +97,7 @@ def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
     ):
         if not config_entry.options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE):
             return True
-        if data[uid].get("poe-out-status") is None:
+        if uid not in data or data[uid].get("poe-out-status") is None:
             return True
         # Skip measurement sensors on hardware that doesn't report power monitoring
         if (
@@ -222,12 +222,12 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
     def custom_name(self) -> str:
         """Return the name for this entity"""
         if not self._uid:
-            if self.entity_description.data_name_comment and self._data["comment"]:
+            if self.entity_description.data_name_comment and self._data.get("comment"):
                 return f"{self._data['comment']}"
 
             return f"{self.entity_description.name}"
 
-        if self.entity_description.data_name_comment and self._data["comment"]:
+        if self.entity_description.data_name_comment and self._data.get("comment"):
             return f"{self._data['comment']}"
 
         if self.entity_description.name:
@@ -277,7 +277,9 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
             dev_connection_value = self.entity_description.ha_connection_value
             if dev_connection_value.startswith("data__"):
                 dev_connection_value = dev_connection_value[6:]
-                dev_connection_value = self._data[dev_connection_value]
+                dev_connection_value = self._data.get(
+                    dev_connection_value, dev_connection_value
+                )
 
         if self.entity_description.ha_group == "System":
             return DeviceInfo(
