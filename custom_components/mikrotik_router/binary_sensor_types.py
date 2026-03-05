@@ -12,6 +12,12 @@ from homeassistant.components.binary_sensor import (
 )
 
 from .const import DOMAIN
+from .iface_attributes import (
+    DEVICE_ATTRIBUTES_IFACE,
+    DEVICE_ATTRIBUTES_IFACE_ETHER,
+    DEVICE_ATTRIBUTES_IFACE_SFP,
+    DEVICE_ATTRIBUTES_IFACE_WIRELESS,
+)
 
 DEVICE_ATTRIBUTES_PPP_SECRET = [
     "connected",
@@ -20,76 +26,6 @@ DEVICE_ATTRIBUTES_PPP_SECRET = [
     "comment",
     "caller-id",
     "encoding",
-]
-
-DEVICE_ATTRIBUTES_IFACE = [
-    "running",
-    "enabled",
-    "comment",
-    "client-ip-address",
-    "client-mac-address",
-    "port-mac-address",
-    "last-link-down-time",
-    "last-link-up-time",
-    "link-downs",
-    "actual-mtu",
-    "type",
-    "name",
-]
-
-DEVICE_ATTRIBUTES_IFACE_ETHER = [
-    "status",
-    "auto-negotiation",
-    "rate",
-    "full-duplex",
-    "default-name",
-    "poe-out",
-]
-
-DEVICE_ATTRIBUTES_IFACE_SFP = [
-    "status",
-    "auto-negotiation",
-    "advertising",
-    "link-partner-advertising",
-    "sfp-temperature",
-    "sfp-supply-voltage",
-    "sfp-module-present",
-    "sfp-tx-bias-current",
-    "sfp-tx-power",
-    "sfp-rx-power",
-    "sfp-rx-loss",
-    "sfp-tx-fault",
-    "sfp-type",
-    "sfp-connector-type",
-    "sfp-vendor-name",
-    "sfp-vendor-part-number",
-    "sfp-vendor-revision",
-    "sfp-vendor-serial",
-    "sfp-manufacturing-date",
-    "eeprom-checksum",
-]
-
-DEVICE_ATTRIBUTES_IFACE_WIRELESS = [
-    "ssid",
-    "mode",
-    "radio-name",
-    "interface-type",
-    "country",
-    "installation",
-    "antenna-gain",
-    "frequency",
-    "band",
-    "channel-width",
-    "secondary-frequency",
-    "wireless-protocol",
-    "rate-set",
-    "distance",
-    "tx-power-mode",
-    "vlan-id",
-    "wds-mode",
-    "wds-default-bridge",
-    "bridge-mode",
-    "hide-ssid",
 ]
 
 DEVICE_ATTRIBUTES_UPS = [

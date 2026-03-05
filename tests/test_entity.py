@@ -1,10 +1,13 @@
-"""Unit tests for Mikrotik Router entity _skip_sensor() logic."""
+"""Unit tests for Mikrotik Router entity _skip_sensor() and MikrotikInterfaceEntityMixin."""
 
 from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.mikrotik_router.entity import _skip_sensor
+from custom_components.mikrotik_router.entity import (
+    _skip_sensor,
+    MikrotikInterfaceEntityMixin,
+)
 from custom_components.mikrotik_router.const import (
     CONF_SENSOR_PORT_TRAFFIC,
     CONF_SENSOR_PORT_TRACKER,
@@ -238,3 +241,101 @@ def test_skip_poe_sensor_when_uid_absent_from_data():
     cfg = make_config_entry({CONF_SENSOR_POE: True})
 
     assert _skip_sensor(cfg, desc, data, "ether1") is True
+
+
+# ---------------------------------------------------------------------------
+# MikrotikInterfaceEntityMixin tests
+# ---------------------------------------------------------------------------
+
+
+class _BaseSpy:
+    """Minimal base that simulates the HA base-class extra_state_attributes."""
+
+    @property
+    def extra_state_attributes(self):
+        return {"attribution": "Mikrotik"}
+
+
+class _ConcreteEntity(MikrotikInterfaceEntityMixin, _BaseSpy):
+    """Concrete entity used to exercise the mixin without a real coordinator."""
+
+    def __init__(self, data):
+        self._data = data
+
+
+def test_mixin_ether_adds_ether_attributes():
+    """Ether-type interface populates ether-specific attributes."""
+    entity = _ConcreteEntity({"type": "ether", "status": "link-ok", "rate": "1Gbps"})
+    attrs = entity.extra_state_attributes
+    assert "status" in attrs
+    assert attrs["status"] == "link-ok"
+    assert "rate" in attrs
+    assert attrs["rate"] == "1Gbps"
+
+
+def test_mixin_ether_skips_missing_ether_keys():
+    """Only attributes actually present in _data are included."""
+    entity = _ConcreteEntity({"type": "ether"})
+    attrs = entity.extra_state_attributes
+    # DEVICE_ATTRIBUTES_IFACE_ETHER keys should be absent when not in _data
+    assert "status" not in attrs
+    assert "auto_negotiation" not in attrs
+
+
+def test_mixin_ether_with_sfp_adds_sfp_attributes():
+    """SFP attributes are added for ether interfaces that expose sfp-shutdown-temperature."""
+    entity = _ConcreteEntity(
+        {
+            "type": "ether",
+            "sfp-shutdown-temperature": "95C",
+            "sfp-temperature": "45C",
+            "sfp-vendor-name": "ACME",
+        }
+    )
+    attrs = entity.extra_state_attributes
+    assert "sfp_temperature" in attrs
+    assert attrs["sfp_temperature"] == "45C"
+    assert "sfp_vendor_name" in attrs
+
+
+def test_mixin_ether_without_sfp_does_not_add_sfp_attributes():
+    """SFP attributes are omitted when sfp-shutdown-temperature is absent."""
+    entity = _ConcreteEntity(
+        {"type": "ether", "status": "link-ok", "sfp-temperature": "45C"}
+    )
+    attrs = entity.extra_state_attributes
+    # sfp-temperature present in data but sfp-shutdown-temperature is not → SFP block skipped
+    assert "sfp_temperature" not in attrs
+
+
+def test_mixin_wlan_adds_wireless_attributes():
+    """Wlan-type interface populates wireless-specific attributes."""
+    entity = _ConcreteEntity({"type": "wlan", "ssid": "MyWifi", "band": "2ghz-b/g/n"})
+    attrs = entity.extra_state_attributes
+    assert "ssid" in attrs
+    assert attrs["ssid"] == "MyWifi"
+    assert "band" in attrs
+
+
+def test_mixin_other_type_adds_no_extra_attributes():
+    """Non-ether/wlan interfaces (e.g. bridge) produce no extra attributes."""
+    entity = _ConcreteEntity({"type": "bridge", "status": "active"})
+    attrs = entity.extra_state_attributes
+    assert "status" not in attrs
+    # Only the base attribution key is present
+    assert list(attrs.keys()) == ["attribution"]
+
+
+def test_mixin_missing_type_adds_no_extra_attributes():
+    """Missing 'type' key is treated the same as an unrecognised type."""
+    entity = _ConcreteEntity({"status": "active"})
+    attrs = entity.extra_state_attributes
+    assert "status" not in attrs
+    assert list(attrs.keys()) == ["attribution"]
+
+
+def test_mixin_preserves_base_attributes():
+    """Mixin does not overwrite attributes returned by the base class."""
+    entity = _ConcreteEntity({"type": "ether", "status": "link-ok"})
+    attrs = entity.extra_state_attributes
+    assert attrs["attribution"] == "Mikrotik"

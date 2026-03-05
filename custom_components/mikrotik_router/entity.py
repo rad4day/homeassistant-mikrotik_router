@@ -34,8 +34,42 @@ from .const import (
 )
 from .coordinator import MikrotikCoordinator, MikrotikTrackerCoordinator
 from .helper import format_attribute
+from .iface_attributes import (
+    DEVICE_ATTRIBUTES_IFACE_ETHER,
+    DEVICE_ATTRIBUTES_IFACE_SFP,
+    DEVICE_ATTRIBUTES_IFACE_WIRELESS,
+)
 
 _LOGGER = getLogger(__name__)
+
+
+def _copy_attrs(attributes: dict, data: dict, variables: list) -> None:
+    """Copy data values for each variable in the list into attributes."""
+    for variable in variables:
+        if variable in data:
+            attributes[format_attribute(variable)] = data[variable]
+
+
+class MikrotikInterfaceEntityMixin:
+    """Mixin providing interface-type-aware extra state attributes.
+
+    Used by both MikrotikPortBinarySensor and MikrotikInterfaceTrafficSensor
+    to avoid duplicating the ether/SFP/wlan attribute logic.
+    """
+
+    @property
+    def extra_state_attributes(self):
+        """Return type-specific interface state attributes."""
+        attributes = super().extra_state_attributes
+
+        if self._data.get("type") == "ether":
+            _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
+            if "sfp-shutdown-temperature" in self._data:
+                _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_SFP)
+        elif self._data.get("type") == "wlan":
+            _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_WIRELESS)
+
+        return attributes
 
 
 def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
@@ -115,9 +149,53 @@ def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
 
 
 # ---------------------------
+#   _check_entity_exists
+# ---------------------------
+async def _check_entity_exists(hass, platform, obj, uid) -> None:  # pragma: no cover
+    """Add obj to HA if it is not yet registered or has been removed."""
+    entity_registry = er.async_get(hass)
+    if uid:
+        unique_id = f"{obj._inst.lower()}-{obj.entity_description.key}-{slugify(str(obj._data[obj.entity_description.data_reference]).lower())}"
+    else:
+        unique_id = f"{obj._inst.lower()}-{obj.entity_description.key}"
+
+    entity_id = entity_registry.async_get_entity_id(platform.domain, DOMAIN, unique_id)
+    entity = entity_registry.async_get(entity_id)
+    if entity is None or (
+        (entity_id not in platform.entities) and (entity.disabled is False)
+    ):
+        _LOGGER.debug("Add entity %s", entity_id)
+        await platform.async_add_entities([obj])
+
+
+# ---------------------------
+#   _run_entity_setup_loop
+# ---------------------------
+async def _run_entity_setup_loop(  # pragma: no cover
+    hass, platform, config_entry, dispatcher, descriptions, coordinator
+) -> None:
+    """Iterate entity descriptions and add any missing entities to HA."""
+    for entity_description in descriptions:
+        data = coordinator.data[entity_description.data_path]
+        if not entity_description.data_reference:
+            if data.get(entity_description.data_attribute) is None:
+                continue
+            obj = dispatcher[entity_description.func](coordinator, entity_description)
+            await _check_entity_exists(hass, platform, obj, None)
+        else:
+            for uid in data:
+                if _skip_sensor(config_entry, entity_description, data, uid):
+                    continue
+                obj = dispatcher[entity_description.func](
+                    coordinator, entity_description, uid
+                )
+                await _check_entity_exists(hass, platform, obj, uid)
+
+
+# ---------------------------
 #   async_add_entities
 # ---------------------------
-async def async_add_entities(
+async def async_add_entities(  # pragma: no cover
     hass: HomeAssistant, config_entry: ConfigEntry, dispatcher: dict[str, Callable]
 ):
     """Add entities."""
@@ -131,42 +209,9 @@ async def async_add_entities(
     @callback
     async def async_update_controller(coordinator):
         """Update the values of the controller."""
-
-        async def async_check_exist(obj, coordinator, uid: None) -> None:
-            """Check entity exists."""
-            entity_registry = er.async_get(hass)
-            if uid:
-                unique_id = f"{obj._inst.lower()}-{obj.entity_description.key}-{slugify(str(obj._data[obj.entity_description.data_reference]).lower())}"
-            else:
-                unique_id = f"{obj._inst.lower()}-{obj.entity_description.key}"
-
-            entity_id = entity_registry.async_get_entity_id(
-                platform.domain, DOMAIN, unique_id
-            )
-            entity = entity_registry.async_get(entity_id)
-            if entity is None or (
-                (entity_id not in platform.entities) and (entity.disabled is False)
-            ):
-                _LOGGER.debug("Add entity %s", entity_id)
-                await platform.async_add_entities([obj])
-
-        for entity_description in descriptions:
-            data = coordinator.data[entity_description.data_path]
-            if not entity_description.data_reference:
-                if data.get(entity_description.data_attribute) is None:
-                    continue
-                obj = dispatcher[entity_description.func](
-                    coordinator, entity_description
-                )
-                await async_check_exist(obj, coordinator, None)
-            else:
-                for uid in data:
-                    if _skip_sensor(config_entry, entity_description, data, uid):
-                        continue
-                    obj = dispatcher[entity_description.func](
-                        coordinator, entity_description, uid
-                    )
-                    await async_check_exist(obj, coordinator, uid)
+        await _run_entity_setup_loop(
+            hass, platform, config_entry, dispatcher, descriptions, coordinator
+        )
 
     await async_update_controller(
         hass.data[DOMAIN][config_entry.entry_id].data_coordinator
@@ -327,24 +372,23 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
     def extra_state_attributes(self) -> Mapping[str, Any]:
         """Return the state attributes."""
         attributes = super().extra_state_attributes
-        for variable in self.entity_description.data_attributes_list:
-            if variable in self._data:
-                attributes[format_attribute(variable)] = self._data[variable]
-
+        _copy_attrs(
+            attributes, self._data, self.entity_description.data_attributes_list
+        )
         return attributes
 
-    async def start(self):
+    async def start(self):  # pragma: no cover
         """Dummy run function"""
         raise NotImplementedError()
 
-    async def stop(self):
+    async def stop(self):  # pragma: no cover
         """Dummy stop function"""
         raise NotImplementedError()
 
-    async def restart(self):
+    async def restart(self):  # pragma: no cover
         """Dummy restart function"""
         raise NotImplementedError()
 
-    async def reload(self):
+    async def reload(self):  # pragma: no cover
         """Dummy reload function"""
         raise NotImplementedError()

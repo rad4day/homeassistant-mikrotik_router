@@ -3,22 +3,13 @@
 from __future__ import annotations
 
 from logging import getLogger
-from collections.abc import Mapping
-from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .binary_sensor_types import (
-    SENSOR_TYPES,
-    SENSOR_SERVICES,
-    DEVICE_ATTRIBUTES_IFACE_ETHER,
-    DEVICE_ATTRIBUTES_IFACE_SFP,
-    DEVICE_ATTRIBUTES_IFACE_WIRELESS,
-    DEVICE_ATTRIBUTES_NETWATCH,
-)
+from .binary_sensor_types import SENSOR_TYPES, SENSOR_SERVICES
 from .const import (
     CONF_SENSOR_PPP,
     DEFAULT_SENSOR_PPP,
@@ -27,8 +18,7 @@ from .const import (
     CONF_SENSOR_NETWATCH_TRACKER,
     DEFAULT_SENSOR_NETWATCH_TRACKER,
 )
-from .entity import MikrotikEntity, async_add_entities
-from .helper import format_attribute
+from .entity import MikrotikEntity, MikrotikInterfaceEntityMixin, async_add_entities
 
 _LOGGER = getLogger(__name__)
 
@@ -100,7 +90,7 @@ class MikrotikPPPSecretBinarySensor(MikrotikBinarySensor):
 # ---------------------------
 #   MikrotikPortBinarySensor
 # ---------------------------
-class MikrotikPortBinarySensor(MikrotikBinarySensor):
+class MikrotikPortBinarySensor(MikrotikInterfaceEntityMixin, MikrotikBinarySensor):
     """Representation of a network port."""
 
     @property
@@ -127,25 +117,3 @@ class MikrotikPortBinarySensor(MikrotikBinarySensor):
             icon = "mdi:lan-disconnect"
 
         return icon
-
-    @property
-    def extra_state_attributes(self) -> Mapping[str, Any]:
-        """Return the state attributes."""
-        attributes = super().extra_state_attributes
-
-        if self._data["type"] == "ether":
-            for variable in DEVICE_ATTRIBUTES_IFACE_ETHER:
-                if variable in self._data:
-                    attributes[format_attribute(variable)] = self._data[variable]
-
-            if "sfp-shutdown-temperature" in self._data:
-                for variable in DEVICE_ATTRIBUTES_IFACE_SFP:
-                    if variable in self._data:
-                        attributes[format_attribute(variable)] = self._data[variable]
-
-        elif self._data["type"] == "wlan":
-            for variable in DEVICE_ATTRIBUTES_IFACE_WIRELESS:
-                if variable in self._data:
-                    attributes[format_attribute(variable)] = self._data[variable]
-
-        return attributes
