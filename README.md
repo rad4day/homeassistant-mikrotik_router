@@ -15,7 +15,21 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.3
+## What's New — v2.3.4
+
+The [v2.3.4](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.4) release is a reliability patch.
+
+### Bug fixes in v2.3.4
+
+| Fix | Detail |
+|-----|--------|
+| **Crash on empty accounting query** | No longer crashes when `/ip/accounting` returns no data |
+| **Firmware version parse** | Handles RouterOS versions without a minor segment |
+| **Host manufacturer lookup** | Exception during MAC OUI lookup no longer propagates |
+
+---
+
+## v2.3.3 — PoE Monitoring & Core Bug Fixes
 
 The [v2.3.3](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.3) release is the first stable release of this community fork. It adds a major new feature and fixes several long-standing bugs reported against the upstream integration.
 
@@ -32,7 +46,7 @@ Monitor Power over Ethernet status and power metrics for each PoE-capable port o
 
 Voltage, current and power sensors are **automatically hidden** on passive-PoE hardware that does not report measurements (e.g. hAP ax3 ether1). Only `poe-out-status` appears on those ports.
 
-### Bug fixes in v2.3.3
+### Bug fixes in v2.3.3 (also included in v2.3.4+)
 
 | Fix | Detail |
 |-----|--------|
