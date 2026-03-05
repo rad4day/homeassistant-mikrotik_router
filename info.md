@@ -4,8 +4,9 @@ Monitor and control your MikroTik router from Home Assistant.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-### Recent fixes & features (dev release)
+### What's new in v2.3.3
 - **PoE monitoring** — per-port PoE-Out sensors (status, voltage, current, power) for CRS/RB/hEX PoE switches; PoE-In sensors for PoE-powered devices ([#259](https://github.com/tomaae/homeassistant-mikrotik_router/issues/259))
+- **Wired client count fix** — `clients_wired` now correctly counts wired devices ([upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468))
 - **RB4011 / RB5009 / CCR crash fix** — integration no longer fails on routers without wireless package ([#433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
 - **Temperature unit conversion** — sensors now respect Fahrenheit preference ([#230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
 - **Error 500 on Configure** — fixed for HA 2025.12+ ([#464](https://github.com/tomaae/homeassistant-mikrotik_router/issues/464))

@@ -15,11 +15,11 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.x Pre-Release
+## What's New — v2.3.3
 
-The latest pre-release ([v2.3.2](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.2)) adds new features and fixes reported by the community. Install via HACS with "Show beta versions" enabled.
+The [v2.3.3](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.3) release is the first stable release of this community fork. It adds a major new feature and fixes several long-standing bugs reported against the upstream integration.
 
-### New feature: PoE monitoring (v2.3.x)
+### New feature: PoE monitoring
 
 Monitor Power over Ethernet status and power metrics for each PoE-capable port on your MikroTik switch or router directly in Home Assistant. Enable **PoE port sensors** under **Settings → Devices & Services → Mikrotik Router → Configure**.
 
@@ -32,45 +32,30 @@ Monitor Power over Ethernet status and power metrics for each PoE-capable port o
 
 Voltage, current and power sensors are **automatically hidden** on passive-PoE hardware that does not report measurements (e.g. hAP ax3 ether1). Only `poe-out-status` appears on those ports.
 
-### Fixes in v2.3.x
+### Bug fixes in v2.3.3
 
 | Fix | Detail |
 |-----|--------|
-| PoE measurement sensors showing 0 on passive PoE ports | Sensors now hidden when hardware does not report measurements |
-| Wireless client count (`sensor.*_wireless_clients_api`) | Confirmed working on hAP ac2 and compatible devices ([upstream #421](https://github.com/tomaae/homeassistant-mikrotik_router/issues/421)) |
-| **`clients_wired` always reports 0** | ARP/DHCP hosts now correctly marked available — wired client counter works ([upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468)) |
+| **Error 500 on Configure** | Fixed for HA 2025.12+ — `OptionsFlow` compatibility with the new framework ([#464](https://github.com/tomaae/homeassistant-mikrotik_router/issues/464)) |
+| **Integration crash on non-wireless routers** | RB4011, RB5009, CCR series no longer fail on startup when wireless package is absent ([#433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433)) |
+| **Wired client count always 0** | ARP/DHCP hosts now correctly marked available — wired client counter works ([upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468)) |
+| **Wireless client count** | Correct client count on hAP ac2 and compatible devices ([upstream #421](https://github.com/tomaae/homeassistant-mikrotik_router/issues/421)) |
+| **Temperature sensors ignore Fahrenheit preference** | Sensors now respect the HA unit preference ([#230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230)) |
+| PoE measurement sensors showing 0 on passive PoE ports | Voltage/current/power sensors now hidden when hardware does not report measurements |
+| RouterOS 7 WiFi package detection | Supports `wifiwave2`, `wifi`, `wifi-qcom`, `wifi-qcom-ac` |
 
-### How to install the pre-release
+### Install via HACS
 
 1. In HACS, add this repo as a custom repository (if not already):
    - HACS > Integrations > 3-dot menu > Custom repositories
    - URL: `https://github.com/jnctech/homeassistant-mikrotik_router`
    - Category: Integration
-2. Go to the Mikrotik Router integration in HACS and select **Redownload**
-3. Enable **"Show beta versions"** and select the latest pre-release
-4. Restart Home Assistant
+2. Install **Mikrotik Router** from HACS
+3. Restart Home Assistant
 
----
+### Switching from the upstream fork
 
-## Fixes in the Current Stable Release
-
-The current stable release fixes a critical crash introduced in **Home Assistant 2025.12**. If you are on the original `tomaae/homeassistant-mikrotik_router` integration and experience any of the following, switch to this fork:
-
-- **Error 500 when clicking "Configure"** on the Mikrotik Router integration
-- **Internal Server Error** when changing integration options
-- **"OptionsFlow has no attribute config_entry"** in Home Assistant logs
-- **AttributeError: property 'config_entry' of 'OptionsFlow' object has no setter**
-- **Cannot reconfigure Mikrotik Router** after Home Assistant 2025.12 update
-
-Additional fixes included in the stable release (pre-release status, pending broader testing):
-
-| Fix | Upstream ref |
-|-----|--------------|
-| Integration crash on non-wireless routers (RB4011, RB5009, CCR series) | [#433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433) |
-| Temperature sensors ignore Fahrenheit preference | [#230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230) |
-| RouterOS 7 WiFi package detection (`wifiwave2`, `wifi`, `wifi-qcom`, `wifi-qcom-ac`) | — |
-
-### How to switch from the upstream fork
+If you are currently on `tomaae/homeassistant-mikrotik_router` and seeing **Error 500 on Configure**, **Internal Server Error**, or **crashes on startup** since updating Home Assistant:
 
 1. Remove `tomaae/homeassistant-mikrotik_router` from HACS custom repositories
 2. Add `https://github.com/jnctech/homeassistant-mikrotik_router` as a custom repository in HACS
