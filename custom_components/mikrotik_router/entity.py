@@ -372,7 +372,9 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
     def extra_state_attributes(self) -> Mapping[str, Any]:
         """Return the state attributes."""
         attributes = super().extra_state_attributes
-        _copy_attrs(attributes, self._data, self.entity_description.data_attributes_list)
+        _copy_attrs(
+            attributes, self._data, self.entity_description.data_attributes_list
+        )
         return attributes
 
     async def start(self):
