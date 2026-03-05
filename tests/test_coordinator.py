@@ -612,7 +612,7 @@ async def test_mac_lookup_cancelled_error_propagates():
         }
     )
 
-    async def raise_cancelled():
+    async def raise_cancelled(_mac):
         raise asyncio.CancelledError()
 
     coordinator.async_mac_lookup.lookup = raise_cancelled
