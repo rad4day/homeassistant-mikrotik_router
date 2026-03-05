@@ -3,7 +3,7 @@
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/jnctech/homeassistant-mikrotik_router?style=plastic)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=plastic)](https://github.com/hacs/integration)
 ![Project Stage](https://img.shields.io/badge/project%20stage-Production%20Ready-green.svg?style=plastic)
-![GitHub all releases](https://img.shields.io/github/downloads/jnctech/homeassistant-mikrotik_router/total?style=plastic)
+![GitHub release downloads](https://img.shields.io/github/downloads/jnctech/homeassistant-mikrotik_router/latest/total?style=plastic)
 
 ![GitHub commits since latest release](https://img.shields.io/github/commits-since/jnctech/homeassistant-mikrotik_router/latest?style=plastic)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/jnctech/homeassistant-mikrotik_router?style=plastic)
@@ -15,7 +15,20 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.4
+## What's New — v2.3.5
+
+The [v2.3.5](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.5) release is a Python compatibility patch.
+
+### Bug fixes in v2.3.5
+
+| Fix | Detail |
+|-----|--------|
+| **Python 3.12 compatibility** | Replaced deprecated `datetime.utcfromtimestamp()` with `datetime.fromtimestamp(ts, tz=UTC)` |
+| **Removed `pytz` dependency** | Replaced with stdlib `datetime.timezone.utc` — no behavioural change |
+
+---
+
+## v2.3.4 — Reliability Patch
 
 The [v2.3.4](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.4) release is a reliability patch.
 
