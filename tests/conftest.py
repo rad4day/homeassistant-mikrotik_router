@@ -27,3 +27,9 @@ class MockMikrotikAPI:
     def query(self, path, command=None, args=None):
         key = (path, command) if command else path
         return self.responses.get(key, [])
+
+    def execute(self, path, command, param=None, value=None, options=None):
+        pass
+
+    def set_value(self, path, param, value, mod_param, mod_value):
+        return True

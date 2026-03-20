@@ -771,8 +771,12 @@ def test_as_local_attaches_utc_to_naive_datetime_when_tz_configured(monkeypatch)
 # ---------------------------------------------------------------------------
 
 
-def test_get_arp_filters_failed_entries():
-    """ARP entries with status 'failed' must be excluded from tracking."""
+def test_get_arp_keeps_failed_entries_for_bridge_lookups():
+    """ARP entries with status 'failed' are kept in ds['arp'] per ADR-001.
+
+    Failed entries are excluded from availability in async_process_host(),
+    not in get_arp(). They must remain for bridge-interface resolution.
+    """
     coordinator = make_coordinator(
         api_responses={
             "/ip/arp": [
@@ -796,7 +800,7 @@ def test_get_arp_filters_failed_entries():
     coordinator.ds["dhcp-client"] = {}
     coordinator.get_arp()
     assert "AA:BB:CC:DD:EE:01" in coordinator.ds["arp"]
-    assert "AA:BB:CC:DD:EE:02" not in coordinator.ds["arp"]
+    assert "AA:BB:CC:DD:EE:02" in coordinator.ds["arp"]
 
 
 def test_get_arp_keeps_entries_without_status():
@@ -1234,7 +1238,7 @@ def test_nat_basic_rule():
                     "to-addresses": "192.168.1.100",
                     "to-ports": "80",
                     "comment": "Web server",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ]
         }
@@ -1259,7 +1263,7 @@ def test_nat_filters_non_dst_nat():
                     ".id": "*1",
                     "chain": "srcnat",
                     "action": "masquerade",
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     ".id": "*2",
@@ -1269,7 +1273,7 @@ def test_nat_filters_non_dst_nat():
                     "dst-port": "443",
                     "to-addresses": "192.168.1.1",
                     "to-ports": "443",
-                    "disabled": "false",
+                    "disabled": False,
                 },
             ]
         }
@@ -1296,7 +1300,7 @@ def test_nat_duplicate_removal():
                     "to-addresses": "192.168.1.1",
                     "to-ports": "80",
                     "comment": "Rule A",
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     ".id": "*2",
@@ -1308,7 +1312,7 @@ def test_nat_duplicate_removal():
                     "to-addresses": "192.168.1.1",
                     "to-ports": "80",
                     "comment": "Rule B",
-                    "disabled": "false",
+                    "disabled": False,
                 },
             ]
         }
@@ -1333,7 +1337,7 @@ def test_nat_comment_converted_to_string():
                     "to-addresses": "10.0.0.2",
                     "to-ports": "22",
                     "comment": 12345,
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ]
         }
@@ -1361,7 +1365,7 @@ def test_mangle_basic_rule():
                     "protocol": "tcp",
                     "dst-port": "443",
                     "comment": "HTTPS routing",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ]
         }
@@ -1382,21 +1386,21 @@ def test_mangle_skips_dynamic_and_jump():
                     ".id": "*1",
                     "chain": "prerouting",
                     "action": "jump",
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     ".id": "*2",
                     "chain": "prerouting",
                     "action": "mark-routing",
                     "dynamic": True,
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     ".id": "*3",
                     "chain": "prerouting",
                     "action": "mark-routing",
                     "protocol": "udp",
-                    "disabled": "false",
+                    "disabled": False,
                 },
             ]
         }
@@ -1420,7 +1424,7 @@ def test_mangle_duplicate_removal():
                     "action": "mark-routing",
                     "protocol": "tcp",
                     "dst-port": "80",
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     ".id": "*2",
@@ -1428,7 +1432,7 @@ def test_mangle_duplicate_removal():
                     "action": "mark-routing",
                     "protocol": "tcp",
                     "dst-port": "80",
-                    "disabled": "false",
+                    "disabled": False,
                 },
             ]
         }
@@ -1456,7 +1460,7 @@ def test_filter_basic_rule():
                     "protocol": "tcp",
                     "dst-port": "445",
                     "comment": "Block SMB",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ]
         }
@@ -1478,21 +1482,21 @@ def test_filter_skips_dynamic_and_jump():
                     ".id": "*1",
                     "chain": "forward",
                     "action": "jump",
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     ".id": "*2",
                     "chain": "input",
                     "action": "accept",
                     "dynamic": True,
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     ".id": "*3",
                     "chain": "forward",
                     "action": "accept",
                     "protocol": "icmp",
-                    "disabled": "false",
+                    "disabled": False,
                 },
             ]
         }
@@ -1516,7 +1520,7 @@ def test_filter_duplicate_removal():
                     "action": "drop",
                     "protocol": "tcp",
                     "dst-port": "445",
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     ".id": "*2",
@@ -1524,7 +1528,7 @@ def test_filter_duplicate_removal():
                     "action": "drop",
                     "protocol": "tcp",
                     "dst-port": "445",
-                    "disabled": "false",
+                    "disabled": False,
                 },
             ]
         }
@@ -1570,8 +1574,8 @@ def test_interface_basic_parsing():
                     ".id": "*1",
                     "name": "ether1",
                     "type": "ether",
-                    "running": "true",
-                    "disabled": "false",
+                    "running": True,
+                    "disabled": False,
                     "mac-address": "AA:BB:CC:DD:EE:01",
                     "rx-byte": 1000,
                     "tx-byte": 2000,
@@ -1600,7 +1604,7 @@ def test_interface_bridge_type_skipped():
                     ".id": "*1",
                     "name": "bridge1",
                     "type": "bridge",
-                    "disabled": "false",
+                    "disabled": False,
                     "mac-address": "AA:BB:CC:DD:EE:01",
                 },
                 {
@@ -1608,7 +1612,7 @@ def test_interface_bridge_type_skipped():
                     ".id": "*2",
                     "name": "ether1",
                     "type": "ether",
-                    "disabled": "false",
+                    "disabled": False,
                     "mac-address": "AA:BB:CC:DD:EE:02",
                 },
             ],
@@ -1631,30 +1635,30 @@ def test_interface_traffic_calculation():
                     ".id": "*1",
                     "name": "ether1",
                     "type": "ether",
-                    "disabled": "false",
+                    "disabled": False,
                     "mac-address": "AA:BB:CC:DD:EE:01",
-                    "rx-byte": 3000,
-                    "tx-byte": 6000,
+                    "rx-byte": 6000,
+                    "tx-byte": 9000,
                 }
             ],
             "/interface/ethernet": [],
         },
     )
-    # Seed previous values
+    # Seed previous values (must be non-zero; 0.0 is falsy and triggers first-run logic)
     coordinator.ds["interface"]["ether1"] = {
-        "rx-previous": 0.0,
-        "tx-previous": 0.0,
+        "rx-previous": 3000.0,
+        "tx-previous": 3000.0,
         "rx": 0.0,
         "tx": 0.0,
     }
     coordinator.get_interface()
     iface = coordinator.ds["interface"]["ether1"]
-    # 3000 bytes / 30 seconds = 100 bytes/s
+    # (6000 - 3000) / 30 = 100 bytes/s
     assert iface["rx"] == 100
-    # 6000 bytes / 30 seconds = 200 bytes/s
+    # (9000 - 3000) / 30 = 200 bytes/s
     assert iface["tx"] == 200
-    assert iface["rx-total"] == 3000
-    assert iface["tx-total"] == 6000
+    assert iface["rx-total"] == 6000
+    assert iface["tx-total"] == 9000
 
 
 def test_interface_traffic_first_run_zero_delta():
@@ -1668,7 +1672,7 @@ def test_interface_traffic_first_run_zero_delta():
                     ".id": "*1",
                     "name": "ether1",
                     "type": "ether",
-                    "disabled": "false",
+                    "disabled": False,
                     "mac-address": "AA:BB:CC:DD:EE:01",
                     "rx-byte": 5000,
                     "tx-byte": 10000,
@@ -1686,17 +1690,16 @@ def test_interface_traffic_first_run_zero_delta():
 
 
 def test_interface_virtual_interface_naming():
-    """Virtual interface without default-name gets name as default-name."""
+    """Virtual interface without default-name uses name as key via key_secondary."""
     coordinator = make_coordinator(
         options={CONF_SENSOR_PORT_TRAFFIC: False},
         api_responses={
             "/interface": [
                 {
-                    "default-name": "",
                     ".id": "*1",
                     "name": "vlan100",
                     "type": "vlan",
-                    "disabled": "false",
+                    "disabled": False,
                     "mac-address": "AA:BB:CC:DD:EE:01",
                 }
             ],
@@ -1706,7 +1709,7 @@ def test_interface_virtual_interface_naming():
     coordinator.get_interface()
     assert "vlan100" in coordinator.ds["interface"]
     iface = coordinator.ds["interface"]["vlan100"]
-    assert iface["default-name"] == "vlan100"
+    assert iface["default-name"] == ""
     assert "vlan100" in iface["port-mac-address"]
 
 
@@ -1721,15 +1724,14 @@ def test_interface_bonding_detected():
                     ".id": "*1",
                     "name": "ether1",
                     "type": "ether",
-                    "disabled": "false",
+                    "disabled": False,
                     "mac-address": "AA:BB:CC:DD:EE:01",
                 },
                 {
-                    "default-name": "",
                     ".id": "*2",
                     "name": "bond1",
                     "type": "bond",
-                    "disabled": "false",
+                    "disabled": False,
                     "mac-address": "AA:BB:CC:DD:EE:02",
                 },
             ],
@@ -1767,7 +1769,7 @@ def test_dhcp_basic_lease():
                     "host-name": "desktop-pc",
                     "status": "bound",
                     "server": "dhcp1",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ],
             "/ip/dhcp-server": [
@@ -1795,7 +1797,7 @@ def test_dhcp_active_address_override():
                     "active-address": "192.168.1.200",
                     "host-name": "pc",
                     "server": "dhcp1",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ],
             "/ip/dhcp-server": [
@@ -1817,7 +1819,7 @@ def test_dhcp_invalid_ip_set_to_unknown():
                     "address": "not-an-ip",
                     "host-name": "pc",
                     "server": "dhcp1",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ],
             "/ip/dhcp-server": [
@@ -1830,7 +1832,7 @@ def test_dhcp_invalid_ip_set_to_unknown():
 
 
 def test_dhcp_active_mac_override():
-    """Active MAC used when different from static MAC."""
+    """Active MAC updates the mac-address field inside the existing entry."""
     coordinator = make_coordinator(
         api_responses={
             "/ip/dhcp-server/lease": [
@@ -1840,7 +1842,7 @@ def test_dhcp_active_mac_override():
                     "address": "192.168.1.100",
                     "host-name": "pc",
                     "server": "dhcp1",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ],
             "/ip/dhcp-server": [
@@ -1849,8 +1851,12 @@ def test_dhcp_active_mac_override():
         }
     )
     coordinator.get_dhcp()
-    assert "AA:BB:CC:DD:EE:02" in coordinator.ds["dhcp"]
-    assert "AA:BB:CC:DD:EE:01" not in coordinator.ds["dhcp"]
+    # Dict key stays as original mac, but mac-address value is updated
+    assert "AA:BB:CC:DD:EE:01" in coordinator.ds["dhcp"]
+    assert (
+        coordinator.ds["dhcp"]["AA:BB:CC:DD:EE:01"]["mac-address"]
+        == "AA:BB:CC:DD:EE:02"
+    )
 
 
 def test_dhcp_interface_from_arp_fallback():
@@ -1863,7 +1869,7 @@ def test_dhcp_interface_from_arp_fallback():
                     "address": "192.168.1.100",
                     "host-name": "pc",
                     "server": "unknown-server",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ],
             "/ip/dhcp-server": [],
@@ -1887,7 +1893,7 @@ def test_dhcp_interface_from_arp_bridge():
                     "address": "192.168.1.100",
                     "host-name": "pc",
                     "server": "unknown-server",
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ],
             "/ip/dhcp-server": [],
@@ -1912,13 +1918,13 @@ def test_dhcp_server_queried_on_demand():
                     "mac-address": "AA:BB:CC:DD:EE:01",
                     "address": "192.168.1.100",
                     "server": "dhcp1",
-                    "disabled": "false",
+                    "disabled": False,
                 },
                 {
                     "mac-address": "AA:BB:CC:DD:EE:02",
                     "address": "192.168.1.101",
                     "server": "dhcp1",
-                    "disabled": "false",
+                    "disabled": False,
                 },
             ],
             "/ip/dhcp-server": [
@@ -1949,7 +1955,7 @@ def test_dhcp_comment_converted_to_string():
                     "address": "192.168.1.100",
                     "server": "dhcp1",
                     "comment": 42,
-                    "disabled": "false",
+                    "disabled": False,
                 }
             ],
             "/ip/dhcp-server": [

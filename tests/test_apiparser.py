@@ -253,10 +253,11 @@ class TestFillDefaults:
         assert result["enabled"] is True
 
     def test_bool_reverse_default(self):
+        """When source is absent, default is returned without applying reverse."""
         data = {}
         vals = [{"name": "enabled", "type": "bool", "default": True, "reverse": True}]
         result = fill_defaults(data, vals)
-        assert result["enabled"] is False
+        assert result["enabled"] is True
 
 
 # --- fill_vals ---

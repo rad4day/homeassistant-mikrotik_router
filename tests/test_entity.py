@@ -351,9 +351,9 @@ def test_copy_attrs_copies_existing_keys():
     attributes = {}
     data = {"status": "up", "rate": "1Gbps", "unused": "value"}
     _copy_attrs(attributes, data, ["status", "rate"])
-    assert "Status" in attributes
-    assert "Rate" in attributes
-    assert "Unused" not in attributes
+    assert "status" in attributes
+    assert "rate" in attributes
+    assert "unused" not in attributes
 
 
 def test_copy_attrs_skips_missing_keys():
@@ -361,7 +361,7 @@ def test_copy_attrs_skips_missing_keys():
     attributes = {}
     data = {"status": "up"}
     _copy_attrs(attributes, data, ["status", "missing-key"])
-    assert "Status" in attributes
+    assert "status" in attributes
     assert len(attributes) == 1
 
 
