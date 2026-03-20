@@ -88,17 +88,3 @@ class MikrotikClientTrafficSensor(MikrotikSensor):
     def custom_name(self) -> str:
         """Return the name for this entity"""
         return f"{self.entity_description.name}"
-
-    # @property
-    # def available(self) -> bool:
-    #     """Return if controller and accounting feature in Mikrotik is available.
-    #     Additional check for lan-tx/rx sensors
-    #     """
-    #     if self.entity_description.data_attribute in ["lan-tx", "lan-rx"]:
-    #         return (
-    #             self.coordinator.connected()
-    #             and self._data["available"]
-    #             and self._data["local_accounting"]
-    #         )
-    #     else:
-    #         return self.coordinator.connected() and self._data["available"]

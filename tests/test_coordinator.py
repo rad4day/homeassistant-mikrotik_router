@@ -11,6 +11,7 @@ from custom_components.mikrotik_router.apiparser import (
 )
 from custom_components.mikrotik_router.coordinator import (
     MikrotikCoordinator,
+    _parse_uptime_to_seconds,
     as_local,
     utc_from_timestamp,
 )
@@ -962,6 +963,30 @@ def test_execute_delegates_to_api():
         "/system", "reboot", None, None, None
     )
     assert result is True
+
+
+# ---------------------------------------------------------------------------
+# _parse_uptime_to_seconds helper
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "uptime_str, expected",
+    [
+        ("1w2d3h4m5s", 788645),
+        ("5s", 5),
+        ("3m", 180),
+        ("2h", 7200),
+        ("1d", 86400),
+        ("1w", 604800),
+        ("", 0),
+        ("unknown", 0),
+        ("1d12h30m", 131400),
+    ],
+)
+def test_parse_uptime_to_seconds(uptime_str, expected):
+    """_parse_uptime_to_seconds converts MikroTik uptime strings correctly."""
+    assert _parse_uptime_to_seconds(uptime_str) == expected
 
 
 # ---------------------------------------------------------------------------

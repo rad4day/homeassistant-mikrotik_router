@@ -86,6 +86,19 @@ def utc_from_timestamp(timestamp: float) -> datetime:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
 
+_UPTIME_UNITS = [("w", 604800), ("d", 86400), ("h", 3600), ("m", 60), ("s", 1)]
+
+
+def _parse_uptime_to_seconds(uptime_str: str) -> int:
+    """Parse MikroTik uptime string (e.g. '1w2d3h4m5s') to total seconds."""
+    total = 0
+    for unit, multiplier in _UPTIME_UNITS:
+        match = re.split(rf"(\d+){unit}", uptime_str)
+        if len(match) > 1:
+            total += int(match[1]) * multiplier
+    return total
+
+
 def as_local(dattim: datetime) -> datetime:
     """Convert a UTC datetime object to local time zone."""
     if dattim.tzinfo == DEFAULT_TIME_ZONE:
@@ -512,21 +525,13 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self.support_capsman = False
                 self._wifimodule = "wifiwave2"
 
-            elif "wifi" in packages and packages["wifi"]["enabled"]:
-                self.support_capsman = False
-                self._wifimodule = "wifi"
-
-            elif "wifi-qcom" in packages and packages["wifi-qcom"]["enabled"]:
-                self.support_capsman = False
-                self._wifimodule = "wifi"
-
-            elif "wifi-qcom-ac" in packages and packages["wifi-qcom-ac"]["enabled"]:
-                self.support_capsman = False
-                self._wifimodule = "wifi"
-
-            elif (
-                self.major_fw_version == 7 and self.minor_fw_version >= 13
-            ) or self.major_fw_version > 7:
+            elif any(
+                pkg in packages and packages[pkg]["enabled"]
+                for pkg in ("wifi", "wifi-qcom", "wifi-qcom-ac")
+            ) or (
+                (self.major_fw_version == 7 and self.minor_fw_version >= 13)
+                or self.major_fw_version > 7
+            ):
                 self.support_capsman = False
                 self._wifimodule = "wifi"
 
@@ -606,9 +611,6 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self.last_hwinfo_update = datetime.now().replace(microsecond=0)
 
         await self.hass.async_add_executor_job(self.get_system_resource)
-
-        # if self.api.connected() and "available" not in self.ds["fw-update"]:
-        #     await self.hass.async_add_executor_job(self.get_firmware_update)
 
         if self.api.connected():
             await self.hass.async_add_executor_job(self.get_system_health)
@@ -1397,10 +1399,11 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     "encoding"
                 ]
             else:
+                _PPP_NOT_CONNECTED = "not connected"
                 self.ds["ppp_secret"][uid]["connected"] = False
-                self.ds["ppp_secret"][uid]["caller-id"] = "not connected"
-                self.ds["ppp_secret"][uid]["address"] = "not connected"
-                self.ds["ppp_secret"][uid]["encoding"] = "not connected"
+                self.ds["ppp_secret"][uid]["caller-id"] = _PPP_NOT_CONNECTED
+                self.ds["ppp_secret"][uid]["address"] = _PPP_NOT_CONNECTED
+                self.ds["ppp_secret"][uid]["encoding"] = _PPP_NOT_CONNECTED
 
     # ---------------------------
     #   get_netwatch
@@ -1530,22 +1533,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             ],
         )
 
-        tmp_uptime = 0
-        tmp = re.split(r"(\d+)[s]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1])
-        tmp = re.split(r"(\d+)[m]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1]) * 60
-        tmp = re.split(r"(\d+)[h]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1]) * 3600
-        tmp = re.split(r"(\d+)[d]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1]) * 86400
-        tmp = re.split(r"(\d+)[w]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1]) * 604800
+        tmp_uptime = _parse_uptime_to_seconds(self.ds["resource"]["uptime_str"])
 
         self.ds["resource"]["uptime_epoch"] = tmp_uptime
         now = datetime.now().replace(microsecond=0)
@@ -2242,9 +2230,6 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             ):
                 if key not in self.ds["host"][uid]:
                     self.ds["host"][uid][key] = default
-
-        # if not self.host_tracking_initialized:
-        #     await self.async_ping_tracked_hosts()
 
         # Process hosts
         self.ds["resource"]["clients_wired"] = 0

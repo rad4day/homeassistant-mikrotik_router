@@ -35,6 +35,47 @@
 
 ## Backlog
 
+### ISS-260321-cognitive-complexity — Reduce cognitive complexity to ≤15 per function
+**Type:** Quality
+**Priority:** High
+**Created:** 2026-03-21
+**Status:** 🟡 Backlog
+
+**Context:**
+SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. Total project cognitive complexity is 1058. Worst offenders are upstream inherited code.
+
+**Functions by severity:**
+| Function | File | Complexity | Effort |
+|----------|------|-----------|--------|
+| `async_process_host()` | coordinator.py:2149 | 136 | 2h 6m |
+| `_async_update_data()` (main) | coordinator.py:576 | 65 | 55m |
+| `process_accounting()` | coordinator.py:2379 | 48 | 38m |
+| `parse_api()` | apiparser.py:85 | 30 | 20m |
+| `get_interface()` | coordinator.py:746 | 27 | 17m |
+| `process_interface_client()` | coordinator.py:980 | 27 | 17m |
+| `get_capabilities()` | coordinator.py:481 | 24 | 14m |
+| `_skip_sensor()` | entity.py:75 | 23 | 13m |
+| `async_process_host()` (tracker) | coordinator.py:1925 | 22 | 12m |
+| `_async_update_data()` (tracker) | coordinator.py:149 | 21 | 11m |
+| `extra_state_attributes` | switch.py:104 | 21 | 11m |
+| `from_entry_bool()` | apiparser.py:55 | 18 | 16m |
+| `query()` | mikrotikapi.py:189 | 18 | 8m |
+| `get_system_resource()` | coordinator.py:1509 | 17 | 7m |
+
+**Quick wins (done in PR #29):**
+- ✅ `get_system_resource()`: extracted `_parse_uptime_to_seconds()` helper
+- ✅ `get_capabilities()`: consolidated duplicate wifi module branches
+
+**Remaining (separate PRs recommended):**
+- `async_process_host()` — extract per-source helpers (`_merge_capsman_hosts`, `_merge_wireless_hosts`, `_resolve_hostname`)
+- `parse_api()` — break into parsing pipeline stages
+- `process_accounting()` — extract traffic direction matrix
+- `_async_update_data()` (main) — extract connected-check pattern
+
+**Reference:** SonarCloud maintainability rating is A. These are not blockers but are technical debt.
+
+---
+
 ### ISS-260320-new-device-discovery — New devices require HA restart to appear
 **Type:** Feature
 **Priority:** High
