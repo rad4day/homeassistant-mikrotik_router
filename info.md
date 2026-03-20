@@ -4,13 +4,12 @@ Monitor and control your MikroTik router from Home Assistant.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-### What's new in v2.3.3
-- **PoE monitoring** — per-port PoE-Out sensors (status, voltage, current, power) for CRS/RB/hEX PoE switches; PoE-In sensors for PoE-powered devices ([#259](https://github.com/tomaae/homeassistant-mikrotik_router/issues/259))
-- **Wired client count fix** — `clients_wired` now correctly counts wired devices ([upstream #468](https://github.com/tomaae/homeassistant-mikrotik_router/issues/468))
-- **RB4011 / RB5009 / CCR crash fix** — integration no longer fails on routers without wireless package ([#433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
-- **Temperature unit conversion** — sensors now respect Fahrenheit preference ([#230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
-- **Error 500 on Configure** — fixed for HA 2025.12+ ([#464](https://github.com/tomaae/homeassistant-mikrotik_router/issues/464))
-- **WiFi package detection** — supports wifiwave2, wifi, wifi-qcom, wifi-qcom-ac on RouterOS 7
+### What's new in v2.3.6
+- **Options flow crash fixed** — config panel now works on HA 2025.12+ ([upstream #470](https://github.com/tomaae/homeassistant-mikrotik_router/issues/470), [#471](https://github.com/tomaae/homeassistant-mikrotik_router/issues/471))
+- **Deadlock fix** — `run_script()` lock leak permanently freezing the integration is resolved
+- **Blocking I/O eliminated** — switch toggles, button presses, and firmware updates no longer freeze the HA UI
+- **Device tracking fixes** — failed ARP entries no longer cause false "home" status; new devices now appear without requiring HA restart ([#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17))
+- **Deprecated API cleanup** — updated `DeviceInfo` params and added missing PoE translation
 
 ### Features
  * Interfaces: enable/disable, SFP info, PoE-Out control & power monitoring, RX/TX traffic, device presence
