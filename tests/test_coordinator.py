@@ -15,6 +15,7 @@ from custom_components.mikrotik_router.coordinator import (
     utc_from_timestamp,
 )
 from custom_components.mikrotik_router.const import (
+    CONF_SCAN_INTERVAL,
     CONF_SENSOR_POE,
     CONF_SENSOR_PORT_TRAFFIC,
     DEFAULT_SENSOR_POE,
@@ -956,3 +957,1053 @@ def test_execute_delegates_to_api():
         "/system", "reboot", None, None, None
     )
     assert result is True
+
+
+# ---------------------------------------------------------------------------
+# Group J: get_system_resource() — CPU, memory, uptime, storage
+# ---------------------------------------------------------------------------
+
+
+def test_system_resource_uptime_parsing():
+    """Uptime string '1w2d3h4m5s' is parsed to correct epoch seconds."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/resource": [
+                {
+                    "uptime": "1w2d3h4m5s",
+                    "cpu-load": 15,
+                    "free-memory": 500000,
+                    "total-memory": 1000000,
+                    "free-hdd-space": 8000000,
+                    "total-hdd-space": 16000000,
+                    "platform": "MikroTik",
+                    "board-name": "RB4011",
+                    "version": "7.16.2",
+                }
+            ]
+        }
+    )
+    coordinator.rebootcheck = 999999
+    coordinator.host = "10.0.0.1"
+    coordinator.get_system_resource()
+
+    expected = 1 * 604800 + 2 * 86400 + 3 * 3600 + 4 * 60 + 5
+    assert coordinator.ds["resource"]["uptime_epoch"] == expected
+
+
+def test_system_resource_uptime_seconds_only():
+    """Uptime '45s' parses correctly."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/resource": [
+                {
+                    "uptime": "45s",
+                    "cpu-load": 5,
+                    "free-memory": 100,
+                    "total-memory": 200,
+                    "free-hdd-space": 100,
+                    "total-hdd-space": 200,
+                }
+            ]
+        }
+    )
+    coordinator.rebootcheck = 999999
+    coordinator.host = "10.0.0.1"
+    coordinator.get_system_resource()
+    assert coordinator.ds["resource"]["uptime_epoch"] == 45
+
+
+def test_system_resource_memory_usage():
+    """Memory usage percentage calculated correctly."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/resource": [
+                {
+                    "uptime": "1h",
+                    "cpu-load": 10,
+                    "free-memory": 256000000,
+                    "total-memory": 1024000000,
+                    "free-hdd-space": 100,
+                    "total-hdd-space": 200,
+                }
+            ]
+        }
+    )
+    coordinator.rebootcheck = 999999
+    coordinator.host = "10.0.0.1"
+    coordinator.get_system_resource()
+    assert coordinator.ds["resource"]["memory-usage"] == 75
+
+
+def test_system_resource_zero_memory_returns_unknown():
+    """Zero total memory → memory-usage is 'unknown'."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/resource": [
+                {
+                    "uptime": "1m",
+                    "cpu-load": 0,
+                    "free-memory": 0,
+                    "total-memory": 0,
+                    "free-hdd-space": 0,
+                    "total-hdd-space": 0,
+                }
+            ]
+        }
+    )
+    coordinator.rebootcheck = 999999
+    coordinator.host = "10.0.0.1"
+    coordinator.get_system_resource()
+    assert coordinator.ds["resource"]["memory-usage"] == "unknown"
+    assert coordinator.ds["resource"]["hdd-usage"] == "unknown"
+
+
+def test_system_resource_hdd_usage():
+    """HDD usage percentage calculated correctly."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/resource": [
+                {
+                    "uptime": "1h",
+                    "cpu-load": 5,
+                    "free-memory": 100,
+                    "total-memory": 200,
+                    "free-hdd-space": 4000000,
+                    "total-hdd-space": 16000000,
+                }
+            ]
+        }
+    )
+    coordinator.rebootcheck = 999999
+    coordinator.host = "10.0.0.1"
+    coordinator.get_system_resource()
+    assert coordinator.ds["resource"]["hdd-usage"] == 75
+
+
+def test_system_resource_reboot_detection():
+    """When uptime_epoch < rebootcheck, get_firmware_update is called."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/resource": [
+                {
+                    "uptime": "30s",
+                    "cpu-load": 5,
+                    "free-memory": 100,
+                    "total-memory": 200,
+                    "free-hdd-space": 100,
+                    "total-hdd-space": 200,
+                }
+            ]
+        }
+    )
+    coordinator.rebootcheck = 99999  # much larger than 30s
+    coordinator.host = "10.0.0.1"
+    coordinator.get_firmware_update = MagicMock()
+    coordinator.get_system_resource()
+    coordinator.get_firmware_update.assert_called_once()
+
+
+def test_system_resource_no_reboot_if_uptime_grows():
+    """Normal operation: uptime grows, no reboot detection."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/resource": [
+                {
+                    "uptime": "2h",
+                    "cpu-load": 5,
+                    "free-memory": 100,
+                    "total-memory": 200,
+                    "free-hdd-space": 100,
+                    "total-hdd-space": 200,
+                }
+            ]
+        }
+    )
+    coordinator.rebootcheck = 3600  # 1 hour — less than 2h
+    coordinator.host = "10.0.0.1"
+    coordinator.get_firmware_update = MagicMock()
+    coordinator.get_system_resource()
+    coordinator.get_firmware_update.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Group K: get_firmware_update() — version parsing, access control
+# ---------------------------------------------------------------------------
+
+
+def test_firmware_update_available():
+    """Firmware update detected when status matches."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/package/update": [
+                {
+                    "status": "New version is available",
+                    "channel": "stable",
+                    "installed-version": "7.16.1",
+                    "latest-version": "7.16.2",
+                }
+            ]
+        }
+    )
+    coordinator.host = "10.0.0.1"
+    coordinator.execute = MagicMock()
+    coordinator.get_firmware_update()
+    assert coordinator.ds["fw-update"]["available"] is True
+    assert coordinator.major_fw_version == 7
+    assert coordinator.minor_fw_version == 16
+
+
+def test_firmware_update_not_available():
+    """No update when status is different."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/package/update": [
+                {
+                    "status": "System is already up to date",
+                    "channel": "stable",
+                    "installed-version": "7.16.2",
+                    "latest-version": "7.16.2",
+                }
+            ]
+        }
+    )
+    coordinator.host = "10.0.0.1"
+    coordinator.execute = MagicMock()
+    coordinator.get_firmware_update()
+    assert coordinator.ds["fw-update"]["available"] is False
+
+
+def test_firmware_update_blocked_without_access():
+    """Firmware check skipped if missing write/policy/reboot access."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/package/update": [
+                {
+                    "status": "New version is available",
+                    "installed-version": "7.16.2",
+                    "latest-version": "7.17.0",
+                }
+            ]
+        }
+    )
+    coordinator.ds["access"] = ["read"]  # missing write, policy, reboot
+    coordinator.host = "10.0.0.1"
+    coordinator.execute = MagicMock()
+    coordinator.get_firmware_update()
+    coordinator.execute.assert_not_called()
+    assert coordinator.ds["fw-update"] == {}
+
+
+def test_firmware_version_parsing_v6():
+    """Version string '6.49' parsed as major=6, minor=49."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/package/update": [
+                {
+                    "status": "System is already up to date",
+                    "installed-version": "6.49.10",
+                    "latest-version": "6.49.10",
+                }
+            ]
+        }
+    )
+    coordinator.host = "10.0.0.1"
+    coordinator.execute = MagicMock()
+    coordinator.get_firmware_update()
+    assert coordinator.major_fw_version == 6
+    assert coordinator.minor_fw_version == 49
+
+
+# ---------------------------------------------------------------------------
+# Group L: get_nat() — NAT rule parsing and deduplication
+# ---------------------------------------------------------------------------
+
+
+def test_nat_basic_rule():
+    """Basic dst-nat rule is parsed correctly."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/nat": [
+                {
+                    ".id": "*1",
+                    "chain": "dstnat",
+                    "action": "dst-nat",
+                    "protocol": "tcp",
+                    "dst-port": "8080",
+                    "in-interface": "ether1",
+                    "to-addresses": "192.168.1.100",
+                    "to-ports": "80",
+                    "comment": "Web server",
+                    "disabled": "false",
+                }
+            ]
+        }
+    )
+    coordinator.nat_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_nat()
+    assert "*1" in coordinator.ds["nat"]
+    rule = coordinator.ds["nat"]["*1"]
+    assert rule["action"] == "dst-nat"
+    assert rule["protocol"] == "tcp"
+    assert rule["enabled"] is True
+    assert rule["name"] == "tcp:8080"
+
+
+def test_nat_filters_non_dst_nat():
+    """Only dst-nat rules are kept; masquerade is filtered out."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/nat": [
+                {
+                    ".id": "*1",
+                    "chain": "srcnat",
+                    "action": "masquerade",
+                    "disabled": "false",
+                },
+                {
+                    ".id": "*2",
+                    "chain": "dstnat",
+                    "action": "dst-nat",
+                    "protocol": "tcp",
+                    "dst-port": "443",
+                    "to-addresses": "192.168.1.1",
+                    "to-ports": "443",
+                    "disabled": "false",
+                },
+            ]
+        }
+    )
+    coordinator.nat_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_nat()
+    assert "*1" not in coordinator.ds["nat"]
+    assert "*2" in coordinator.ds["nat"]
+
+
+def test_nat_duplicate_removal():
+    """Duplicate NAT rules (same uniq-id) are both removed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/nat": [
+                {
+                    ".id": "*1",
+                    "chain": "dstnat",
+                    "action": "dst-nat",
+                    "protocol": "tcp",
+                    "dst-port": "80",
+                    "in-interface": "ether1",
+                    "to-addresses": "192.168.1.1",
+                    "to-ports": "80",
+                    "comment": "Rule A",
+                    "disabled": "false",
+                },
+                {
+                    ".id": "*2",
+                    "chain": "dstnat",
+                    "action": "dst-nat",
+                    "protocol": "tcp",
+                    "dst-port": "80",
+                    "in-interface": "ether1",
+                    "to-addresses": "192.168.1.1",
+                    "to-ports": "80",
+                    "comment": "Rule B",
+                    "disabled": "false",
+                },
+            ]
+        }
+    )
+    coordinator.nat_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_nat()
+    assert len(coordinator.ds["nat"]) == 0
+
+
+def test_nat_comment_converted_to_string():
+    """NAT comment field is always converted to string."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/nat": [
+                {
+                    ".id": "*1",
+                    "chain": "dstnat",
+                    "action": "dst-nat",
+                    "protocol": "tcp",
+                    "dst-port": "22",
+                    "to-addresses": "10.0.0.2",
+                    "to-ports": "22",
+                    "comment": 12345,
+                    "disabled": "false",
+                }
+            ]
+        }
+    )
+    coordinator.nat_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_nat()
+    assert coordinator.ds["nat"]["*1"]["comment"] == "12345"
+
+
+# ---------------------------------------------------------------------------
+# Group M: get_mangle() — mangle rule parsing
+# ---------------------------------------------------------------------------
+
+
+def test_mangle_basic_rule():
+    """Basic mangle rule is parsed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/mangle": [
+                {
+                    ".id": "*1",
+                    "chain": "prerouting",
+                    "action": "mark-routing",
+                    "protocol": "tcp",
+                    "dst-port": "443",
+                    "comment": "HTTPS routing",
+                    "disabled": "false",
+                }
+            ]
+        }
+    )
+    coordinator.mangle_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_mangle()
+    assert "*1" in coordinator.ds["mangle"]
+    assert coordinator.ds["mangle"]["*1"]["action"] == "mark-routing"
+
+
+def test_mangle_skips_dynamic_and_jump():
+    """Dynamic rules and 'jump' actions are excluded."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/mangle": [
+                {
+                    ".id": "*1",
+                    "chain": "prerouting",
+                    "action": "jump",
+                    "disabled": "false",
+                },
+                {
+                    ".id": "*2",
+                    "chain": "prerouting",
+                    "action": "mark-routing",
+                    "dynamic": True,
+                    "disabled": "false",
+                },
+                {
+                    ".id": "*3",
+                    "chain": "prerouting",
+                    "action": "mark-routing",
+                    "protocol": "udp",
+                    "disabled": "false",
+                },
+            ]
+        }
+    )
+    coordinator.mangle_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_mangle()
+    assert "*1" not in coordinator.ds["mangle"]
+    assert "*2" not in coordinator.ds["mangle"]
+    assert "*3" in coordinator.ds["mangle"]
+
+
+def test_mangle_duplicate_removal():
+    """Duplicate mangle rules are both removed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/mangle": [
+                {
+                    ".id": "*1",
+                    "chain": "prerouting",
+                    "action": "mark-routing",
+                    "protocol": "tcp",
+                    "dst-port": "80",
+                    "disabled": "false",
+                },
+                {
+                    ".id": "*2",
+                    "chain": "prerouting",
+                    "action": "mark-routing",
+                    "protocol": "tcp",
+                    "dst-port": "80",
+                    "disabled": "false",
+                },
+            ]
+        }
+    )
+    coordinator.mangle_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_mangle()
+    assert len(coordinator.ds["mangle"]) == 0
+
+
+# ---------------------------------------------------------------------------
+# Group N: get_filter() — filter rule parsing
+# ---------------------------------------------------------------------------
+
+
+def test_filter_basic_rule():
+    """Basic filter rule is parsed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/filter": [
+                {
+                    ".id": "*1",
+                    "chain": "forward",
+                    "action": "drop",
+                    "protocol": "tcp",
+                    "dst-port": "445",
+                    "comment": "Block SMB",
+                    "disabled": "false",
+                }
+            ]
+        }
+    )
+    coordinator.filter_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_filter()
+    assert "*1" in coordinator.ds["filter"]
+    assert coordinator.ds["filter"]["*1"]["action"] == "drop"
+    assert coordinator.ds["filter"]["*1"]["enabled"] is True
+
+
+def test_filter_skips_dynamic_and_jump():
+    """Dynamic rules and 'jump' actions are excluded from filter."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/filter": [
+                {
+                    ".id": "*1",
+                    "chain": "forward",
+                    "action": "jump",
+                    "disabled": "false",
+                },
+                {
+                    ".id": "*2",
+                    "chain": "input",
+                    "action": "accept",
+                    "dynamic": True,
+                    "disabled": "false",
+                },
+                {
+                    ".id": "*3",
+                    "chain": "forward",
+                    "action": "accept",
+                    "protocol": "icmp",
+                    "disabled": "false",
+                },
+            ]
+        }
+    )
+    coordinator.filter_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_filter()
+    assert "*1" not in coordinator.ds["filter"]
+    assert "*2" not in coordinator.ds["filter"]
+    assert "*3" in coordinator.ds["filter"]
+
+
+def test_filter_duplicate_removal():
+    """Duplicate filter rules are both removed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/filter": [
+                {
+                    ".id": "*1",
+                    "chain": "forward",
+                    "action": "drop",
+                    "protocol": "tcp",
+                    "dst-port": "445",
+                    "disabled": "false",
+                },
+                {
+                    ".id": "*2",
+                    "chain": "forward",
+                    "action": "drop",
+                    "protocol": "tcp",
+                    "dst-port": "445",
+                    "disabled": "false",
+                },
+            ]
+        }
+    )
+    coordinator.filter_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_filter()
+    assert len(coordinator.ds["filter"]) == 0
+
+
+def test_filter_disabled_reversed_default_true():
+    """Filter enabled defaults to True when disabled field is absent."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/filter": [
+                {
+                    ".id": "*1",
+                    "chain": "forward",
+                    "action": "accept",
+                }
+            ]
+        }
+    )
+    coordinator.filter_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_filter()
+    assert coordinator.ds["filter"]["*1"]["enabled"] is True
+
+
+# ---------------------------------------------------------------------------
+# Group O: get_interface() — interface discovery & traffic calculation
+# ---------------------------------------------------------------------------
+
+
+def test_interface_basic_parsing():
+    """Basic interface entry is parsed with correct fields."""
+    coordinator = make_coordinator(
+        options={CONF_SENSOR_PORT_TRAFFIC: False},
+        api_responses={
+            "/interface": [
+                {
+                    "default-name": "ether1",
+                    ".id": "*1",
+                    "name": "ether1",
+                    "type": "ether",
+                    "running": "true",
+                    "disabled": "false",
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "rx-byte": 1000,
+                    "tx-byte": 2000,
+                }
+            ],
+            "/interface/ethernet": [],
+        },
+    )
+    coordinator.get_interface()
+    assert "ether1" in coordinator.ds["interface"]
+    iface = coordinator.ds["interface"]["ether1"]
+    assert iface["type"] == "ether"
+    assert iface["enabled"] is True
+    assert iface["running"] is True
+    assert iface["port-mac-address"] == "AA:BB:CC:DD:EE:01"
+
+
+def test_interface_bridge_type_skipped():
+    """Bridge-type interfaces are excluded."""
+    coordinator = make_coordinator(
+        options={CONF_SENSOR_PORT_TRAFFIC: False},
+        api_responses={
+            "/interface": [
+                {
+                    "default-name": "bridge1",
+                    ".id": "*1",
+                    "name": "bridge1",
+                    "type": "bridge",
+                    "disabled": "false",
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                },
+                {
+                    "default-name": "ether1",
+                    ".id": "*2",
+                    "name": "ether1",
+                    "type": "ether",
+                    "disabled": "false",
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                },
+            ],
+            "/interface/ethernet": [],
+        },
+    )
+    coordinator.get_interface()
+    assert "bridge1" not in coordinator.ds["interface"]
+    assert "ether1" in coordinator.ds["interface"]
+
+
+def test_interface_traffic_calculation():
+    """Traffic delta is calculated per second when enabled."""
+    coordinator = make_coordinator(
+        options={CONF_SENSOR_PORT_TRAFFIC: True, CONF_SCAN_INTERVAL: 30},
+        api_responses={
+            "/interface": [
+                {
+                    "default-name": "ether1",
+                    ".id": "*1",
+                    "name": "ether1",
+                    "type": "ether",
+                    "disabled": "false",
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "rx-byte": 3000,
+                    "tx-byte": 6000,
+                }
+            ],
+            "/interface/ethernet": [],
+        },
+    )
+    # Seed previous values
+    coordinator.ds["interface"]["ether1"] = {
+        "rx-previous": 0.0,
+        "tx-previous": 0.0,
+        "rx": 0.0,
+        "tx": 0.0,
+    }
+    coordinator.get_interface()
+    iface = coordinator.ds["interface"]["ether1"]
+    # 3000 bytes / 30 seconds = 100 bytes/s
+    assert iface["rx"] == 100
+    # 6000 bytes / 30 seconds = 200 bytes/s
+    assert iface["tx"] == 200
+    assert iface["rx-total"] == 3000
+    assert iface["tx-total"] == 6000
+
+
+def test_interface_traffic_first_run_zero_delta():
+    """First run with no previous values → delta is 0."""
+    coordinator = make_coordinator(
+        options={CONF_SENSOR_PORT_TRAFFIC: True, CONF_SCAN_INTERVAL: 30},
+        api_responses={
+            "/interface": [
+                {
+                    "default-name": "ether1",
+                    ".id": "*1",
+                    "name": "ether1",
+                    "type": "ether",
+                    "disabled": "false",
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "rx-byte": 5000,
+                    "tx-byte": 10000,
+                }
+            ],
+            "/interface/ethernet": [],
+        },
+    )
+    coordinator.get_interface()
+    iface = coordinator.ds["interface"]["ether1"]
+    # First run: previous is 0 → delta is current-0 but previous defaults to current
+    # because `previous_tx = vals["tx-previous"] or current_tx`
+    assert iface["rx"] == 0
+    assert iface["tx"] == 0
+
+
+def test_interface_virtual_interface_naming():
+    """Virtual interface without default-name gets name as default-name."""
+    coordinator = make_coordinator(
+        options={CONF_SENSOR_PORT_TRAFFIC: False},
+        api_responses={
+            "/interface": [
+                {
+                    "default-name": "",
+                    ".id": "*1",
+                    "name": "vlan100",
+                    "type": "vlan",
+                    "disabled": "false",
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                }
+            ],
+            "/interface/ethernet": [],
+        },
+    )
+    coordinator.get_interface()
+    assert "vlan100" in coordinator.ds["interface"]
+    iface = coordinator.ds["interface"]["vlan100"]
+    assert iface["default-name"] == "vlan100"
+    assert "vlan100" in iface["port-mac-address"]
+
+
+def test_interface_bonding_detected():
+    """Bonding interfaces populate bonding and bonding_slaves dicts."""
+    coordinator = make_coordinator(
+        options={CONF_SENSOR_PORT_TRAFFIC: False},
+        api_responses={
+            "/interface": [
+                {
+                    "default-name": "ether1",
+                    ".id": "*1",
+                    "name": "ether1",
+                    "type": "ether",
+                    "disabled": "false",
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                },
+                {
+                    "default-name": "",
+                    ".id": "*2",
+                    "name": "bond1",
+                    "type": "bond",
+                    "disabled": "false",
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                },
+            ],
+            "/interface/ethernet": [],
+            "/interface/bonding": [
+                {
+                    "name": "bond1",
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                    "slaves": "ether1,ether2",
+                    "mode": "802.3ad",
+                }
+            ],
+        },
+    )
+    coordinator.get_interface()
+    assert "bond1" in coordinator.ds["bonding"]
+    assert "ether1" in coordinator.ds["bonding_slaves"]
+    assert "ether2" in coordinator.ds["bonding_slaves"]
+    assert coordinator.ds["bonding_slaves"]["ether1"]["master"] == "bond1"
+
+
+# ---------------------------------------------------------------------------
+# Group P: get_dhcp() — DHCP lease parsing
+# ---------------------------------------------------------------------------
+
+
+def test_dhcp_basic_lease():
+    """Basic DHCP lease is parsed correctly."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.100",
+                    "host-name": "desktop-pc",
+                    "status": "bound",
+                    "server": "dhcp1",
+                    "disabled": "false",
+                }
+            ],
+            "/ip/dhcp-server": [
+                {"name": "dhcp1", "interface": "bridge1"},
+            ],
+        }
+    )
+    coordinator.get_dhcp()
+    mac = "AA:BB:CC:DD:EE:01"
+    assert mac in coordinator.ds["dhcp"]
+    lease = coordinator.ds["dhcp"][mac]
+    assert lease["address"] == "192.168.1.100"
+    assert lease["host-name"] == "desktop-pc"
+    assert lease["interface"] == "bridge1"
+
+
+def test_dhcp_active_address_override():
+    """Active address used when different from static address."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.100",
+                    "active-address": "192.168.1.200",
+                    "host-name": "pc",
+                    "server": "dhcp1",
+                    "disabled": "false",
+                }
+            ],
+            "/ip/dhcp-server": [
+                {"name": "dhcp1", "interface": "bridge1"},
+            ],
+        }
+    )
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp"]["AA:BB:CC:DD:EE:01"]["address"] == "192.168.1.200"
+
+
+def test_dhcp_invalid_ip_set_to_unknown():
+    """Invalid IP address in lease → set to 'unknown'."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "not-an-ip",
+                    "host-name": "pc",
+                    "server": "dhcp1",
+                    "disabled": "false",
+                }
+            ],
+            "/ip/dhcp-server": [
+                {"name": "dhcp1", "interface": "bridge1"},
+            ],
+        }
+    )
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp"]["AA:BB:CC:DD:EE:01"]["address"] == "unknown"
+
+
+def test_dhcp_active_mac_override():
+    """Active MAC used when different from static MAC."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "active-mac-address": "AA:BB:CC:DD:EE:02",
+                    "address": "192.168.1.100",
+                    "host-name": "pc",
+                    "server": "dhcp1",
+                    "disabled": "false",
+                }
+            ],
+            "/ip/dhcp-server": [
+                {"name": "dhcp1", "interface": "bridge1"},
+            ],
+        }
+    )
+    coordinator.get_dhcp()
+    assert "AA:BB:CC:DD:EE:02" in coordinator.ds["dhcp"]
+    assert "AA:BB:CC:DD:EE:01" not in coordinator.ds["dhcp"]
+
+
+def test_dhcp_interface_from_arp_fallback():
+    """Interface resolved from ARP when DHCP server not found."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.100",
+                    "host-name": "pc",
+                    "server": "unknown-server",
+                    "disabled": "false",
+                }
+            ],
+            "/ip/dhcp-server": [],
+        }
+    )
+    coordinator.ds["arp"]["AA:BB:CC:DD:EE:01"] = {
+        "interface": "ether1",
+        "bridge": "unknown",
+    }
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp"]["AA:BB:CC:DD:EE:01"]["interface"] == "ether1"
+
+
+def test_dhcp_interface_from_arp_bridge():
+    """Interface resolved from ARP bridge when available."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.100",
+                    "host-name": "pc",
+                    "server": "unknown-server",
+                    "disabled": "false",
+                }
+            ],
+            "/ip/dhcp-server": [],
+        }
+    )
+    coordinator.ds["arp"]["AA:BB:CC:DD:EE:01"] = {
+        "interface": "ether1",
+        "bridge": "bridge1",
+    }
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp"]["AA:BB:CC:DD:EE:01"]["interface"] == "bridge1"
+
+
+def test_dhcp_server_queried_on_demand():
+    """DHCP server is queried only when server not in cache."""
+    call_count = 0
+
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.100",
+                    "server": "dhcp1",
+                    "disabled": "false",
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                    "address": "192.168.1.101",
+                    "server": "dhcp1",
+                    "disabled": "false",
+                },
+            ],
+            "/ip/dhcp-server": [
+                {"name": "dhcp1", "interface": "bridge1"},
+            ],
+        }
+    )
+    original_get_dhcp_server = coordinator.get_dhcp_server
+
+    def counting_get_dhcp_server():
+        nonlocal call_count
+        call_count += 1
+        original_get_dhcp_server()
+
+    coordinator.get_dhcp_server = counting_get_dhcp_server
+    coordinator.get_dhcp()
+    # Should be called exactly once (first lease triggers it, second reuses cache)
+    assert call_count == 1
+
+
+def test_dhcp_comment_converted_to_string():
+    """DHCP comment field is always converted to string."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.100",
+                    "server": "dhcp1",
+                    "comment": 42,
+                    "disabled": "false",
+                }
+            ],
+            "/ip/dhcp-server": [
+                {"name": "dhcp1", "interface": "bridge1"},
+            ],
+        }
+    )
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp"]["AA:BB:CC:DD:EE:01"]["comment"] == "42"
+
+
+# ---------------------------------------------------------------------------
+# Group Q: get_dhcp_network() — DHCP network / IPv4Network creation
+# ---------------------------------------------------------------------------
+
+
+def test_dhcp_network_creates_ipv4_network():
+    """DHCP network creates IPv4Network object from CIDR address."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/network": [
+                {
+                    "address": "192.168.1.0/24",
+                    "gateway": "192.168.1.1",
+                }
+            ]
+        }
+    )
+    coordinator.get_dhcp_network()
+    from ipaddress import IPv4Network
+
+    net = coordinator.ds["dhcp-network"]["192.168.1.0/24"]
+    assert isinstance(net["IPv4Network"], IPv4Network)
+    assert str(net["IPv4Network"]) == "192.168.1.0/24"
+
+
+# ---------------------------------------------------------------------------
+# Group R: get_access() — user access rights
+# ---------------------------------------------------------------------------
+
+
+def test_access_rights_parsed():
+    """Access rights are extracted from user group policy."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/user": [{"name": "admin", "group": "full"}],
+            "/user/group": [{"name": "full", "policy": "write,policy,reboot,test,api"}],
+        }
+    )
+    coordinator.host = "10.0.0.1"
+    coordinator.accessrights_reported = False
+    cfg = coordinator.config_entry
+    cfg.data = {"username": "admin"}
+    coordinator.get_access()
+    assert "write" in coordinator.ds["access"]
+    assert "policy" in coordinator.ds["access"]
+    assert "reboot" in coordinator.ds["access"]
