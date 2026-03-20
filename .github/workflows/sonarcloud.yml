@@ -36,7 +36,7 @@ jobs:
           --cov-report=xml:coverage.xml
 
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@383f39a419796a15f1c47d3345e2c8a726e56aab  # v5
+        uses: sonarsource/sonarcloud-github-action@ffc3010689be73b8e5ae0c57ce35968afd7909e8  # v5.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

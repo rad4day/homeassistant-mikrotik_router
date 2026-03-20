@@ -2140,7 +2140,11 @@ def test_arp_dhcp_client_entries_removed():
         }
     )
     coordinator.ds["dhcp-client"] = {
-        "ether1-wan": {"interface": "ether1-wan", "status": "bound", "address": "10.0.0.2"}
+        "ether1-wan": {
+            "interface": "ether1-wan",
+            "status": "bound",
+            "address": "10.0.0.2",
+        }
     }
     coordinator.get_arp()
     assert "AA:BB:CC:DD:EE:01" in coordinator.ds["arp"]
@@ -2157,7 +2161,11 @@ def test_dns_basic_parsing():
     coordinator = make_coordinator(
         api_responses={
             "/ip/dns/static": [
-                {"name": "router.local", "address": "192.168.1.1", "comment": "Main router"},
+                {
+                    "name": "router.local",
+                    "address": "192.168.1.1",
+                    "comment": "Main router",
+                },
             ],
         }
     )
@@ -2258,7 +2266,11 @@ def test_script_basic_parsing():
     coordinator = make_coordinator(
         api_responses={
             "/system/script": [
-                {"name": "backup", "last-started": "mar/20/2026 10:00:00", "run-count": "5"},
+                {
+                    "name": "backup",
+                    "last-started": "mar/20/2026 10:00:00",
+                    "run-count": "5",
+                },
             ],
         }
     )
@@ -2318,7 +2330,12 @@ def test_kidcontrol_none_comment_becomes_string():
     coordinator = make_coordinator(
         api_responses={
             "/ip/kid-control": [
-                {"name": "child1", "rate-limit": "", "comment": None, "disabled": False},
+                {
+                    "name": "child1",
+                    "rate-limit": "",
+                    "comment": None,
+                    "disabled": False,
+                },
             ],
         }
     )
@@ -2547,9 +2564,21 @@ def test_captive_basic_parsing():
     coordinator = make_coordinator(
         api_responses={
             "/ip/hotspot/host": [
-                {"mac-address": "AA:BB:CC:DD:EE:01", "authorized": True, "bypassed": False},
-                {"mac-address": "AA:BB:CC:DD:EE:02", "authorized": False, "bypassed": True},
-                {"mac-address": "AA:BB:CC:DD:EE:03", "authorized": True, "bypassed": False},
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "authorized": True,
+                    "bypassed": False,
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                    "authorized": False,
+                    "bypassed": True,
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:03",
+                    "authorized": True,
+                    "bypassed": False,
+                },
             ],
         }
     )
@@ -2812,7 +2841,10 @@ def test_process_interface_client_single_arp():
     }
     coordinator.process_interface_client()
     assert coordinator.ds["interface"]["ether1"]["client-ip-address"] == "192.168.1.10"
-    assert coordinator.ds["interface"]["ether1"]["client-mac-address"] == "AA:BB:CC:DD:EE:01"
+    assert (
+        coordinator.ds["interface"]["ether1"]["client-mac-address"]
+        == "AA:BB:CC:DD:EE:01"
+    )
 
 
 def test_process_interface_client_multiple_arp():
@@ -2914,7 +2946,12 @@ def test_accounting_wan_traffic():
     coordinator.api._local_traffic_enabled = True
     coordinator.api._snapshot_time_diff = 30
     coordinator.api.responses["/ip/accounting/snapshot"] = [
-        {".id": "*1", "src-address": "192.168.1.10", "dst-address": "8.8.8.8", "bytes": "30000"},
+        {
+            ".id": "*1",
+            "src-address": "192.168.1.10",
+            "dst-address": "8.8.8.8",
+            "bytes": "30000",
+        },
     ]
     coordinator.api.responses["/ip/accounting"] = [{"threshold": 8192}]
     coordinator.ds["dhcp-network"] = {
@@ -2945,7 +2982,12 @@ def test_accounting_lan_traffic():
     coordinator.api._local_traffic_enabled = True
     coordinator.api._snapshot_time_diff = 10
     coordinator.api.responses["/ip/accounting/snapshot"] = [
-        {".id": "*1", "src-address": "192.168.1.10", "dst-address": "192.168.1.20", "bytes": "5000"},
+        {
+            ".id": "*1",
+            "src-address": "192.168.1.10",
+            "dst-address": "192.168.1.20",
+            "bytes": "5000",
+        },
     ]
     coordinator.api.responses["/ip/accounting"] = [{"threshold": 8192}]
     coordinator.ds["dhcp-network"] = {
@@ -3004,7 +3046,12 @@ def test_accounting_local_disabled_skips_lan():
     coordinator.api._local_traffic_enabled = False
     coordinator.api._snapshot_time_diff = 10
     coordinator.api.responses["/ip/accounting/snapshot"] = [
-        {".id": "*1", "src-address": "192.168.1.10", "dst-address": "192.168.1.20", "bytes": "5000"},
+        {
+            ".id": "*1",
+            "src-address": "192.168.1.10",
+            "dst-address": "192.168.1.20",
+            "bytes": "5000",
+        },
     ]
     coordinator.api.responses["/ip/accounting"] = [{"threshold": 8192}]
     coordinator.ds["dhcp-network"] = {
