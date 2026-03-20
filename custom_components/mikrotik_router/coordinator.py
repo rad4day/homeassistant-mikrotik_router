@@ -14,6 +14,7 @@ from mac_vendor_lookup import AsyncMacLookup
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.dt import utcnow
 
@@ -688,7 +689,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")
 
-        # async_dispatcher_send(self.hass, "update_sensors", self)
+        async_dispatcher_send(self.hass, "update_sensors", self)
         return self.ds
 
     # ---------------------------
@@ -1873,9 +1874,23 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             data={},
             source=self.api.query("/ip/arp"),
             key="mac-address",
-            vals=[{"name": "mac-address"}, {"name": "address"}, {"name": "interface"}],
+            vals=[
+                {"name": "mac-address"},
+                {"name": "address"},
+                {"name": "interface"},
+                {"name": "status", "default": ""},
+            ],
             ensure_vals=[{"name": "bridge", "default": ""}],
         )
+
+        # Remove ARP entries with failed status — device is not reachable
+        to_remove = [
+            uid
+            for uid, vals in self.ds["arp"].items()
+            if vals.get("status") == "failed"
+        ]
+        for uid in to_remove:
+            self.ds["arp"].pop(uid)
 
         for uid, vals in self.ds["arp"].items():
             if vals["interface"] in self.ds["bridge"] and uid in self.ds["bridge_host"]:

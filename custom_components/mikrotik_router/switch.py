@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from logging import getLogger
 from collections.abc import Mapping
-from typing import Any, Optional
+from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
@@ -65,15 +65,7 @@ class MikrotikSwitch(MikrotikEntity, SwitchEntity, RestoreEntity):
         else:
             return self.entity_description.icon_disabled
 
-    def turn_on(self, **kwargs: Any) -> None:
-        """Required abstract method."""
-        pass
-
-    def turn_off(self, **kwargs: Any) -> None:
-        """Required abstract method."""
-        pass
-
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -82,10 +74,12 @@ class MikrotikSwitch(MikrotikEntity, SwitchEntity, RestoreEntity):
         param = self.entity_description.data_reference
         value = self._data[self.entity_description.data_reference]
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, False)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, False
+        )
         await self.coordinator.async_refresh()
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -94,7 +88,9 @@ class MikrotikSwitch(MikrotikEntity, SwitchEntity, RestoreEntity):
         param = self.entity_description.data_reference
         value = self._data[self.entity_description.data_reference]
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, True)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, True
+        )
         await self.coordinator.async_refresh()
 
 
@@ -139,7 +135,7 @@ class MikrotikPortSwitch(MikrotikSwitch):
 
         return icon
 
-    async def async_turn_on(self) -> Optional[str]:
+    async def async_turn_on(self, **kwargs: Any) -> str | None:
         """Turn on the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -153,15 +149,19 @@ class MikrotikPortSwitch(MikrotikSwitch):
             param = "name"
         value = self._data[self.entity_description.data_reference]
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, False)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, False
+        )
 
         if "poe-out" in self._data and self._data["poe-out"] == "off":
             path = "/interface/ethernet"
-            self.coordinator.set_value(path, param, value, "poe-out", "auto-on")
+            await self.hass.async_add_executor_job(
+                self.coordinator.set_value, path, param, value, "poe-out", "auto-on"
+            )
 
         await self.coordinator.async_refresh()
 
-    async def async_turn_off(self) -> Optional[str]:
+    async def async_turn_off(self, **kwargs: Any) -> str | None:
         """Turn off the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -175,11 +175,15 @@ class MikrotikPortSwitch(MikrotikSwitch):
             param = "name"
         value = self._data[self.entity_description.data_reference]
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, True)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, True
+        )
 
         if "poe-out" in self._data and self._data["poe-out"] == "auto-on":
             path = "/interface/ethernet"
-            self.coordinator.set_value(path, param, value, "poe-out", "off")
+            await self.hass.async_add_executor_job(
+                self.coordinator.set_value, path, param, value, "poe-out", "off"
+            )
 
         await self.coordinator.async_refresh()
 
@@ -190,7 +194,7 @@ class MikrotikPortSwitch(MikrotikSwitch):
 class MikrotikNATSwitch(MikrotikSwitch):
     """Representation of a NAT switch."""
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -207,10 +211,12 @@ class MikrotikNATSwitch(MikrotikSwitch):
                 value = self.coordinator.data["nat"][uid][".id"]
 
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, False)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, False
+        )
         await self.coordinator.async_refresh()
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -227,7 +233,9 @@ class MikrotikNATSwitch(MikrotikSwitch):
                 value = self.coordinator.data["nat"][uid][".id"]
 
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, True)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, True
+        )
         await self.coordinator.async_refresh()
 
 
@@ -237,7 +245,7 @@ class MikrotikNATSwitch(MikrotikSwitch):
 class MikrotikMangleSwitch(MikrotikSwitch):
     """Representation of a Mangle switch."""
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -255,10 +263,12 @@ class MikrotikMangleSwitch(MikrotikSwitch):
                 value = self.coordinator.data["mangle"][uid][".id"]
 
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, False)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, False
+        )
         await self.coordinator.async_refresh()
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -276,7 +286,9 @@ class MikrotikMangleSwitch(MikrotikSwitch):
                 value = self.coordinator.data["mangle"][uid][".id"]
 
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, True)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, True
+        )
         await self.coordinator.async_refresh()
 
 
@@ -286,7 +298,7 @@ class MikrotikMangleSwitch(MikrotikSwitch):
 class MikrotikFilterSwitch(MikrotikSwitch):
     """Representation of a Filter switch."""
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -303,10 +315,12 @@ class MikrotikFilterSwitch(MikrotikSwitch):
                 value = self.coordinator.data["filter"][uid][".id"]
 
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, False)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, False
+        )
         await self.coordinator.async_refresh()
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -323,7 +337,9 @@ class MikrotikFilterSwitch(MikrotikSwitch):
                 value = self.coordinator.data["filter"][uid][".id"]
 
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, True)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, True
+        )
         await self.coordinator.async_refresh()
 
 
@@ -333,7 +349,7 @@ class MikrotikFilterSwitch(MikrotikSwitch):
 class MikrotikQueueSwitch(MikrotikSwitch):
     """Representation of a queue switch."""
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -346,10 +362,12 @@ class MikrotikQueueSwitch(MikrotikSwitch):
                 value = self.coordinator.data["queue"][uid][".id"]
 
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, False)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, False
+        )
         await self.coordinator.async_refresh()
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -362,7 +380,9 @@ class MikrotikQueueSwitch(MikrotikSwitch):
                 value = self.coordinator.data["queue"][uid][".id"]
 
         mod_param = self.entity_description.data_switch_parameter
-        self.coordinator.set_value(path, param, value, mod_param, True)
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, param, value, mod_param, True
+        )
         await self.coordinator.async_refresh()
 
 
@@ -372,7 +392,7 @@ class MikrotikQueueSwitch(MikrotikSwitch):
 class MikrotikKidcontrolPauseSwitch(MikrotikSwitch):
     """Representation of a queue switch."""
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -381,10 +401,12 @@ class MikrotikKidcontrolPauseSwitch(MikrotikSwitch):
         param = self.entity_description.data_reference
         value = self._data[self.entity_description.data_reference]
         command = "resume"
-        self.coordinator.execute(path, command, param, value)
+        await self.hass.async_add_executor_job(
+            self.coordinator.execute, path, command, param, value
+        )
         await self.coordinator.async_refresh()
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
         if "write" not in self.coordinator.data["access"]:
             return
@@ -393,5 +415,7 @@ class MikrotikKidcontrolPauseSwitch(MikrotikSwitch):
         param = self.entity_description.data_reference
         value = self._data[self.entity_description.data_reference]
         command = "pause"
-        self.coordinator.execute(path, command, param, value)
+        await self.hass.async_add_executor_job(
+            self.coordinator.execute, path, command, param, value
+        )
         await self.coordinator.async_refresh()
