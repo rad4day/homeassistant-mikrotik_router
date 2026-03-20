@@ -349,8 +349,8 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
 
             return DeviceInfo(
                 connections={(dev_connection, f"{dev_connection_value}")},
-                default_name=f"{dev_group}",
-                default_manufacturer=f"{dev_manufacturer}",
+                name=f"{dev_group}",
+                manufacturer=f"{dev_manufacturer}",
                 via_device=(
                     DOMAIN,
                     f"{self.coordinator.data['routerboard']['serial-number']}",
@@ -359,9 +359,9 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
         else:
             return DeviceInfo(
                 connections={(dev_connection, f"{dev_connection_value}")},
-                default_name=f"{self._inst} {dev_group}",
-                default_model=f"{self.coordinator.data['resource']['board-name']}",
-                default_manufacturer=f"{self.coordinator.data['resource']['platform']}",
+                name=f"{self._inst} {dev_group}",
+                model=f"{self.coordinator.data['resource']['board-name']}",
+                manufacturer=f"{self.coordinator.data['resource']['platform']}",
                 via_device=(
                     DOMAIN,
                     f"{self.coordinator.data['routerboard']['serial-number']}",
