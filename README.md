@@ -15,30 +15,43 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.5
+## What's New — v2.3.6
 
-The [v2.3.5](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.5) release is a Python compatibility patch.
+The [v2.3.6](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.6) release fixes critical bugs and aligns with HA best practices.
 
-### Bug fixes in v2.3.5
+### Critical fixes in v2.3.6
+
+| Fix | Detail |
+|-----|--------|
+| **Options flow crash on HA 2025.12+** | Config panel now works on modern HA versions ([upstream #470](https://github.com/tomaae/homeassistant-mikrotik_router/issues/470), [#471](https://github.com/tomaae/homeassistant-mikrotik_router/issues/471)) |
+| **Deadlock in `run_script()`** | Lock was never released when script not found — permanently froze the integration |
+| **Blocking I/O on event loop** | Switch toggles, button presses, firmware updates no longer freeze the HA UI |
+| **False "home" device tracking** | ARP entries with `status: failed` no longer cause devices to show as home ([#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17)) |
+| **New devices not appearing** | Dispatcher signal re-enabled so new network devices register as HA entities without restart |
+| **Deprecated `DeviceInfo` params** | Updated to current HA API (`name`, `manufacturer`, `model`) |
+
+### Previous releases
+
+<details>
+<summary>v2.3.5 — Python compatibility</summary>
 
 | Fix | Detail |
 |-----|--------|
 | **Python 3.12 compatibility** | Replaced deprecated `datetime.utcfromtimestamp()` with `datetime.fromtimestamp(ts, tz=UTC)` |
 | **Removed `pytz` dependency** | Replaced with stdlib `datetime.timezone.utc` — no behavioural change |
 
----
+</details>
 
-## v2.3.4 — Reliability Patch
-
-The [v2.3.4](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.4) release is a reliability patch.
-
-### Bug fixes in v2.3.4
+<details>
+<summary>v2.3.4 — Reliability patch</summary>
 
 | Fix | Detail |
 |-----|--------|
 | **Crash on empty accounting query** | No longer crashes when `/ip/accounting` returns no data |
 | **Firmware version parse** | Handles RouterOS versions without a minor segment |
 | **Host manufacturer lookup** | Exception during MAC OUI lookup no longer propagates |
+
+</details>
 
 ---
 
