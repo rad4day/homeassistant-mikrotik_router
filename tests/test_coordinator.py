@@ -18,6 +18,7 @@ from custom_components.mikrotik_router.const import (
     CONF_SCAN_INTERVAL,
     CONF_SENSOR_POE,
     CONF_SENSOR_PORT_TRAFFIC,
+    CONF_TRACK_IFACE_CLIENTS,
     DEFAULT_SENSOR_POE,
     DEFAULT_SENSOR_PORT_TRAFFIC,
 )
@@ -1709,7 +1710,7 @@ def test_interface_virtual_interface_naming():
     coordinator.get_interface()
     assert "vlan100" in coordinator.ds["interface"]
     iface = coordinator.ds["interface"]["vlan100"]
-    assert iface["default-name"] == ""
+    assert iface["default-name"] == "vlan100"
     assert "vlan100" in iface["port-mac-address"]
 
 
@@ -2013,3 +2014,1064 @@ def test_access_rights_parsed():
     assert "write" in coordinator.ds["access"]
     assert "policy" in coordinator.ds["access"]
     assert "reboot" in coordinator.ds["access"]
+
+
+# ---------------------------------------------------------------------------
+# Group S: get_bridge() — bridge host parsing
+# ---------------------------------------------------------------------------
+
+
+def test_bridge_host_parsed():
+    """Bridge hosts are parsed and bridge dict populated."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/interface/bridge/host": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "interface": "ether1",
+                    "bridge": "bridge1",
+                    "disabled": False,
+                    "local": False,
+                },
+            ],
+        }
+    )
+    coordinator.get_bridge()
+    assert "AA:BB:CC:DD:EE:01" in coordinator.ds["bridge_host"]
+    host = coordinator.ds["bridge_host"]["AA:BB:CC:DD:EE:01"]
+    assert host["interface"] == "ether1"
+    assert host["bridge"] == "bridge1"
+    assert host["enabled"] is True
+    assert coordinator.ds["bridge"]["bridge1"] is True
+
+
+def test_bridge_skips_local_entries():
+    """Bridge host entries with local=True are excluded (only filter)."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/interface/bridge/host": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "interface": "ether1",
+                    "bridge": "bridge1",
+                    "disabled": False,
+                    "local": True,
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                    "interface": "ether2",
+                    "bridge": "bridge1",
+                    "disabled": False,
+                    "local": False,
+                },
+            ],
+        }
+    )
+    coordinator.get_bridge()
+    assert "AA:BB:CC:DD:EE:01" not in coordinator.ds["bridge_host"]
+    assert "AA:BB:CC:DD:EE:02" in coordinator.ds["bridge_host"]
+
+
+# ---------------------------------------------------------------------------
+# Group T: get_arp() — ARP table parsing
+# ---------------------------------------------------------------------------
+
+
+def test_arp_basic_parsing():
+    """ARP entries are parsed with mac-address as key."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/arp": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.10",
+                    "interface": "ether1",
+                },
+            ],
+        }
+    )
+    coordinator.get_arp()
+    assert "AA:BB:CC:DD:EE:01" in coordinator.ds["arp"]
+    entry = coordinator.ds["arp"]["AA:BB:CC:DD:EE:01"]
+    assert entry["address"] == "192.168.1.10"
+    assert entry["interface"] == "ether1"
+    assert entry["bridge"] == ""
+
+
+def test_arp_bridge_interface_resolution():
+    """ARP entries on bridge interfaces get resolved to actual port."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/arp": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.10",
+                    "interface": "bridge1",
+                },
+            ],
+        }
+    )
+    coordinator.ds["bridge"] = {"bridge1": True}
+    coordinator.ds["bridge_host"] = {
+        "AA:BB:CC:DD:EE:01": {"interface": "ether2", "bridge": "bridge1"}
+    }
+    coordinator.get_arp()
+    entry = coordinator.ds["arp"]["AA:BB:CC:DD:EE:01"]
+    assert entry["bridge"] == "bridge1"
+    assert entry["interface"] == "ether2"
+
+
+def test_arp_dhcp_client_entries_removed():
+    """ARP entries on DHCP client interfaces are removed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/arp": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.10",
+                    "interface": "ether1",
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                    "address": "10.0.0.2",
+                    "interface": "ether1-wan",
+                },
+            ],
+        }
+    )
+    coordinator.ds["dhcp-client"] = {
+        "ether1-wan": {"interface": "ether1-wan", "status": "bound", "address": "10.0.0.2"}
+    }
+    coordinator.get_arp()
+    assert "AA:BB:CC:DD:EE:01" in coordinator.ds["arp"]
+    assert "AA:BB:CC:DD:EE:02" not in coordinator.ds["arp"]
+
+
+# ---------------------------------------------------------------------------
+# Group U: get_dns() — static DNS parsing
+# ---------------------------------------------------------------------------
+
+
+def test_dns_basic_parsing():
+    """DNS static entries are parsed with name as key."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dns/static": [
+                {"name": "router.local", "address": "192.168.1.1", "comment": "Main router"},
+            ],
+        }
+    )
+    coordinator.get_dns()
+    assert "router.local" in coordinator.ds["dns"]
+    entry = coordinator.ds["dns"]["router.local"]
+    assert entry["address"] == "192.168.1.1"
+    assert entry["comment"] == "Main router"
+
+
+def test_dns_none_comment_becomes_string():
+    """DNS entries with None comment are converted to string 'None'."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dns/static": [
+                {"name": "test.local", "address": "192.168.1.2", "comment": None},
+            ],
+        }
+    )
+    coordinator.get_dns()
+    assert coordinator.ds["dns"]["test.local"]["comment"] == "None"
+
+
+# ---------------------------------------------------------------------------
+# Group V: get_queue() — simple queue parsing
+# ---------------------------------------------------------------------------
+
+
+def test_queue_basic_parsing():
+    """Queue entries are parsed with rate splitting."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/queue/simple": [
+                {
+                    ".id": "*1",
+                    "name": "queue1",
+                    "target": "192.168.1.0/24",
+                    "rate": "1000000/2000000",
+                    "max-limit": "10000000/20000000",
+                    "limit-at": "5000000/10000000",
+                    "burst-limit": "15000000/25000000",
+                    "burst-threshold": "8000000/16000000",
+                    "burst-time": "10s/10s",
+                    "packet-marks": "none",
+                    "parent": "none",
+                    "comment": "Test queue",
+                    "disabled": False,
+                },
+            ],
+        }
+    )
+    coordinator.get_queue()
+    assert "queue1" in coordinator.ds["queue"]
+    q = coordinator.ds["queue"]["queue1"]
+    assert q["upload-max-limit"] == "10000000 bps"
+    assert q["download-max-limit"] == "20000000 bps"
+    assert q["upload-rate"] == "1000000 bps"
+    assert q["download-rate"] == "2000000 bps"
+    assert q["upload-limit-at"] == "5000000 bps"
+    assert q["download-limit-at"] == "10000000 bps"
+    assert q["upload-burst-limit"] == "15000000 bps"
+    assert q["download-burst-limit"] == "25000000 bps"
+    assert q["upload-burst-threshold"] == "8000000 bps"
+    assert q["download-burst-threshold"] == "16000000 bps"
+    assert q["upload-burst-time"] == "10s"
+    assert q["download-burst-time"] == "10s"
+    assert q["enabled"] is True
+
+
+def test_queue_defaults_when_no_rates():
+    """Queue entries use defaults for missing rate fields."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/queue/simple": [
+                {
+                    ".id": "*1",
+                    "name": "default-queue",
+                    "disabled": False,
+                },
+            ],
+        }
+    )
+    coordinator.get_queue()
+    q = coordinator.ds["queue"]["default-queue"]
+    assert q["upload-max-limit"] == "0 bps"
+    assert q["download-max-limit"] == "0 bps"
+    assert q["upload-rate"] == "0 bps"
+    assert q["download-rate"] == "0 bps"
+
+
+# ---------------------------------------------------------------------------
+# Group W: get_script() / get_environment() — script and env parsing
+# ---------------------------------------------------------------------------
+
+
+def test_script_basic_parsing():
+    """Scripts are parsed with name as key."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/script": [
+                {"name": "backup", "last-started": "mar/20/2026 10:00:00", "run-count": "5"},
+            ],
+        }
+    )
+    coordinator.get_script()
+    assert "backup" in coordinator.ds["script"]
+    assert coordinator.ds["script"]["backup"]["run-count"] == "5"
+
+
+def test_environment_basic_parsing():
+    """Environment variables are parsed with name as key."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/script/environment": [
+                {"name": "myVar", "value": "hello"},
+                {"name": "count", "value": "42"},
+            ],
+        }
+    )
+    coordinator.get_environment()
+    assert "myVar" in coordinator.ds["environment"]
+    assert coordinator.ds["environment"]["myVar"]["value"] == "hello"
+    assert coordinator.ds["environment"]["count"]["value"] == "42"
+
+
+# ---------------------------------------------------------------------------
+# Group X: get_kidcontrol() — kid control parsing
+# ---------------------------------------------------------------------------
+
+
+def test_kidcontrol_basic_parsing():
+    """Kid control entries are parsed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/kid-control": [
+                {
+                    "name": "child1",
+                    "rate-limit": "1M/2M",
+                    "mon": "08:00-20:00",
+                    "comment": "Kid 1",
+                    "blocked": False,
+                    "disabled": False,
+                },
+            ],
+        }
+    )
+    coordinator.get_kidcontrol()
+    assert "child1" in coordinator.ds["kid-control"]
+    kc = coordinator.ds["kid-control"]["child1"]
+    assert kc["rate-limit"] == "1M/2M"
+    assert kc["mon"] == "08:00-20:00"
+    assert kc["enabled"] is True
+    assert kc["comment"] == "Kid 1"
+
+
+def test_kidcontrol_none_comment_becomes_string():
+    """Kid control entries with None comment are converted to string."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/kid-control": [
+                {"name": "child1", "rate-limit": "", "comment": None, "disabled": False},
+            ],
+        }
+    )
+    coordinator.get_kidcontrol()
+    assert coordinator.ds["kid-control"]["child1"]["comment"] == "None"
+
+
+# ---------------------------------------------------------------------------
+# Group Y: get_ppp() — PPP secret/active parsing
+# ---------------------------------------------------------------------------
+
+
+def test_ppp_connected_secret():
+    """PPP secret with matching active entry shows as connected."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ppp/secret": [
+                {
+                    "name": "vpn-user1",
+                    "service": "l2tp",
+                    "profile": "default",
+                    "comment": "VPN user",
+                    "disabled": False,
+                },
+            ],
+            "/ppp/active": [
+                {
+                    "name": "vpn-user1",
+                    "service": "l2tp",
+                    "caller-id": "10.0.0.5",
+                    "address": "192.168.1.100",
+                    "encoding": "MPPE128",
+                },
+            ],
+        }
+    )
+    coordinator.get_ppp()
+    ppp = coordinator.ds["ppp_secret"]["vpn-user1"]
+    assert ppp["connected"] is True
+    assert ppp["caller-id"] == "10.0.0.5"
+    assert ppp["address"] == "192.168.1.100"
+    assert ppp["encoding"] == "MPPE128"
+
+
+def test_ppp_disconnected_secret():
+    """PPP secret without matching active entry shows as disconnected."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ppp/secret": [
+                {
+                    "name": "vpn-user1",
+                    "service": "l2tp",
+                    "profile": "default",
+                    "comment": "VPN user",
+                    "disabled": False,
+                },
+            ],
+            "/ppp/active": [],
+        }
+    )
+    coordinator.get_ppp()
+    ppp = coordinator.ds["ppp_secret"]["vpn-user1"]
+    assert ppp["connected"] is False
+    assert ppp["caller-id"] == "not connected"
+    assert ppp["address"] == "not connected"
+
+
+# ---------------------------------------------------------------------------
+# Group Z: get_netwatch() — netwatch parsing
+# ---------------------------------------------------------------------------
+
+
+def test_netwatch_basic_parsing():
+    """Netwatch entries are parsed with host as key."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/tool/netwatch": [
+                {
+                    "host": "8.8.8.8",
+                    "type": "icmp",
+                    "interval": "30s",
+                    "port": "",
+                    "http-codes": "",
+                    "status": "up",
+                    "comment": "Google DNS",
+                    "disabled": False,
+                },
+            ],
+        }
+    )
+    coordinator.get_netwatch()
+    assert "8.8.8.8" in coordinator.ds["netwatch"]
+    nw = coordinator.ds["netwatch"]["8.8.8.8"]
+    assert nw["type"] == "icmp"
+    assert nw["enabled"] is True
+
+
+# ---------------------------------------------------------------------------
+# Group AA: get_system_routerboard() — routerboard parsing
+# ---------------------------------------------------------------------------
+
+
+def test_routerboard_x86_board():
+    """x86 boards skip routerboard query and set defaults."""
+    coordinator = make_coordinator()
+    coordinator.ds["resource"]["board-name"] = "x86"
+    coordinator.get_system_routerboard()
+    assert coordinator.ds["routerboard"]["routerboard"] is False
+    assert coordinator.ds["routerboard"]["model"] == "x86"
+    assert coordinator.ds["routerboard"]["serial-number"] == "N/A"
+
+
+def test_routerboard_chr_board():
+    """CHR boards skip routerboard query and set defaults."""
+    coordinator = make_coordinator()
+    coordinator.ds["resource"]["board-name"] = "CHR"
+    coordinator.get_system_routerboard()
+    assert coordinator.ds["routerboard"]["routerboard"] is False
+    assert coordinator.ds["routerboard"]["model"] == "CHR"
+
+
+def test_routerboard_real_hardware():
+    """Real hardware queries /system/routerboard."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/routerboard": [
+                {
+                    "routerboard": True,
+                    "model": "RB4011iGS+",
+                    "serial-number": "ABC123",
+                    "current-firmware": "7.10",
+                    "upgrade-firmware": "7.11",
+                },
+            ],
+        }
+    )
+    coordinator.ds["resource"]["board-name"] = "RB4011iGS+"
+    coordinator.get_system_routerboard()
+    rb = coordinator.ds["routerboard"]
+    assert rb["routerboard"] is True
+    assert rb["model"] == "RB4011iGS+"
+    assert rb["serial-number"] == "ABC123"
+    assert rb["current-firmware"] == "7.10"
+    assert rb["upgrade-firmware"] == "7.11"
+
+
+def test_routerboard_no_access_strips_firmware():
+    """Without write+policy+reboot access, firmware fields are removed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/routerboard": [
+                {
+                    "routerboard": True,
+                    "model": "RB4011iGS+",
+                    "serial-number": "ABC123",
+                    "current-firmware": "7.10",
+                    "upgrade-firmware": "7.11",
+                },
+            ],
+        }
+    )
+    coordinator.ds["resource"]["board-name"] = "RB4011iGS+"
+    coordinator.ds["access"] = ["read", "api"]  # no write/policy/reboot
+    coordinator.get_system_routerboard()
+    rb = coordinator.ds["routerboard"]
+    assert "current-firmware" not in rb
+    assert "upgrade-firmware" not in rb
+
+
+# ---------------------------------------------------------------------------
+# Group AB: get_system_health() — health data parsing
+# ---------------------------------------------------------------------------
+
+
+def test_health_v6_parsing():
+    """RouterOS v6 health data is parsed as flat values."""
+    coordinator = make_coordinator(
+        major_fw_version=6,
+        api_responses={
+            "/system/health": [
+                {"temperature": 45, "voltage": 24, "cpu-temperature": 55},
+            ],
+        },
+    )
+    coordinator.get_system_health()
+    assert coordinator.ds["health"]["temperature"] == 45
+    assert coordinator.ds["health"]["voltage"] == 24
+    assert coordinator.ds["health"]["cpu-temperature"] == 55
+
+
+def test_health_v7_parsing():
+    """RouterOS v7 health data uses name/value pairs."""
+    coordinator = make_coordinator(
+        major_fw_version=7,
+        api_responses={
+            "/system/health": [
+                {"name": "temperature", "value": "48"},
+                {"name": "voltage", "value": "24.1"},
+            ],
+        },
+    )
+    coordinator.get_system_health()
+    assert coordinator.ds["health"]["temperature"] == "48"
+    assert coordinator.ds["health"]["voltage"] == "24.1"
+
+
+def test_health_no_access_returns_early():
+    """Without required access rights, health is not queried."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/system/health": [{"temperature": 45}],
+        },
+    )
+    coordinator.ds["access"] = ["read", "api"]
+    coordinator.get_system_health()
+    assert coordinator.ds["health"] == {}
+
+
+# ---------------------------------------------------------------------------
+# Group AC: get_captive() — hotspot/captive portal parsing
+# ---------------------------------------------------------------------------
+
+
+def test_captive_basic_parsing():
+    """Captive portal hosts are parsed and authorized count updated."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/hotspot/host": [
+                {"mac-address": "AA:BB:CC:DD:EE:01", "authorized": True, "bypassed": False},
+                {"mac-address": "AA:BB:CC:DD:EE:02", "authorized": False, "bypassed": True},
+                {"mac-address": "AA:BB:CC:DD:EE:03", "authorized": True, "bypassed": False},
+            ],
+        }
+    )
+    coordinator.ds["resource"]["captive_authorized"] = 0
+    coordinator.get_captive()
+    assert len(coordinator.ds["hostspot_host"]) == 3
+    assert coordinator.ds["resource"]["captive_authorized"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Group AD: get_dhcp_server() / get_dhcp_client() — DHCP server/client
+# ---------------------------------------------------------------------------
+
+
+def test_dhcp_server_parsing():
+    """DHCP server entries are parsed with name as key."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1"},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    assert "defconf" in coordinator.ds["dhcp-server"]
+    assert coordinator.ds["dhcp-server"]["defconf"]["interface"] == "bridge1"
+
+
+def test_dhcp_client_parsing():
+    """DHCP client entries are parsed with interface as key."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-client": [
+                {"interface": "ether1", "status": "bound", "address": "10.0.0.5/24"},
+            ],
+        }
+    )
+    coordinator.get_dhcp_client()
+    assert "ether1" in coordinator.ds["dhcp-client"]
+    assert coordinator.ds["dhcp-client"]["ether1"]["status"] == "bound"
+
+
+# ---------------------------------------------------------------------------
+# Group AE: get_capsman_hosts() — CAPS-MAN registration table
+# ---------------------------------------------------------------------------
+
+
+def test_capsman_hosts_v6():
+    """CAPS-MAN hosts use /caps-man/ path for RouterOS < 7.13."""
+    coordinator = make_coordinator(
+        major_fw_version=6,
+        api_responses={
+            "/caps-man/registration-table": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "interface": "cap1",
+                    "ssid": "MyWifi",
+                },
+            ],
+        },
+    )
+    coordinator.get_capsman_hosts()
+    assert "AA:BB:CC:DD:EE:01" in coordinator.ds["capsman_hosts"]
+    assert coordinator.ds["capsman_hosts"]["AA:BB:CC:DD:EE:01"]["ssid"] == "MyWifi"
+
+
+def test_capsman_hosts_v7_13():
+    """CAPS-MAN hosts use /interface/wifi/ path for RouterOS >= 7.13."""
+    coordinator = make_coordinator(major_fw_version=7)
+    coordinator.minor_fw_version = 13
+    coordinator.api = MockMikrotikAPI(
+        responses={
+            "/interface/wifi/registration-table": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "interface": "wifi1",
+                    "ssid": "NewWifi",
+                },
+            ],
+        }
+    )
+    coordinator.get_capsman_hosts()
+    assert "AA:BB:CC:DD:EE:01" in coordinator.ds["capsman_hosts"]
+    assert coordinator.ds["capsman_hosts"]["AA:BB:CC:DD:EE:01"]["interface"] == "wifi1"
+
+
+# ---------------------------------------------------------------------------
+# Group AF: get_wireless() / get_wireless_hosts()
+# ---------------------------------------------------------------------------
+
+
+def test_wireless_basic_parsing():
+    """Wireless interfaces are parsed."""
+    coordinator = make_coordinator(major_fw_version=6)
+    coordinator._wifimodule = "wireless"
+    coordinator.api = MockMikrotikAPI(
+        responses={
+            "/interface/wireless": [
+                {
+                    "name": "wlan1",
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "ssid": "TestSSID",
+                    "mode": "ap-bridge",
+                    "running": True,
+                    "disabled": False,
+                    "master-interface": "",
+                },
+            ],
+        }
+    )
+    coordinator.get_wireless()
+    assert "wlan1" in coordinator.ds["wireless"]
+    assert coordinator.ds["wireless"]["wlan1"]["ssid"] == "TestSSID"
+
+
+def test_wireless_hosts_parsing():
+    """Wireless registration table is parsed."""
+    coordinator = make_coordinator(major_fw_version=6)
+    coordinator._wifimodule = "wireless"
+    coordinator.api = MockMikrotikAPI(
+        responses={
+            "/interface/wireless/registration-table": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "interface": "wlan1",
+                    "ap": False,
+                    "uptime": "1h30m",
+                    "signal-strength": "-65",
+                    "tx-ccq": "90",
+                    "tx-rate": "72.2Mbps",
+                    "rx-rate": "72.2Mbps",
+                },
+            ],
+        }
+    )
+    coordinator.get_wireless_hosts()
+    assert "AA:BB:CC:DD:EE:01" in coordinator.ds["wireless_hosts"]
+    wh = coordinator.ds["wireless_hosts"]["AA:BB:CC:DD:EE:01"]
+    assert wh["interface"] == "wlan1"
+    assert wh["ap"] is False
+
+
+# ---------------------------------------------------------------------------
+# Group AG: get_capabilities() — package detection
+# ---------------------------------------------------------------------------
+
+
+def test_capabilities_v6_wireless():
+    """RouterOS v6 detects wireless package for capsman+wireless support."""
+    coordinator = make_coordinator(
+        major_fw_version=6,
+        api_responses={
+            "/system/package": [
+                {"name": "wireless", "disabled": False},
+                {"name": "ppp", "disabled": False},
+            ],
+        },
+    )
+    coordinator.support_ppp = False
+    coordinator.support_capsman = False
+    coordinator.support_wireless = False
+    coordinator.support_ups = False
+    coordinator.support_gps = False
+    coordinator.host = "10.0.0.1"
+    coordinator._wifimodule = "wireless"
+    coordinator.get_capabilities()
+    assert coordinator.support_ppp is True
+    assert coordinator.support_capsman is True
+    assert coordinator.support_wireless is True
+
+
+def test_capabilities_v6_no_wireless():
+    """RouterOS v6 without wireless package disables capsman+wireless."""
+    coordinator = make_coordinator(
+        major_fw_version=6,
+        api_responses={
+            "/system/package": [
+                {"name": "ppp", "disabled": False},
+            ],
+        },
+    )
+    coordinator.support_ppp = False
+    coordinator.support_capsman = False
+    coordinator.support_wireless = False
+    coordinator.support_ups = False
+    coordinator.support_gps = False
+    coordinator.host = "10.0.0.1"
+    coordinator._wifimodule = "wireless"
+    coordinator.get_capabilities()
+    assert coordinator.support_capsman is False
+    assert coordinator.support_wireless is False
+
+
+def test_capabilities_v7_wifiwave2():
+    """RouterOS v7 with wifiwave2 package uses wifiwave2 module."""
+    coordinator = make_coordinator(
+        major_fw_version=7,
+        api_responses={
+            "/system/package": [
+                {"name": "wifiwave2", "disabled": False},
+            ],
+        },
+    )
+    coordinator.support_ppp = False
+    coordinator.support_capsman = False
+    coordinator.support_wireless = False
+    coordinator.support_ups = False
+    coordinator.support_gps = False
+    coordinator.host = "10.0.0.1"
+    coordinator._wifimodule = "wireless"
+    coordinator.get_capabilities()
+    assert coordinator.support_ppp is True
+    assert coordinator.support_wireless is True
+    assert coordinator.support_capsman is False
+    assert coordinator._wifimodule == "wifiwave2"
+
+
+def test_capabilities_ups_and_gps():
+    """UPS and GPS packages are detected."""
+    coordinator = make_coordinator(
+        major_fw_version=6,
+        api_responses={
+            "/system/package": [
+                {"name": "ups", "disabled": False},
+                {"name": "gps", "disabled": False},
+            ],
+        },
+    )
+    coordinator.support_ppp = False
+    coordinator.support_capsman = False
+    coordinator.support_wireless = False
+    coordinator.support_ups = False
+    coordinator.support_gps = False
+    coordinator.host = "10.0.0.1"
+    coordinator._wifimodule = "wireless"
+    coordinator.get_capabilities()
+    assert coordinator.support_ups is True
+    assert coordinator.support_gps is True
+
+
+# ---------------------------------------------------------------------------
+# Group AH: process_interface_client() — interface client mapping
+# ---------------------------------------------------------------------------
+
+
+def test_process_interface_client_single_arp():
+    """Single ARP entry maps to interface client fields."""
+    coordinator = make_coordinator(
+        options={CONF_TRACK_IFACE_CLIENTS: True},
+    )
+    coordinator.ds["interface"] = {
+        "ether1": {"name": "ether1", "client-ip-address": "", "client-mac-address": ""},
+    }
+    coordinator.ds["arp"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "address": "192.168.1.10",
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "interface": "ether1",
+        }
+    }
+    coordinator.process_interface_client()
+    assert coordinator.ds["interface"]["ether1"]["client-ip-address"] == "192.168.1.10"
+    assert coordinator.ds["interface"]["ether1"]["client-mac-address"] == "AA:BB:CC:DD:EE:01"
+
+
+def test_process_interface_client_multiple_arp():
+    """Multiple ARP entries on same interface show 'multiple'."""
+    coordinator = make_coordinator(
+        options={CONF_TRACK_IFACE_CLIENTS: True},
+    )
+    coordinator.ds["interface"] = {
+        "ether1": {"name": "ether1", "client-ip-address": "", "client-mac-address": ""},
+    }
+    coordinator.ds["arp"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "address": "192.168.1.10",
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "interface": "ether1",
+        },
+        "AA:BB:CC:DD:EE:02": {
+            "address": "192.168.1.11",
+            "mac-address": "AA:BB:CC:DD:EE:02",
+            "interface": "ether1",
+        },
+    }
+    coordinator.process_interface_client()
+    assert coordinator.ds["interface"]["ether1"]["client-ip-address"] == "multiple"
+    assert coordinator.ds["interface"]["ether1"]["client-mac-address"] == "multiple"
+
+
+def test_process_interface_client_disabled():
+    """When tracking disabled, client fields show 'disabled'."""
+    coordinator = make_coordinator(
+        options={CONF_TRACK_IFACE_CLIENTS: False},
+    )
+    coordinator.ds["interface"] = {
+        "ether1": {"name": "ether1", "client-ip-address": "", "client-mac-address": ""},
+    }
+    coordinator.process_interface_client()
+    assert coordinator.ds["interface"]["ether1"]["client-ip-address"] == "disabled"
+    assert coordinator.ds["interface"]["ether1"]["client-mac-address"] == "disabled"
+
+
+def test_process_interface_client_no_arp_uses_dhcp_client():
+    """Interface with no ARP entries falls back to DHCP client address."""
+    coordinator = make_coordinator(
+        options={CONF_TRACK_IFACE_CLIENTS: True},
+    )
+    coordinator.ds["interface"] = {
+        "ether1": {"name": "ether1", "client-ip-address": "", "client-mac-address": ""},
+    }
+    coordinator.ds["dhcp-client"] = {
+        "ether1": {"address": "10.0.0.5/24"},
+    }
+    coordinator.process_interface_client()
+    assert coordinator.ds["interface"]["ether1"]["client-ip-address"] == "10.0.0.5/24"
+
+
+def test_process_interface_client_no_arp_no_dhcp():
+    """Interface with no ARP and no DHCP client shows 'none'."""
+    coordinator = make_coordinator(
+        options={CONF_TRACK_IFACE_CLIENTS: True},
+    )
+    coordinator.ds["interface"] = {
+        "ether1": {"name": "ether1", "client-ip-address": "", "client-mac-address": ""},
+    }
+    coordinator.process_interface_client()
+    assert coordinator.ds["interface"]["ether1"]["client-ip-address"] == "none"
+    assert coordinator.ds["interface"]["ether1"]["client-mac-address"] == "none"
+
+
+# ---------------------------------------------------------------------------
+# Group AI: process_accounting() — client traffic accounting
+# ---------------------------------------------------------------------------
+
+
+def test_accounting_disabled():
+    """When accounting is disabled, client_traffic gets available=False."""
+    coordinator = make_coordinator()
+    coordinator.api._accounting_enabled = False
+    coordinator.api._local_traffic_enabled = False
+    coordinator.api._snapshot_time_diff = 0
+    coordinator.ds["host"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "address": "192.168.1.10",
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "host-name": "pc1",
+        }
+    }
+    coordinator.process_accounting()
+    ct = coordinator.ds["client_traffic"]["AA:BB:CC:DD:EE:01"]
+    assert ct["available"] is False
+    assert ct["local_accounting"] is False
+
+
+def test_accounting_wan_traffic():
+    """WAN traffic is calculated from accounting snapshot."""
+    from ipaddress import IPv4Network
+
+    coordinator = make_coordinator()
+    coordinator.api._accounting_enabled = True
+    coordinator.api._local_traffic_enabled = True
+    coordinator.api._snapshot_time_diff = 30
+    coordinator.api.responses["/ip/accounting/snapshot"] = [
+        {".id": "*1", "src-address": "192.168.1.10", "dst-address": "8.8.8.8", "bytes": "30000"},
+    ]
+    coordinator.api.responses["/ip/accounting"] = [{"threshold": 8192}]
+    coordinator.ds["dhcp-network"] = {
+        "192.168.1.0/24": {"IPv4Network": IPv4Network("192.168.1.0/24")},
+    }
+    coordinator.ds["client_traffic"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "address": "192.168.1.10",
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "host-name": "pc1",
+            "available": False,
+            "local_accounting": False,
+        }
+    }
+    coordinator.process_accounting()
+    ct = coordinator.ds["client_traffic"]["AA:BB:CC:DD:EE:01"]
+    assert ct["available"] is True
+    assert ct["wan-tx"] == 1000  # 30000 / 30
+    assert ct["wan-rx"] == 0.0
+
+
+def test_accounting_lan_traffic():
+    """LAN traffic between two local hosts is counted as lan-tx/lan-rx."""
+    from ipaddress import IPv4Network
+
+    coordinator = make_coordinator()
+    coordinator.api._accounting_enabled = True
+    coordinator.api._local_traffic_enabled = True
+    coordinator.api._snapshot_time_diff = 10
+    coordinator.api.responses["/ip/accounting/snapshot"] = [
+        {".id": "*1", "src-address": "192.168.1.10", "dst-address": "192.168.1.20", "bytes": "5000"},
+    ]
+    coordinator.api.responses["/ip/accounting"] = [{"threshold": 8192}]
+    coordinator.ds["dhcp-network"] = {
+        "192.168.1.0/24": {"IPv4Network": IPv4Network("192.168.1.0/24")},
+    }
+    coordinator.ds["client_traffic"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "address": "192.168.1.10",
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "host-name": "pc1",
+            "available": False,
+            "local_accounting": False,
+        },
+        "AA:BB:CC:DD:EE:02": {
+            "address": "192.168.1.20",
+            "mac-address": "AA:BB:CC:DD:EE:02",
+            "host-name": "pc2",
+            "available": False,
+            "local_accounting": False,
+        },
+    }
+    coordinator.process_accounting()
+    ct1 = coordinator.ds["client_traffic"]["AA:BB:CC:DD:EE:01"]
+    ct2 = coordinator.ds["client_traffic"]["AA:BB:CC:DD:EE:02"]
+    assert ct1["lan-tx"] == 500  # 5000 / 10
+    assert ct2["lan-rx"] == 500
+
+
+def test_accounting_no_snapshot():
+    """When take_client_traffic_snapshot returns 0, throughput stays at 0."""
+    coordinator = make_coordinator()
+    coordinator.api._accounting_enabled = True
+    coordinator.api._local_traffic_enabled = False
+    coordinator.api._snapshot_time_diff = 0
+    coordinator.ds["host"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "address": "192.168.1.10",
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "host-name": "pc1",
+        }
+    }
+    coordinator.process_accounting()
+    ct = coordinator.ds["client_traffic"]["AA:BB:CC:DD:EE:01"]
+    assert ct["available"] is True
+    # With time_diff=0, the snapshot block is skipped so wan-tx/rx default to 0.0
+    assert ct["wan-tx"] == 0.0
+    assert ct["wan-rx"] == 0.0
+
+
+def test_accounting_local_disabled_skips_lan():
+    """When local_traffic is disabled, LAN fields are not set."""
+    from ipaddress import IPv4Network
+
+    coordinator = make_coordinator()
+    coordinator.api._accounting_enabled = True
+    coordinator.api._local_traffic_enabled = False
+    coordinator.api._snapshot_time_diff = 10
+    coordinator.api.responses["/ip/accounting/snapshot"] = [
+        {".id": "*1", "src-address": "192.168.1.10", "dst-address": "192.168.1.20", "bytes": "5000"},
+    ]
+    coordinator.api.responses["/ip/accounting"] = [{"threshold": 8192}]
+    coordinator.ds["dhcp-network"] = {
+        "192.168.1.0/24": {"IPv4Network": IPv4Network("192.168.1.0/24")},
+    }
+    coordinator.ds["client_traffic"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "address": "192.168.1.10",
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "host-name": "pc1",
+            "available": False,
+            "local_accounting": False,
+        },
+        "AA:BB:CC:DD:EE:02": {
+            "address": "192.168.1.20",
+            "mac-address": "AA:BB:CC:DD:EE:02",
+            "host-name": "pc2",
+            "available": False,
+            "local_accounting": False,
+        },
+    }
+    coordinator.process_accounting()
+    ct1 = coordinator.ds["client_traffic"]["AA:BB:CC:DD:EE:01"]
+    assert ct1["local_accounting"] is False
+    # LAN fields should not be set because local traffic is disabled
+    assert "lan-tx" not in ct1
+
+
+# ---------------------------------------------------------------------------
+# Group AJ: _address_part_of_local_network / _get_accounting_uid_by_ip
+# ---------------------------------------------------------------------------
+
+
+def test_address_part_of_local_network():
+    """Local network membership check works."""
+    from ipaddress import IPv4Network
+
+    coordinator = make_coordinator()
+    coordinator.ds["dhcp-network"] = {
+        "192.168.1.0/24": {"IPv4Network": IPv4Network("192.168.1.0/24")},
+    }
+    assert coordinator._address_part_of_local_network("192.168.1.10") is True
+    assert coordinator._address_part_of_local_network("10.0.0.1") is False
+
+
+def test_get_accounting_uid_by_ip():
+    """Lookup MAC by IP in client_traffic."""
+    coordinator = make_coordinator()
+    coordinator.ds["client_traffic"] = {
+        "AA:BB:CC:DD:EE:01": {"address": "192.168.1.10"},
+    }
+    assert coordinator._get_accounting_uid_by_ip("192.168.1.10") == "AA:BB:CC:DD:EE:01"
+    assert coordinator._get_accounting_uid_by_ip("10.0.0.1") is None
+
+
+# ---------------------------------------------------------------------------
+# Group AK: _get_iface_from_entry()
+# ---------------------------------------------------------------------------
+
+
+def test_get_iface_from_entry():
+    """Interface lookup by name returns the UID key."""
+    coordinator = make_coordinator()
+    coordinator.ds["interface"] = {
+        "ether1": {"name": "LAN"},
+        "ether2": {"name": "WAN"},
+    }
+    assert coordinator._get_iface_from_entry({"interface": "LAN"}) == "ether1"
+    assert coordinator._get_iface_from_entry({"interface": "WAN"}) == "ether2"
+    assert coordinator._get_iface_from_entry({"interface": "unknown"}) is None
