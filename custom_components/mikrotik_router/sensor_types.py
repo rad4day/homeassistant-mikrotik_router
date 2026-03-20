@@ -26,9 +26,6 @@ from homeassistant.const import (
 from .const import DOMAIN
 from .iface_attributes import (
     DEVICE_ATTRIBUTES_IFACE,
-    DEVICE_ATTRIBUTES_IFACE_ETHER,
-    DEVICE_ATTRIBUTES_IFACE_SFP,
-    DEVICE_ATTRIBUTES_IFACE_WIRELESS,
 )
 
 DEVICE_ATTRIBUTES_IFACE_POE = [

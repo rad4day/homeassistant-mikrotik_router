@@ -861,9 +861,7 @@ def test_get_arp_resolves_bridge_interface():
         }
     )
     coordinator.ds["bridge"] = {"bridge": {"name": "bridge"}}
-    coordinator.ds["bridge_host"] = {
-        "AA:BB:CC:DD:EE:01": {"interface": "ether3"}
-    }
+    coordinator.ds["bridge_host"] = {"AA:BB:CC:DD:EE:01": {"interface": "ether3"}}
     coordinator.ds["dhcp-client"] = {}
     coordinator.get_arp()
     entry = coordinator.ds["arp"]["AA:BB:CC:DD:EE:01"]

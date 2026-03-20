@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock
 
-import pytest
 
 from custom_components.mikrotik_router.entity import (
     _skip_sensor,

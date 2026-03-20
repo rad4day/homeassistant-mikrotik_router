@@ -280,7 +280,9 @@ class TestFillVals:
     def test_fills_bool_value(self):
         data = {"uid1": {}}
         entry = {"disabled": True}
-        vals = [{"name": "enabled", "source": "disabled", "type": "bool", "reverse": True}]
+        vals = [
+            {"name": "enabled", "source": "disabled", "type": "bool", "reverse": True}
+        ]
         result = fill_vals(data, entry, "uid1", vals)
         assert result["uid1"]["enabled"] is False
 

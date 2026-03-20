@@ -14,7 +14,6 @@ from mac_vendor_lookup import AsyncMacLookup
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.dt import utcnow
 
@@ -189,12 +188,12 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
                     "Ping host: %s", self.coordinator.ds["host"][uid]["address"]
                 )
 
-                self.coordinator.ds["host"][uid]["available"] = (
-                    await self.hass.async_add_executor_job(
-                        self.api.arp_ping,
-                        self.coordinator.ds["host"][uid]["address"],
-                        tmp_interface,
-                    )
+                self.coordinator.ds["host"][uid][
+                    "available"
+                ] = await self.hass.async_add_executor_job(
+                    self.api.arp_ping,
+                    self.coordinator.ds["host"][uid]["address"],
+                    tmp_interface,
                 )
 
             # Update last seen
@@ -851,9 +850,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
             if vals["default-name"] == "":
                 self.ds["interface"][uid]["default-name"] = vals["name"]
-                self.ds["interface"][uid][
-                    "port-mac-address"
-                ] = f"{vals['port-mac-address']}-{vals['name']}"
+                self.ds["interface"][uid]["port-mac-address"] = (
+                    f"{vals['port-mac-address']}-{vals['name']}"
+                )
 
             if self.ds["interface"][uid]["type"] == "ether":
                 if (
@@ -1829,9 +1828,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 int(x) for x in vals["max-limit"].split("/")
             ]
             self.ds["queue"][uid]["upload-max-limit"] = f"{upload_max_limit_bps} bps"
-            self.ds["queue"][uid][
-                "download-max-limit"
-            ] = f"{download_max_limit_bps} bps"
+            self.ds["queue"][uid]["download-max-limit"] = (
+                f"{download_max_limit_bps} bps"
+            )
 
             upload_rate_bps, download_rate_bps = [
                 int(x) for x in vals["rate"].split("/")
@@ -1848,22 +1847,22 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             upload_burst_limit_bps, download_burst_limit_bps = [
                 int(x) for x in vals["burst-limit"].split("/")
             ]
-            self.ds["queue"][uid][
-                "upload-burst-limit"
-            ] = f"{upload_burst_limit_bps} bps"
-            self.ds["queue"][uid][
-                "download-burst-limit"
-            ] = f"{download_burst_limit_bps} bps"
+            self.ds["queue"][uid]["upload-burst-limit"] = (
+                f"{upload_burst_limit_bps} bps"
+            )
+            self.ds["queue"][uid]["download-burst-limit"] = (
+                f"{download_burst_limit_bps} bps"
+            )
 
             upload_burst_threshold_bps, download_burst_threshold_bps = [
                 int(x) for x in vals["burst-threshold"].split("/")
             ]
-            self.ds["queue"][uid][
-                "upload-burst-threshold"
-            ] = f"{upload_burst_threshold_bps} bps"
-            self.ds["queue"][uid][
-                "download-burst-threshold"
-            ] = f"{download_burst_threshold_bps} bps"
+            self.ds["queue"][uid]["upload-burst-threshold"] = (
+                f"{upload_burst_threshold_bps} bps"
+            )
+            self.ds["queue"][uid]["download-burst-threshold"] = (
+                f"{download_burst_threshold_bps} bps"
+            )
 
             upload_burst_time, download_burst_time = vals["burst-time"].split("/")
             self.ds["queue"][uid]["upload-burst-time"] = upload_burst_time
@@ -2355,9 +2354,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             # Resolve manufacturer
             if vals["manufacturer"] == "detect" and vals["mac-address"] != "unknown":
                 try:
-                    self.ds["host"][uid]["manufacturer"] = (
-                        await self.async_mac_lookup.lookup(vals["mac-address"])
-                    )
+                    self.ds["host"][uid][
+                        "manufacturer"
+                    ] = await self.async_mac_lookup.lookup(vals["mac-address"])
                 except asyncio.CancelledError:
                     raise
                 except Exception:

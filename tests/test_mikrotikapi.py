@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from threading import Lock
-from unittest.mock import MagicMock, patch, PropertyMock
-import pytest
+from unittest.mock import MagicMock, patch
 
 from custom_components.mikrotik_router.mikrotikapi import MikrotikAPI
 
@@ -142,6 +140,7 @@ class TestConnectionCheck:
         api._connected = False
         # Set epoch to current time so retry window hasn't passed
         from time import time
+
         api._connection_epoch = time()
         assert api.connection_check() is False
 
@@ -214,6 +213,7 @@ class TestQuery:
         api._connected = False
         # Force connection_check to fail
         from time import time
+
         api._connection_epoch = time()
         assert api.query("/interface") is None
 
@@ -253,9 +253,7 @@ class TestQuery:
         api = self._connected_api()
         mock_path = MagicMock()
         mock_path.__bool__ = MagicMock(return_value=True)
-        mock_path.__iter__ = MagicMock(
-            side_effect=Exception("no such command prefix")
-        )
+        mock_path.__iter__ = MagicMock(side_effect=Exception("no such command prefix"))
         api._connection.path.return_value = mock_path
         result = api.query("/system/health")
         assert result is None
@@ -281,8 +279,12 @@ class TestSetValue:
         api = make_api()
         api._connected = False
         from time import time
+
         api._connection_epoch = time()
-        assert api.set_value("/ip/address", "address", "10.0.0.1", "disabled", True) is False
+        assert (
+            api.set_value("/ip/address", "address", "10.0.0.1", "disabled", True)
+            is False
+        )
 
     def test_entry_not_found_returns_true(self):
         api, _ = self._connected_api_with_query([{"name": "other", ".id": "*1"}])
@@ -306,6 +308,7 @@ class TestRunScript:
         api = make_api()
         api._connected = False
         from time import time
+
         api._connection_epoch = time()
         assert api.run_script("test_script") is False
 
@@ -353,6 +356,7 @@ class TestAccounting:
         api = make_api()
         api._connected = False
         from time import time
+
         api._connection_epoch = time()
         assert api.is_accounting_and_local_traffic_enabled() == (False, False)
 
@@ -361,9 +365,7 @@ class TestAccounting:
         api._connected = True
         api._connection = MagicMock()
         mock_path = MagicMock()
-        mock_path.__iter__ = MagicMock(
-            return_value=iter([{"enabled": False}])
-        )
+        mock_path.__iter__ = MagicMock(return_value=iter([{"enabled": False}]))
         mock_path.__bool__ = MagicMock(return_value=True)
         api._connection.path.return_value = mock_path
         assert api.is_accounting_and_local_traffic_enabled() == (False, False)

@@ -19,10 +19,6 @@ from homeassistant.components.update import (
 
 from .coordinator import MikrotikCoordinator
 from .entity import MikrotikEntity, async_add_entities
-from .update_types import (
-    SENSOR_TYPES,
-    SENSOR_SERVICES,
-)
 from packaging.version import Version
 
 _LOGGER = getLogger(__name__)
