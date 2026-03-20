@@ -13,10 +13,23 @@
 
 ## SonarCloud
 
-- Project: `jnctech_homeassistant-mikrotik_router`
-- Target: Grade A (reliability, security, maintainability)
-- Coverage exclusions: platform wiring files, data descriptors
-- CPD exclusions: `sensor_types.py`, `coordinator.py`, `tests/`
+- **Project:** `jnctech_homeassistant-mikrotik_router`
+- **Org:** `jnctech-homeassistant-mikrotik-router`
+
+### Quality Targets (non-negotiable)
+
+| Metric | Target |
+|--------|--------|
+| Reliability | Grade A |
+| Security | Grade A |
+| Maintainability | Grade A |
+| Cognitive complexity | ≤15 per function |
+| New code coverage | ≥80% |
+| Duplication | <3% (new code) |
+
+### Exclusions (see `sonar-project.properties`)
+- **Coverage:** platform wiring files, pure data descriptors, const, exceptions
+- **CPD:** `sensor_types.py`, `coordinator.py`, `tests/` (intentional structural repetition)
 
 ## Pre-commit Hooks
 

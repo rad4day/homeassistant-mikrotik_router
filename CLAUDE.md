@@ -14,10 +14,17 @@
 | Bug fixes, refactoring, tests | Sonnet | `Claude Sonnet 4.6` |
 | Architecture, design | Opus | `Claude Opus 4.6 (1M context)` |
 
+## Quality Targets (non-negotiable)
+
+- SonarCloud Grade A: reliability, security, maintainability
+- Cognitive complexity ≤15 per function
+- New code coverage ≥80%
+- Zero ruff/flake8 errors (migration to Ruff tracked)
+
 ## Standards & References
 
 - [HA Coding Standards](docs/ha-coding-standards.md) — async rules, entity patterns, datetime, type hints
-- [Quality Gates](docs/quality-gates.md) — CI, SonarCloud, pre-commit, pre-PR checklist
+- [Quality Gates](docs/quality-gates.md) — CI, SonarCloud targets, pre-commit, pre-PR checklist
 - [Architecture Notes](docs/architecture.md) — coordinator design, API client, known caveats
 
 ## Git
