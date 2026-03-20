@@ -1873,9 +1873,23 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             data={},
             source=self.api.query("/ip/arp"),
             key="mac-address",
-            vals=[{"name": "mac-address"}, {"name": "address"}, {"name": "interface"}],
+            vals=[
+                {"name": "mac-address"},
+                {"name": "address"},
+                {"name": "interface"},
+                {"name": "status", "default": ""},
+            ],
             ensure_vals=[{"name": "bridge", "default": ""}],
         )
+
+        # Remove ARP entries with failed status — device is not reachable
+        to_remove = [
+            uid
+            for uid, vals in self.ds["arp"].items()
+            if vals.get("status") == "failed"
+        ]
+        for uid in to_remove:
+            self.ds["arp"].pop(uid)
 
         for uid, vals in self.ds["arp"].items():
             if vals["interface"] in self.ds["bridge"] and uid in self.ds["bridge_host"]:
