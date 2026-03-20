@@ -15,20 +15,20 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.6
+## What's New — v2.3.8
 
-The [v2.3.6](https://github.com/jnctech/homeassistant-mikrotik_router/releases/tag/v2.3.6) release fixes critical bugs and aligns with HA best practices.
+The v2.3.6–v2.3.8 releases fix critical bugs and align with HA best practices. **Install v2.3.8** — it includes all fixes from v2.3.6 and v2.3.7 plus a patch for log spam introduced in v2.3.6.
 
-### Critical fixes in v2.3.6
+### Fixes in v2.3.6–v2.3.8
 
-| Fix | Detail |
-|-----|--------|
-| **Options flow crash on HA 2025.12+** | Config panel now works on modern HA versions ([upstream #470](https://github.com/tomaae/homeassistant-mikrotik_router/issues/470), [#471](https://github.com/tomaae/homeassistant-mikrotik_router/issues/471)) |
-| **Deadlock in `run_script()`** | Lock was never released when script not found — permanently froze the integration |
-| **Blocking I/O on event loop** | Switch toggles, button presses, firmware updates no longer freeze the HA UI |
-| **False "home" device tracking** | ARP entries with `status: failed` no longer cause devices to show as home ([#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17)) |
-| **New devices not appearing** | Dispatcher signal re-enabled so new network devices register as HA entities without restart |
-| **Deprecated `DeviceInfo` params** | Updated to current HA API (`name`, `manufacturer`, `model`) |
+| Fix | Version | Detail |
+|-----|---------|--------|
+| **Options flow crash on HA 2025.12+** | v2.3.6 | Config panel now works on modern HA versions ([upstream #470](https://github.com/tomaae/homeassistant-mikrotik_router/issues/470), [#471](https://github.com/tomaae/homeassistant-mikrotik_router/issues/471)) |
+| **Deadlock in `run_script()`** | v2.3.6 | Lock was never released when script not found — permanently froze the integration |
+| **Blocking I/O on event loop** | v2.3.6 | Switch toggles, button presses, firmware updates no longer freeze the HA UI |
+| **False "home" device tracking** | v2.3.7 | ARP entries with `status: failed` no longer cause devices to show as home ([#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17)) |
+| **Deprecated `DeviceInfo` params** | v2.3.6 | Updated to current HA API (`name`, `manufacturer`, `model`) |
+| **Duplicate entity log spam** | v2.3.8 | Fixed "does not generate unique IDs" errors flooding the log every 30s |
 
 ### Previous releases
 
