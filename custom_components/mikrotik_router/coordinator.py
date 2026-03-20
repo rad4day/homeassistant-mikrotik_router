@@ -14,6 +14,7 @@ from mac_vendor_lookup import AsyncMacLookup
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.dt import utcnow
 
@@ -688,7 +689,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")
 
-        # async_dispatcher_send(self.hass, "update_sensors", self)
+        async_dispatcher_send(self.hass, "update_sensors", self)
         return self.ds
 
     # ---------------------------
