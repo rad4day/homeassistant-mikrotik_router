@@ -43,7 +43,7 @@ from .iface_attributes import (
 _LOGGER = getLogger(__name__)
 
 
-def _copy_attrs(attributes: dict, data: dict, variables: list) -> None:
+def copy_attrs(attributes: dict, data: dict, variables: list) -> None:
     """Copy data values for each variable in the list into attributes."""
     for variable in variables:
         if variable in data:
@@ -63,29 +63,22 @@ class MikrotikInterfaceEntityMixin:
         attributes = super().extra_state_attributes
 
         if self._data.get("type") == "ether":
-            _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
+            copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
             if "sfp-shutdown-temperature" in self._data:
-                _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_SFP)
+                copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_SFP)
         elif self._data.get("type") == "wlan":
-            _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_WIRELESS)
+            copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_WIRELESS)
 
         return attributes
 
 
 def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
-    if _skip_interface_traffic(config_entry, entity_description, data, uid):
-        return True
-
-    if _skip_binary_sensor(config_entry, entity_description, data, uid):
-        return True
-
-    if _skip_device_tracker(config_entry, entity_description):
-        return True
-
-    if _skip_poe_sensor(config_entry, entity_description, data, uid):
-        return True
-
-    return False
+    return (
+        _skip_interface_traffic(config_entry, entity_description, data, uid)
+        or _skip_binary_sensor(config_entry, entity_description, data, uid)
+        or _skip_device_tracker(config_entry, entity_description)
+        or _skip_poe_sensor(config_entry, entity_description, data, uid)
+    )
 
 
 def _skip_interface_traffic(config_entry, entity_description, data, uid) -> bool:
@@ -100,7 +93,7 @@ def _skip_interface_traffic(config_entry, entity_description, data, uid) -> bool
 
     if (
         entity_description.data_path == "client_traffic"
-        and entity_description.data_attribute not in data[uid].keys()
+        and entity_description.data_attribute not in data[uid]
     ):
         return True
 
@@ -379,9 +372,7 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
     def extra_state_attributes(self) -> Mapping[str, Any]:
         """Return the state attributes."""
         attributes = super().extra_state_attributes
-        _copy_attrs(
-            attributes, self._data, self.entity_description.data_attributes_list
-        )
+        copy_attrs(attributes, self._data, self.entity_description.data_attributes_list)
         return attributes
 
     async def start(self):  # pragma: no cover

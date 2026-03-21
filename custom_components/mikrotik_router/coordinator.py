@@ -632,6 +632,8 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         if self.api.connected() and self.support_wireless:
             await self.hass.async_add_executor_job(self.get_wireless)
+
+        if self.api.connected() and self.support_wireless:
             await self.hass.async_add_executor_job(self.get_wireless_hosts)
 
         for func in [self.get_bridge, self.get_arp, self.get_dhcp]:
@@ -2539,20 +2541,28 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 continue
 
             self.ds["client_traffic"][uid]["wan-tx"] = (
-                round(vals["wan-tx"] / time_diff) if vals["wan-tx"] else 0.0
+                round(vals["wan-tx"] / time_diff)
+                if vals["wan-tx"] and time_diff
+                else 0.0
             )
             self.ds["client_traffic"][uid]["wan-rx"] = (
-                round(vals["wan-rx"] / time_diff) if vals["wan-rx"] else 0.0
+                round(vals["wan-rx"] / time_diff)
+                if vals["wan-rx"] and time_diff
+                else 0.0
             )
 
             if not local_traffic_enabled:
                 continue
 
             self.ds["client_traffic"][uid]["lan-tx"] = (
-                round(vals["lan-tx"] / time_diff) if vals["lan-tx"] else 0.0
+                round(vals["lan-tx"] / time_diff)
+                if vals["lan-tx"] and time_diff
+                else 0.0
             )
             self.ds["client_traffic"][uid]["lan-rx"] = (
-                round(vals["lan-rx"] / time_diff) if vals["lan-rx"] else 0.0
+                round(vals["lan-rx"] / time_diff)
+                if vals["lan-rx"] and time_diff
+                else 0.0
             )
 
     # ---------------------------
