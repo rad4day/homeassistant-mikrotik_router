@@ -4,6 +4,40 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260321-complexity-reduction — Cognitive complexity reduction across coordinator, entity, apiparser
+
+**Date:** 2026-03-21
+**Branch:** `feature/complexity-reduction`
+**PR:** #30 (targeting dev)
+**Status:** In Review
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | Extracted 11 helpers from `async_process_host()` (136→~10 each): `_merge_capsman_hosts`, `_merge_wireless_hosts`, `_merge_dhcp_hosts`, `_merge_arp_hosts`, `_recover_hass_hosts`, `_ensure_host_defaults`, `_update_host_availability`, `_update_host_address`, `_resolve_hostname`, `_dhcp_comment_for_host`, `_update_captive_portal` |
+| `coordinator.py` | Extracted `_async_update_hwinfo` and `_async_run_if_connected` from `_async_update_data()` (65→~15), plus optional sensor loop tables |
+| `coordinator.py` | Extracted `_init_accounting_hosts`, `_classify_accounting_traffic`, `_check_accounting_threshold`, `_apply_accounting_throughput` from `process_accounting()` (48→~10 each) |
+| `coordinator.py` | Extracted `_monitor_ethernet_port` with SFP/copper/PoE monitor val constants from `get_interface()` (27→~10) |
+| `entity.py` | Split `_skip_sensor()` into `_skip_interface_traffic`, `_skip_binary_sensor`, `_skip_device_tracker`, `_skip_poe_sensor` (23→~5 each) |
+| `switch.py` | Replaced inline attribute loops with shared `_copy_attrs` from entity.py (21→~5) |
+| `apiparser.py` | Extracted `_traverse_entry` helper, case-insensitive bool matching via frozensets (18→~8) |
+| `tests/` | 48 new tests covering all extracted helpers (351 total, up from 303) |
+
+### Why
+
+ISS-260321-cognitive-complexity: SonarCloud quality target is ≤15 cognitive complexity per function. Seven of the worst offenders (totalling 358 complexity points) are now refactored into focused helpers, each well under the threshold.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 351 passed, 5 skipped | ✅ |
+
+---
+
 ## CR-260320-tests-and-refactor — Test suite, devcontainer, CI/CD alignment, ruff migration
 
 **Date:** 2026-03-20

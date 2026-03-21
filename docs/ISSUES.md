@@ -39,7 +39,7 @@
 **Type:** Quality
 **Priority:** High
 **Created:** 2026-03-21
-**Status:** 🟡 Backlog
+**Status:** 🟢 Active — PR #30 (feature/complexity-reduction → dev)
 
 **Context:**
 SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. Total project cognitive complexity is 1058. Worst offenders are upstream inherited code.
@@ -62,17 +62,26 @@ SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. 
 | `query()` | mikrotikapi.py:189 | 18 | 8m |
 | `get_system_resource()` | coordinator.py:1509 | 17 | 7m |
 
-**Quick wins (done in PR #29):**
+**Done (PR #29):**
 - ✅ `get_system_resource()`: extracted `_parse_uptime_to_seconds()` helper
 - ✅ `get_capabilities()`: consolidated duplicate wifi module branches
 
-**Remaining (separate PRs recommended):**
-- `async_process_host()` — extract per-source helpers (`_merge_capsman_hosts`, `_merge_wireless_hosts`, `_resolve_hostname`)
-- `parse_api()` — break into parsing pipeline stages
-- `process_accounting()` — extract traffic direction matrix
-- `_async_update_data()` (main) — extract connected-check pattern
+**Done (PR #30 — feature/complexity-reduction):**
+- ✅ `async_process_host()` (136→~10 per helper): extracted `_merge_capsman_hosts`, `_merge_wireless_hosts`, `_merge_dhcp_hosts`, `_merge_arp_hosts`, `_recover_hass_hosts`, `_ensure_host_defaults`, `_update_host_availability`, `_update_host_address`, `_resolve_hostname`, `_dhcp_comment_for_host`, `_update_captive_portal`
+- ✅ `_async_update_data()` (65→~15): extracted `_async_update_hwinfo`, `_async_run_if_connected`, optional sensor loop tables
+- ✅ `process_accounting()` (48→~10 per helper): extracted `_init_accounting_hosts`, `_classify_accounting_traffic`, `_check_accounting_threshold`, `_apply_accounting_throughput`
+- ✅ `get_interface()` (27→~10): extracted `_monitor_ethernet_port` with `_SFP_MONITOR_VALS`, `_COPPER_MONITOR_VALS`, `_POE_MONITOR_VALS` class constants
+- ✅ `_skip_sensor()` (23→~5 per helper): extracted `_skip_interface_traffic`, `_skip_binary_sensor`, `_skip_device_tracker`, `_skip_poe_sensor`
+- ✅ `extra_state_attributes` switch.py (21→~5): reused `_copy_attrs` from entity.py
+- ✅ `from_entry_bool()` (18→~8): extracted `_traverse_entry`, case-insensitive string matching via frozensets
 
-**Reference:** SonarCloud maintainability rating is A. These are not blockers but are technical debt.
+**Remaining:**
+- `process_interface_client()` (27) — not yet refactored
+- `async_process_host()` tracker (22) — not yet refactored
+- `_async_update_data()` tracker (21) — not yet refactored
+- `query()` mikrotikapi.py (18) — not yet refactored
+
+**Reference:** SonarCloud maintainability rating is A. 48 new tests cover extracted helpers.
 
 ---
 

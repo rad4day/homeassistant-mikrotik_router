@@ -23,19 +23,29 @@ def utc_from_timestamp(timestamp: float) -> datetime:
 # ---------------------------
 #   from_entry
 # ---------------------------
+_NOT_FOUND = object()
+
+
+def _traverse_entry(entry, param):
+    """Walk a '/' separated path through nested dicts. Returns _NOT_FOUND if not found."""
+    if "/" in param:
+        for part in param.split("/"):
+            if isinstance(entry, dict) and part in entry:
+                entry = entry[part]
+            else:
+                return _NOT_FOUND
+        return entry
+
+    if param in entry:
+        return entry[param]
+
+    return _NOT_FOUND
+
+
 def from_entry(entry, param, default="") -> str:
     """Validate and return str value an API dict."""
-    if "/" in param:
-        for tmp_param in param.split("/"):
-            if isinstance(entry, dict) and tmp_param in entry:
-                entry = entry[tmp_param]
-            else:
-                return default
-
-        ret = entry
-    elif param in entry:
-        ret = entry[param]
-    else:
+    ret = _traverse_entry(entry, param)
+    if ret is _NOT_FOUND:
         return default
 
     if default != "":
@@ -52,25 +62,21 @@ def from_entry(entry, param, default="") -> str:
 # ---------------------------
 #   from_entry_bool
 # ---------------------------
+_TRUTHY_STRINGS = frozenset({"on", "yes", "up"})
+_FALSY_STRINGS = frozenset({"off", "no", "down"})
+
+
 def from_entry_bool(entry, param, default=False, reverse=False) -> bool:
     """Validate and return a bool value from an API dict."""
-    if "/" in param:
-        for tmp_param in param.split("/"):
-            if isinstance(entry, dict) and tmp_param in entry:
-                entry = entry[tmp_param]
-            else:
-                return default
-
-        ret = entry
-    elif param in entry:
-        ret = entry[param]
-    else:
+    ret = _traverse_entry(entry, param)
+    if ret is _NOT_FOUND:
         return default
 
     if isinstance(ret, str):
-        if ret in ("on", "On", "ON", "yes", "Yes", "YES", "up", "Up", "UP"):
+        lowered = ret.lower()
+        if lowered in _TRUTHY_STRINGS:
             ret = True
-        elif ret in ("off", "Off", "OFF", "no", "No", "NO", "down", "Down", "DOWN"):
+        elif lowered in _FALSY_STRINGS:
             ret = False
 
     if not isinstance(ret, bool):

@@ -12,8 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .entity import MikrotikEntity, async_add_entities
-from .helper import format_attribute
+from .entity import MikrotikEntity, _copy_attrs, async_add_entities
 from .switch_types import (
     DEVICE_ATTRIBUTES_IFACE_ETHER,
     DEVICE_ATTRIBUTES_IFACE_SFP,
@@ -104,19 +103,11 @@ class MikrotikPortSwitch(MikrotikSwitch):
         attributes = super().extra_state_attributes
 
         if self._data["type"] == "ether":
-            for variable in DEVICE_ATTRIBUTES_IFACE_ETHER:
-                if variable in self._data:
-                    attributes[format_attribute(variable)] = self._data[variable]
-
+            _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
             if "sfp-shutdown-temperature" in self._data:
-                for variable in DEVICE_ATTRIBUTES_IFACE_SFP:
-                    if variable in self._data:
-                        attributes[format_attribute(variable)] = self._data[variable]
-
+                _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_SFP)
         elif self._data["type"] == "wlan":
-            for variable in DEVICE_ATTRIBUTES_IFACE_WIRELESS:
-                if variable in self._data:
-                    attributes[format_attribute(variable)] = self._data[variable]
+            _copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_WIRELESS)
 
         return attributes
 

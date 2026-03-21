@@ -73,20 +73,30 @@ class MikrotikInterfaceEntityMixin:
 
 
 def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
-    # Sensors
-    if (
-        entity_description.func == "MikrotikInterfaceTrafficSensor"
-        and not config_entry.options.get(
-            CONF_SENSOR_PORT_TRAFFIC, DEFAULT_SENSOR_PORT_TRAFFIC
-        )
-    ):
+    if _skip_interface_traffic(config_entry, entity_description, data, uid):
         return True
 
-    if (
-        entity_description.func == "MikrotikInterfaceTrafficSensor"
-        and data[uid]["type"] == "bridge"
-    ):
+    if _skip_binary_sensor(config_entry, entity_description, data, uid):
         return True
+
+    if _skip_device_tracker(config_entry, entity_description):
+        return True
+
+    if _skip_poe_sensor(config_entry, entity_description, data, uid):
+        return True
+
+    return False
+
+
+def _skip_interface_traffic(config_entry, entity_description, data, uid) -> bool:
+    """Skip traffic sensors when disabled or on bridge interfaces."""
+    if entity_description.func == "MikrotikInterfaceTrafficSensor":
+        if not config_entry.options.get(
+            CONF_SENSOR_PORT_TRAFFIC, DEFAULT_SENSOR_PORT_TRAFFIC
+        ):
+            return True
+        if data[uid]["type"] == "bridge":
+            return True
 
     if (
         entity_description.data_path == "client_traffic"
@@ -94,56 +104,58 @@ def _skip_sensor(config_entry, entity_description, data, uid) -> bool:
     ):
         return True
 
-    # Binary sensors
-    if (
-        entity_description.func == "MikrotikPortBinarySensor"
-        and data[uid]["type"] == "wlan"
-    ):
-        return True
+    return False
 
-    if (
-        entity_description.func == "MikrotikPortBinarySensor"
-        and not config_entry.options.get(
+
+def _skip_binary_sensor(config_entry, entity_description, data, uid) -> bool:
+    """Skip port binary sensors on wlan or when tracker disabled."""
+    if entity_description.func == "MikrotikPortBinarySensor":
+        if data[uid]["type"] == "wlan":
+            return True
+        if not config_entry.options.get(
             CONF_SENSOR_PORT_TRACKER, DEFAULT_SENSOR_PORT_TRACKER
-        )
-    ):
-        return True
+        ):
+            return True
 
     if entity_description.data_path == "netwatch" and not config_entry.options.get(
         CONF_SENSOR_NETWATCH_TRACKER, DEFAULT_SENSOR_NETWATCH_TRACKER
     ):
         return True
 
-    # Device Tracker
-    if (
-        # Skip if host tracking is disabled
+    return False
+
+
+def _skip_device_tracker(config_entry, entity_description) -> bool:
+    """Skip host tracker when host tracking is disabled."""
+    return (
         entity_description.func == "MikrotikHostDeviceTracker"
         and not config_entry.options.get(CONF_TRACK_HOSTS, DEFAULT_TRACK_HOSTS)
+    )
+
+
+_POE_ATTRIBUTES = (
+    "poe-out-status",
+    "poe-out-voltage",
+    "poe-out-current",
+    "poe-out-power",
+)
+_POE_MEASUREMENT_ATTRIBUTES = ("poe-out-voltage", "poe-out-current", "poe-out-power")
+
+
+def _skip_poe_sensor(config_entry, entity_description, data, uid) -> bool:
+    """Skip PoE sensors when disabled or unsupported by hardware."""
+    if entity_description.data_attribute not in _POE_ATTRIBUTES:
+        return False
+
+    if not config_entry.options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE):
+        return True
+    if uid not in data or data[uid].get("poe-out-status") is None:
+        return True
+    if (
+        entity_description.data_attribute in _POE_MEASUREMENT_ATTRIBUTES
+        and data[uid].get(entity_description.data_attribute) is None
     ):
         return True
-
-    # Skip PoE-out sensors if disabled or interface doesn't support PoE
-    if entity_description.data_attribute in (
-        "poe-out-status",
-        "poe-out-voltage",
-        "poe-out-current",
-        "poe-out-power",
-    ):
-        if not config_entry.options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE):
-            return True
-        if uid not in data or data[uid].get("poe-out-status") is None:
-            return True
-        # Skip measurement sensors on hardware that doesn't report power monitoring
-        if (
-            entity_description.data_attribute
-            in (
-                "poe-out-voltage",
-                "poe-out-current",
-                "poe-out-power",
-            )
-            and data[uid].get(entity_description.data_attribute) is None
-        ):
-            return True
 
     return False
 
