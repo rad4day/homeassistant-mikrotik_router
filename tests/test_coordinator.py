@@ -72,6 +72,8 @@ def make_coordinator(options=None, api_responses=None, major_fw_version=6):
         "ups": {},
         "gps": {},
         "netwatch": {},
+        "raw": {},
+        "container": {},
     }
 
     coordinator.major_fw_version = major_fw_version
@@ -2646,6 +2648,51 @@ def test_dhcp_client_parsing():
     assert coordinator.ds["dhcp-client"]["ether1"]["status"] == "bound"
 
 
+def test_dhcp_client_enriched_fields():
+    """DHCP client entries include gateway, dns-server, dhcp-server, expires-after, comment."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-client": [
+                {
+                    "interface": "ether1",
+                    "status": "bound",
+                    "address": "10.0.0.5/24",
+                    "gateway": "10.0.0.1",
+                    "dns-server": "8.8.8.8",
+                    "dhcp-server": "10.0.0.1",
+                    "expires-after": "23:45:00",
+                    "comment": "WAN",
+                },
+            ],
+        }
+    )
+    coordinator.get_dhcp_client()
+    entry = coordinator.ds["dhcp-client"]["ether1"]
+    assert entry["gateway"] == "10.0.0.1"
+    assert entry["dns-server"] == "8.8.8.8"
+    assert entry["dhcp-server"] == "10.0.0.1"
+    assert entry["expires-after"] == "23:45:00"
+    assert entry["comment"] == "WAN"
+
+
+def test_dhcp_client_enriched_defaults():
+    """DHCP client enriched fields default when absent from API response."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-client": [
+                {"interface": "ether1", "status": "bound", "address": "10.0.0.5/24"},
+            ],
+        }
+    )
+    coordinator.get_dhcp_client()
+    entry = coordinator.ds["dhcp-client"]["ether1"]
+    assert entry["gateway"] == "unknown"
+    assert entry["dns-server"] == "unknown"
+    assert entry["dhcp-server"] == "unknown"
+    assert entry["expires-after"] == "unknown"
+    assert entry["comment"] == ""
+
+
 # ---------------------------------------------------------------------------
 # Group AE: get_capsman_hosts() — CAPS-MAN registration table
 # ---------------------------------------------------------------------------
@@ -3789,3 +3836,195 @@ def test_add_traffic_bytes_external_to_external():
     )
     assert tmp["10.0.0.1"]["wan-tx"] == 0
     assert tmp["10.0.0.1"]["wan-rx"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Group: get_raw() — firewall RAW rule parsing
+# ---------------------------------------------------------------------------
+
+
+def test_raw_basic_rule():
+    """Basic RAW rule is parsed correctly."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/raw": [
+                {
+                    ".id": "*1",
+                    "chain": "prerouting",
+                    "action": "drop",
+                    "protocol": "tcp",
+                    "dst-port": "445",
+                    "comment": "Block SMB",
+                    "disabled": False,
+                }
+            ]
+        }
+    )
+    coordinator.raw_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_raw()
+    assert "*1" in coordinator.ds["raw"]
+    rule = coordinator.ds["raw"]["*1"]
+    assert rule["action"] == "drop"
+    assert rule["protocol"] == "tcp"
+    assert rule["enabled"] is True
+    assert rule["name"] == "drop,tcp:445"
+
+
+def test_raw_skips_dynamic_and_jump():
+    """Dynamic rules and jump actions are filtered out."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/raw": [
+                {
+                    ".id": "*1",
+                    "chain": "prerouting",
+                    "action": "drop",
+                    "protocol": "tcp",
+                    "dst-port": "445",
+                    "comment": "Keep",
+                    "disabled": False,
+                },
+                {
+                    ".id": "*2",
+                    "chain": "prerouting",
+                    "action": "jump",
+                    "protocol": "any",
+                    "comment": "Jump rule",
+                    "disabled": False,
+                },
+                {
+                    ".id": "*3",
+                    "chain": "prerouting",
+                    "action": "accept",
+                    "dynamic": True,
+                    "disabled": False,
+                },
+            ]
+        }
+    )
+    coordinator.raw_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_raw()
+    assert "*1" in coordinator.ds["raw"]
+    assert "*2" not in coordinator.ds["raw"]
+    assert "*3" not in coordinator.ds["raw"]
+
+
+def test_raw_duplicate_removal():
+    """Duplicate RAW rules (same uniq-id) are both removed."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/raw": [
+                {
+                    ".id": "*1",
+                    "chain": "prerouting",
+                    "action": "drop",
+                    "protocol": "tcp",
+                    "dst-port": "445",
+                    "comment": "Rule A",
+                    "disabled": False,
+                },
+                {
+                    ".id": "*2",
+                    "chain": "prerouting",
+                    "action": "drop",
+                    "protocol": "tcp",
+                    "dst-port": "445",
+                    "comment": "Rule B",
+                    "disabled": False,
+                },
+            ]
+        }
+    )
+    coordinator.raw_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_raw()
+    assert len(coordinator.ds["raw"]) == 0
+
+
+def test_raw_comment_converted_to_string():
+    """RAW comment field is always converted to string."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/raw": [
+                {
+                    ".id": "*1",
+                    "chain": "prerouting",
+                    "action": "drop",
+                    "protocol": "udp",
+                    "dst-port": "53",
+                    "comment": 99999,
+                    "disabled": False,
+                }
+            ]
+        }
+    )
+    coordinator.raw_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_raw()
+    assert coordinator.ds["raw"]["*1"]["comment"] == "99999"
+
+
+# ---------------------------------------------------------------------------
+# Group: get_container() — container monitoring
+# ---------------------------------------------------------------------------
+
+
+def test_container_basic():
+    """Container entry is parsed correctly."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/container": [
+                {
+                    ".id": "*1",
+                    "name": "pihole",
+                    "tag": "pihole/pihole:latest",
+                    "os": "linux",
+                    "arch": "arm64",
+                    "interface": "veth-pihole",
+                    "status": "running",
+                }
+            ]
+        }
+    )
+    coordinator.get_container()
+    assert "*1" in coordinator.ds["container"]
+    c = coordinator.ds["container"]["*1"]
+    assert c["name"] == "pihole"
+    assert c["tag"] == "pihole/pihole:latest"
+    assert c["status"] == "running"
+
+
+def test_container_running_derived():
+    """running field is True when status is 'running', False otherwise."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/container": [
+                {".id": "*1", "name": "running-ct", "status": "running"},
+                {".id": "*2", "name": "stopped-ct", "status": "stopped"},
+                {".id": "*3", "name": "error-ct", "status": "error"},
+            ]
+        }
+    )
+    coordinator.get_container()
+    assert coordinator.ds["container"]["*1"]["running"] is True
+    assert coordinator.ds["container"]["*2"]["running"] is False
+    assert coordinator.ds["container"]["*3"]["running"] is False
+
+
+def test_container_defaults():
+    """Container fields default when absent from API response."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/container": [
+                {".id": "*1"},
+            ]
+        }
+    )
+    coordinator.get_container()
+    c = coordinator.ds["container"]["*1"]
+    assert c["name"] == "unknown"
+    assert c["status"] == "stopped"
+    assert c["running"] is False
+    assert c["comment"] == ""

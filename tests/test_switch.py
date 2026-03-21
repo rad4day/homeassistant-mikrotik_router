@@ -10,6 +10,8 @@ from custom_components.mikrotik_router.switch import (
     MikrotikNATSwitch,
     MikrotikQueueSwitch,
     MikrotikKidcontrolPauseSwitch,
+    MikrotikRawSwitch,
+    MikrotikContainerSwitch,
 )
 
 from .conftest import (
@@ -395,3 +397,200 @@ class TestMikrotikKidcontrolPauseSwitch:
         coord.execute.assert_called_once()
         call_args = coord.execute.call_args[0]
         assert call_args[1] == "pause"
+
+
+# ---------------------------------------------------------------------------
+# MikrotikRawSwitch
+# ---------------------------------------------------------------------------
+
+
+class TestMikrotikRawSwitch:
+    def _make_raw_data(self):
+        return {
+            "chain": "prerouting",
+            "action": "drop",
+            "protocol": "tcp",
+            "in-interface": "ether1",
+            "in-interface-list": "any",
+            "src-address": "any",
+            "src-address-list": "any",
+            "src-port": "any",
+            "out-interface": "any",
+            "out-interface-list": "any",
+            "dst-address": "any",
+            "dst-address-list": "any",
+            "dst-port": "445",
+            "enabled": True,
+            "name": "drop,tcp:445",
+            "uniq-id": "prerouting,drop,tcp,ether1,any:any,any:any-any,any:any,any:445",
+            ".id": "*1",
+            "comment": "Block SMB",
+        }
+
+    @pytest.mark.asyncio
+    async def test_turn_on_finds_id_by_uniq_id(self):
+        coord = make_mock_coordinator()
+        raw_data = self._make_raw_data()
+        coord.data["raw"] = {"rule1": raw_data}
+        entity = _make_switch(
+            cls=MikrotikRawSwitch,
+            coordinator=coord,
+            desc_overrides={
+                **_SWITCH_DESC,
+                "data_path": "raw",
+                "data_switch_path": "/ip/firewall/raw",
+            },
+            uid="rule1",
+        )
+        await entity.async_turn_on()
+        call_args = coord.set_value.call_args[0]
+        assert call_args[1] == ".id"
+        assert call_args[2] == "*1"
+        assert call_args[4] is False  # mod_value = enable (disable=False)
+
+    @pytest.mark.asyncio
+    async def test_turn_off_finds_id_by_uniq_id(self):
+        coord = make_mock_coordinator()
+        raw_data = self._make_raw_data()
+        coord.data["raw"] = {"rule1": raw_data}
+        entity = _make_switch(
+            cls=MikrotikRawSwitch,
+            coordinator=coord,
+            desc_overrides={
+                **_SWITCH_DESC,
+                "data_path": "raw",
+                "data_switch_path": "/ip/firewall/raw",
+            },
+            uid="rule1",
+        )
+        await entity.async_turn_off()
+        call_args = coord.set_value.call_args[0]
+        assert call_args[1] == ".id"
+        assert call_args[2] == "*1"
+        assert call_args[4] is True  # mod_value = disable (disable=True)
+
+    @pytest.mark.asyncio
+    async def test_turn_on_no_write_access(self):
+        coord = make_mock_coordinator()
+        coord.data["access"] = ["read"]
+        coord.data["raw"] = {"rule1": self._make_raw_data()}
+        entity = _make_switch(
+            cls=MikrotikRawSwitch,
+            coordinator=coord,
+            desc_overrides={
+                **_SWITCH_DESC,
+                "data_path": "raw",
+                "data_switch_path": "/ip/firewall/raw",
+            },
+            uid="rule1",
+        )
+        await entity.async_turn_on()
+        coord.set_value.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# MikrotikContainerSwitch
+# ---------------------------------------------------------------------------
+
+
+class TestMikrotikContainerSwitch:
+    def _make_container_data(self):
+        return {
+            ".id": "*1",
+            "name": "pihole",
+            "tag": "pihole/pihole:latest",
+            "os": "linux",
+            "arch": "arm64",
+            "interface": "veth-pihole",
+            "status": "running",
+            "running": True,
+            "comment": "",
+        }
+
+    @pytest.mark.asyncio
+    async def test_turn_on_starts_container(self):
+        coord = make_mock_coordinator()
+        ct_data = self._make_container_data()
+        coord.data["container"] = {"*1": ct_data}
+        entity = _make_switch(
+            cls=MikrotikContainerSwitch,
+            coordinator=coord,
+            desc_overrides={
+                **_SWITCH_DESC,
+                "data_path": "container",
+                "data_attribute": "running",
+                "data_uid": ".id",
+                "data_reference": ".id",
+            },
+            uid="*1",
+        )
+        await entity.async_turn_on()
+        coord.execute.assert_called_once()
+        call_args = coord.execute.call_args[0]
+        assert call_args[0] == "/container"
+        assert call_args[1] == "start"
+        assert call_args[2] == ".id"
+        assert call_args[3] == "*1"
+
+    @pytest.mark.asyncio
+    async def test_turn_off_stops_container(self):
+        coord = make_mock_coordinator()
+        ct_data = self._make_container_data()
+        coord.data["container"] = {"*1": ct_data}
+        entity = _make_switch(
+            cls=MikrotikContainerSwitch,
+            coordinator=coord,
+            desc_overrides={
+                **_SWITCH_DESC,
+                "data_path": "container",
+                "data_attribute": "running",
+                "data_uid": ".id",
+                "data_reference": ".id",
+            },
+            uid="*1",
+        )
+        await entity.async_turn_off()
+        coord.execute.assert_called_once()
+        call_args = coord.execute.call_args[0]
+        assert call_args[0] == "/container"
+        assert call_args[1] == "stop"
+
+    @pytest.mark.asyncio
+    async def test_turn_on_no_write_access(self):
+        coord = make_mock_coordinator()
+        coord.data["access"] = ["read"]
+        coord.data["container"] = {"*1": self._make_container_data()}
+        entity = _make_switch(
+            cls=MikrotikContainerSwitch,
+            coordinator=coord,
+            desc_overrides={
+                **_SWITCH_DESC,
+                "data_path": "container",
+                "data_attribute": "running",
+                "data_uid": ".id",
+                "data_reference": ".id",
+            },
+            uid="*1",
+        )
+        await entity.async_turn_on()
+        coord.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_turn_on_refreshes_coordinator(self):
+        coord = make_mock_coordinator()
+        ct_data = self._make_container_data()
+        coord.data["container"] = {"*1": ct_data}
+        entity = _make_switch(
+            cls=MikrotikContainerSwitch,
+            coordinator=coord,
+            desc_overrides={
+                **_SWITCH_DESC,
+                "data_path": "container",
+                "data_attribute": "running",
+                "data_uid": ".id",
+                "data_reference": ".id",
+            },
+            uid="*1",
+        )
+        await entity.async_turn_on()
+        coord.async_refresh.assert_awaited_once()
