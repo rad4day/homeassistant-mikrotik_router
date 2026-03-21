@@ -19,6 +19,7 @@ from homeassistant.util.dt import utcnow
 from homeassistant.components.device_tracker.const import SourceType
 
 from .coordinator import MikrotikCoordinator
+from .device_tracker_types import SENSOR_TYPES, SENSOR_SERVICES  # noqa: F401
 from .entity import _run_entity_setup_loop, MikrotikEntity
 from .helper import format_attribute
 from .const import (

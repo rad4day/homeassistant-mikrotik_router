@@ -14,6 +14,8 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .entity import MikrotikEntity, copy_attrs, async_add_entities
 from .switch_types import (
+    SENSOR_TYPES,  # noqa: F401
+    SENSOR_SERVICES,  # noqa: F401
     DEVICE_ATTRIBUTES_IFACE_ETHER,
     DEVICE_ATTRIBUTES_IFACE_SFP,
     DEVICE_ATTRIBUTES_IFACE_WIRELESS,

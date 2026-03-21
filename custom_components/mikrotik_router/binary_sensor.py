@@ -16,6 +16,7 @@ from .const import (
     DEFAULT_SENSOR_PORT_TRACKER,
 )
 from .entity import MikrotikEntity, MikrotikInterfaceEntityMixin, async_add_entities
+from .binary_sensor_types import SENSOR_TYPES, SENSOR_SERVICES  # noqa: F401
 
 _LOGGER = getLogger(__name__)
 
