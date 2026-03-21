@@ -22,7 +22,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create release zip
-        run: cd custom_components && zip -r ../mikrotik_router.zip mikrotik_router/
+        run: cd custom_components/mikrotik_router && zip -r ../../mikrotik_router.zip ./
 
       - name: Generate SBOM
         uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d  # v0
