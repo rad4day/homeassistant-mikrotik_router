@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import MikrotikEntity, async_add_entities
+from .button_types import SENSOR_TYPES, SENSOR_SERVICES  # noqa: F401
 from .exceptions import ApiEntryNotFound
 
 _LOGGER = getLogger(__name__)
