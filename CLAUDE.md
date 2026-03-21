@@ -2,7 +2,7 @@
 
 ## Project
 
-- **Domain:** `mikrotik_router` | **Version:** 2.3.5 | **IoT:** `local_polling` (30s)
+- **Domain:** `mikrotik_router` | **Version:** 2.3.8 | **IoT:** `local_polling` (30s)
 - **HA Min:** 2024.3.0 | **Python:** 3.13 | **Fork of:** `tomaae/homeassistant-mikrotik_router`
 - **Deps:** `librouteros>=3.4.1`, `mac-vendor-lookup>=0.1.12`
 - **Platforms:** sensor, binary_sensor, switch, button, device_tracker, update
@@ -19,13 +19,21 @@
 - SonarCloud Grade A: reliability, security, maintainability
 - Cognitive complexity ≤15 per function
 - New code coverage ≥80%
-- Zero ruff/flake8 errors (migration to Ruff tracked)
+- Zero ruff errors
 
 ## Standards & References
 
 - [HA Coding Standards](docs/ha-coding-standards.md) — async rules, entity patterns, datetime, type hints
 - [Quality Gates](docs/quality-gates.md) — CI, SonarCloud targets, pre-commit, pre-PR checklist
 - [Architecture Notes](docs/architecture.md) — coordinator design, API client, known caveats
+
+## Pre-PR Checklist (overrides global)
+
+See [Quality Gates](docs/quality-gates.md) for full checklist. Key additions vs global:
+- CHANGE-REGISTER.md entry for every PR
+- ISSUES.md statuses updated
+- ADR required for data format, entity identity, API contract, or migration changes
+- info.md and README version match manifest.json
 
 ## Git
 

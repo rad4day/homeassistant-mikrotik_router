@@ -14,22 +14,22 @@
 **Type:** Testing
 **Priority:** High
 **Created:** 2026-03-20
-**Status:** 🟢 Active — PR #29 (feature/tests-and-refactor → dev)
+**Status:** 🟡 Backlog — Phase 1-3 done (PR #29 merged), Phase 4 pending
 
 **Done:**
-- ✅ Phase 1: `helper.py` (13 tests), `apiparser.py` (52 tests), `mikrotikapi.py` (30 tests), `coordinator.py` basics (12 tests)
-- ✅ Phase 2: coordinator data methods — get_system_resource, get_firmware_update, get_nat/mangle/filter, get_interface, get_dhcp, get_access (38 tests)
-- ✅ Phase 3: entity helpers — _skip_sensor, _copy_attrs, MikrotikInterfaceEntityMixin (10 new tests), update.py pure functions (8 tests)
-- ✅ Devcontainer setup for local testing with pytest-homeassistant-custom-component
-- ✅ Ruff migration: all 32 source files pass lint and format
+- ✅ Phase 1: `helper.py` (13 tests), `apiparser.py` (52 tests), `mikrotikapi.py` (30 tests), `coordinator.py` basics (12 tests) — PR #29
+- ✅ Phase 2: coordinator data methods — get_system_resource, get_firmware_update, get_nat/mangle/filter, get_interface, get_dhcp, get_access (38 tests) — PR #29
+- ✅ Phase 3: entity helpers — _skip_sensor, copy_attrs, MikrotikInterfaceEntityMixin (10 new tests), update.py pure functions (8 tests) — PR #29
+- ✅ Phase 3.5: coordinator extracted helpers — 58 new tests for host merging, hostname resolution, accounting classification, captive portal, etc. — PR #30
+- ✅ Devcontainer setup for local testing with pytest-homeassistant-custom-component — PR #29
+- ✅ Ruff migration: all 32 source files pass lint and format — PR #29
 
-**Remaining:**
-- Phase 4: integration lifecycle tests (async_setup_entry, async_migrate_entry) — needs devcontainer
+**Remaining (Phase 4 — separate PR):**
+- Integration lifecycle tests (async_setup_entry, async_migrate_entry) — needs devcontainer
 - Platform entity integration tests (async_turn_on, is_connected, native_value) — needs devcontainer
-- process_accounting — client traffic snapshot processing
 - Full coverage measurement and gap analysis
 
-**Reference:** 151+ tests written, target ≥80% for SonarCloud Grade A
+**Reference:** 361 tests passing (303 from PR #29, 58 from PR #30), target ≥80% for SonarCloud Grade A
 
 ---
 

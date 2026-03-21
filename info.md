@@ -4,11 +4,17 @@ Monitor and control your MikroTik router from Home Assistant.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-### What's new in v2.3.6
+### What's new in v2.3.8
+- **Device tracking fix** — disabled duplicate entity registration that caused thousands of "does not generate unique IDs" log errors every 30s
+- **ARP filtering** — failed ARP entries no longer cause false "home" status ([#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17))
+
+### v2.3.7
+- **ARP failed-status filtering** moved to `async_process_host()` for correct bridge-interface lookups
+
+### v2.3.6
 - **Options flow crash fixed** — config panel now works on HA 2025.12+ ([upstream #470](https://github.com/tomaae/homeassistant-mikrotik_router/issues/470), [#471](https://github.com/tomaae/homeassistant-mikrotik_router/issues/471))
 - **Deadlock fix** — `run_script()` lock leak permanently freezing the integration is resolved
 - **Blocking I/O eliminated** — switch toggles, button presses, and firmware updates no longer freeze the HA UI
-- **Device tracking fixes** — failed ARP entries no longer cause false "home" status; new devices now appear without requiring HA restart ([#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17))
 - **Deprecated API cleanup** — updated `DeviceInfo` params and added missing PoE translation
 
 ### Features
