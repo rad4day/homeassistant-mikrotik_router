@@ -643,14 +643,14 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         await self._async_run_if_connected(self.process_interface_client)
 
         # Optional sensors — each guarded by its config option
-        _optional_sensors = [
+        optional_sensors = [
             (self.option_sensor_nat, self.get_nat),
             (self.option_sensor_kidcontrol, self.get_kidcontrol),
             (self.option_sensor_mangle, self.get_mangle),
             (self.option_sensor_filter, self.get_filter),
             (self.option_sensor_netwatch, self.get_netwatch),
         ]
-        for enabled, func in _optional_sensors:
+        for enabled, func in optional_sensors:
             if self.api.connected() and enabled:
                 await self.hass.async_add_executor_job(func)
 
@@ -663,12 +663,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             elif 0 < self.major_fw_version >= 7:
                 await self.hass.async_add_executor_job(self.process_kid_control_devices)
 
-        _optional_sensors_2 = [
+        optional_sensors_post = [
             (self.option_sensor_client_captive, self.get_captive),
             (self.option_sensor_simple_queues, self.get_queue),
             (self.option_sensor_environment, self.get_environment),
         ]
-        for enabled, func in _optional_sensors_2:
+        for enabled, func in optional_sensors_post:
             if self.api.connected() and enabled:
                 await self.hass.async_add_executor_job(func)
 
@@ -2122,9 +2122,6 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         )
 
     # ---------------------------
-    #   async_process_host
-    # ---------------------------
-    # ---------------------------
     #   _merge_capsman_hosts
     # ---------------------------
     def _merge_capsman_hosts(self) -> dict:
@@ -2313,31 +2310,51 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         # Try static DNS first
         if vals["address"] != "unknown":
-            for dns_vals in self.ds["dns"].values():
-                if dns_vals["address"] != vals["address"]:
-                    continue
-
-                dns_comment = dns_vals["comment"].split("#", 1)[0]
-                if dns_comment != "":
-                    self.ds["host"][uid]["host-name"] = dns_comment
-                elif self._dhcp_comment_for_host(uid):
-                    self.ds["host"][uid]["host-name"] = self._dhcp_comment_for_host(uid)
-                else:
-                    self.ds["host"][uid]["host-name"] = dns_vals["name"].split(".")[0]
+            dns_name = self._hostname_from_dns(uid, vals["address"])
+            if dns_name:
+                self.ds["host"][uid]["host-name"] = dns_name
                 return
 
-        # Try DHCP comment
+        self.ds["host"][uid]["host-name"] = self._hostname_from_dhcp(uid)
+
+    # ---------------------------
+    #   _hostname_from_dns
+    # ---------------------------
+    def _hostname_from_dns(self, uid, address) -> str | None:
+        """Match address against static DNS and return the best hostname."""
+        for dns_vals in self.ds["dns"].values():
+            if dns_vals["address"] != address:
+                continue
+
+            dns_comment = dns_vals["comment"].split("#", 1)[0]
+            if dns_comment:
+                return dns_comment
+
+            dhcp_comment = self._dhcp_comment_for_host(uid)
+            if dhcp_comment:
+                return dhcp_comment
+
+            return dns_vals["name"].split(".")[0]
+
+        return None
+
+    # ---------------------------
+    #   _hostname_from_dhcp
+    # ---------------------------
+    def _hostname_from_dhcp(self, uid) -> str:
+        """Return hostname from DHCP comment, DHCP hostname, or fall back to MAC."""
         dhcp_comment = self._dhcp_comment_for_host(uid)
         if dhcp_comment:
-            self.ds["host"][uid]["host-name"] = dhcp_comment
-        elif (
+            return dhcp_comment
+
+        if (
             uid in self.ds["dhcp"]
             and self.ds["dhcp"][uid]["enabled"]
             and self.ds["dhcp"][uid]["host-name"] != "unknown"
         ):
-            self.ds["host"][uid]["host-name"] = self.ds["dhcp"][uid]["host-name"]
-        else:
-            self.ds["host"][uid]["host-name"] = uid
+            return self.ds["dhcp"][uid]["host-name"]
+
+        return uid
 
     # ---------------------------
     #   _dhcp_comment_for_host
@@ -2347,7 +2364,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         if uid not in self.ds["dhcp"] or not self.ds["dhcp"][uid]["enabled"]:
             return None
         comment = self.ds["dhcp"][uid]["comment"].split("#", 1)[0]
-        return comment if comment != "" else None
+        return comment or None
 
     # ---------------------------
     #   _update_captive_portal
@@ -2438,16 +2455,28 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             src_local = self._address_part_of_local_network(source_ip)
             dst_local = self._address_part_of_local_network(destination_ip)
 
-            if src_local and dst_local:
-                if source_ip in tmp_values:
-                    tmp_values[source_ip]["lan-tx"] += byte_count
-                if destination_ip in tmp_values:
-                    tmp_values[destination_ip]["lan-rx"] += byte_count
-            elif src_local and not dst_local:
-                if source_ip in tmp_values:
-                    tmp_values[source_ip]["wan-tx"] += byte_count
-            elif not src_local and dst_local and destination_ip in tmp_values:
-                tmp_values[destination_ip]["wan-rx"] += byte_count
+            self._add_traffic_bytes(
+                tmp_values, source_ip, destination_ip, byte_count, src_local, dst_local
+            )
+
+    # ---------------------------
+    #   _add_traffic_bytes
+    # ---------------------------
+    @staticmethod
+    def _add_traffic_bytes(
+        tmp_values, source_ip, destination_ip, byte_count, src_local, dst_local
+    ) -> None:
+        """Add byte count to the appropriate WAN/LAN TX/RX bucket."""
+        if src_local and dst_local:
+            if source_ip in tmp_values:
+                tmp_values[source_ip]["lan-tx"] += byte_count
+            if destination_ip in tmp_values:
+                tmp_values[destination_ip]["lan-rx"] += byte_count
+        elif src_local:
+            if source_ip in tmp_values:
+                tmp_values[source_ip]["wan-tx"] += byte_count
+        elif dst_local and destination_ip in tmp_values:
+            tmp_values[destination_ip]["wan-rx"] += byte_count
 
     # ---------------------------
     #   _check_accounting_threshold
@@ -2529,7 +2558,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         tmp_accounting_values = {
             vals["address"]: {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0}
-            for uid, vals in self.ds["client_traffic"].items()
+            for vals in self.ds["client_traffic"].values()
         }
 
         time_diff = self.api.take_client_traffic_snapshot(True)

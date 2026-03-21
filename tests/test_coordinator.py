@@ -3685,3 +3685,107 @@ def test_classify_accounting_traffic_lan():
 
     assert tmp["192.168.1.10"]["lan-tx"] == 500
     assert tmp["192.168.1.20"]["lan-rx"] == 500
+
+
+# ---------------------------------------------------------------------------
+# _hostname_from_dns / _hostname_from_dhcp tests
+# ---------------------------------------------------------------------------
+
+
+def test_hostname_from_dns_returns_comment():
+    """DNS comment takes priority for hostname."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dns"] = {
+        "e1": {"address": "10.0.0.1", "comment": "MyPC#tag", "name": "mypc.local"}
+    }
+    assert coordinator._hostname_from_dns("mac1", "10.0.0.1") == "MyPC"
+
+
+def test_hostname_from_dns_falls_back_to_name():
+    """DNS name (before first dot) used when comment is empty and no DHCP comment."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dns"] = {
+        "e1": {"address": "10.0.0.1", "comment": "", "name": "server.lan"}
+    }
+    coordinator.ds["dhcp"] = {}
+    assert coordinator._hostname_from_dns("mac1", "10.0.0.1") == "server"
+
+
+def test_hostname_from_dns_no_match():
+    """Returns None when no DNS entry matches the address."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dns"] = {
+        "e1": {"address": "10.0.0.99", "comment": "Other", "name": "other.lan"}
+    }
+    assert coordinator._hostname_from_dns("mac1", "10.0.0.1") is None
+
+
+def test_hostname_from_dhcp_returns_comment():
+    """DHCP comment used when available."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {
+        "mac1": {"enabled": True, "comment": "Laptop#x", "host-name": "other"}
+    }
+    assert coordinator._hostname_from_dhcp("mac1") == "Laptop"
+
+
+def test_hostname_from_dhcp_returns_hostname():
+    """DHCP host-name used when comment is empty."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {
+        "mac1": {"enabled": True, "comment": "", "host-name": "dhcp-name"}
+    }
+    assert coordinator._hostname_from_dhcp("mac1") == "dhcp-name"
+
+
+def test_hostname_from_dhcp_falls_back_to_uid():
+    """MAC address returned when no DHCP data available."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {}
+    assert coordinator._hostname_from_dhcp("AA:BB:CC:DD:EE:FF") == "AA:BB:CC:DD:EE:FF"
+
+
+# ---------------------------------------------------------------------------
+# _add_traffic_bytes tests
+# ---------------------------------------------------------------------------
+
+
+def test_add_traffic_bytes_lan():
+    """LAN traffic increments both lan-tx and lan-rx."""
+    tmp = {
+        "10.0.0.1": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0},
+        "10.0.0.2": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0},
+    }
+    MikrotikCoordinator._add_traffic_bytes(
+        tmp, "10.0.0.1", "10.0.0.2", 100, src_local=True, dst_local=True
+    )
+    assert tmp["10.0.0.1"]["lan-tx"] == 100
+    assert tmp["10.0.0.2"]["lan-rx"] == 100
+
+
+def test_add_traffic_bytes_wan_tx():
+    """WAN TX when source is local and destination is external."""
+    tmp = {"10.0.0.1": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0}}
+    MikrotikCoordinator._add_traffic_bytes(
+        tmp, "10.0.0.1", "8.8.8.8", 200, src_local=True, dst_local=False
+    )
+    assert tmp["10.0.0.1"]["wan-tx"] == 200
+
+
+def test_add_traffic_bytes_wan_rx():
+    """WAN RX when source is external and destination is local."""
+    tmp = {"10.0.0.1": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0}}
+    MikrotikCoordinator._add_traffic_bytes(
+        tmp, "8.8.8.8", "10.0.0.1", 300, src_local=False, dst_local=True
+    )
+    assert tmp["10.0.0.1"]["wan-rx"] == 300
+
+
+def test_add_traffic_bytes_external_to_external():
+    """External-to-external traffic is ignored."""
+    tmp = {"10.0.0.1": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0}}
+    MikrotikCoordinator._add_traffic_bytes(
+        tmp, "8.8.8.8", "1.1.1.1", 400, src_local=False, dst_local=False
+    )
+    assert tmp["10.0.0.1"]["wan-tx"] == 0
+    assert tmp["10.0.0.1"]["wan-rx"] == 0
