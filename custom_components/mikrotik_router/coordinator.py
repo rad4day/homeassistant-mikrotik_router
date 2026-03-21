@@ -2009,6 +2009,11 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 {"name": "interface", "default": "unknown"},
                 {"name": "status", "default": "unknown"},
                 {"name": "address", "default": "unknown"},
+                {"name": "gateway", "default": "unknown"},
+                {"name": "dns-server", "default": "unknown"},
+                {"name": "dhcp-server", "default": "unknown"},
+                {"name": "expires-after", "default": "unknown"},
+                {"name": "comment", "default": ""},
             ],
         )
 

@@ -58,3 +58,4 @@ class MikrotikScriptButton(MikrotikButton):
             )
         except ApiEntryNotFound as error:
             _LOGGER.error("Failed to run script: %s", error)
+        await self.coordinator.async_refresh()
