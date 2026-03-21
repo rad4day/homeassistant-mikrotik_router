@@ -15,9 +15,9 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.9-beta.1
+## What's New — v2.3.9
 
-Four upstream feature requests implemented — available as a beta for testing before stable release.
+Four upstream feature requests implemented.
 
 | Feature | Detail | Upstream |
 |---------|--------|----------|
