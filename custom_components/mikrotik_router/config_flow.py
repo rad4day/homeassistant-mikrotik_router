@@ -66,6 +66,8 @@ from .const import (
     DEFAULT_SENSOR_POE,
     CONF_SENSOR_RAW,
     DEFAULT_SENSOR_RAW,
+    CONF_SENSOR_CONTAINER,
+    DEFAULT_SENSOR_CONTAINER,
 )
 from .mikrotikapi import MikrotikAPI
 
@@ -316,6 +318,12 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
                         CONF_SENSOR_RAW,
                         default=self._options.get(
                             CONF_SENSOR_RAW, DEFAULT_SENSOR_RAW
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_SENSOR_CONTAINER,
+                        default=self._options.get(
+                            CONF_SENSOR_CONTAINER, DEFAULT_SENSOR_CONTAINER
                         ),
                     ): bool,
                 },

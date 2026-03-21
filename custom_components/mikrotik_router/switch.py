@@ -39,6 +39,7 @@ async def async_setup_entry(
         "MikrotikFilterSwitch": MikrotikFilterSwitch,
         "MikrotikQueueSwitch": MikrotikQueueSwitch,
         "MikrotikRawSwitch": MikrotikRawSwitch,
+        "MikrotikContainerSwitch": MikrotikContainerSwitch,
         "MikrotikKidcontrolPauseSwitch": MikrotikKidcontrolPauseSwitch,
     }
     await async_add_entities(hass, config_entry, dispatcher)
@@ -462,5 +463,36 @@ class MikrotikRawSwitch(MikrotikSwitch):
         mod_param = self.entity_description.data_switch_parameter
         await self.hass.async_add_executor_job(
             self.coordinator.set_value, path, param, value, mod_param, True
+        )
+        await self.coordinator.async_refresh()
+
+
+# ---------------------------
+#   MikrotikContainerSwitch
+# ---------------------------
+class MikrotikContainerSwitch(MikrotikSwitch):
+    """Representation of a container start/stop switch."""
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Start the container."""
+        if "write" not in self.coordinator.data["access"]:
+            return
+
+        path = "/container"
+        command = "start"
+        await self.hass.async_add_executor_job(
+            self.coordinator.execute, path, command, ".id", self._data[".id"]
+        )
+        await self.coordinator.async_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Stop the container."""
+        if "write" not in self.coordinator.data["access"]:
+            return
+
+        path = "/container"
+        command = "stop"
+        await self.hass.async_add_executor_job(
+            self.coordinator.execute, path, command, ".id", self._data[".id"]
         )
         await self.coordinator.async_refresh()

@@ -129,6 +129,16 @@ DEVICE_ATTRIBUTES_PPP_SECRET = [
     "encoding",
 ]
 
+DEVICE_ATTRIBUTES_CONTAINER = [
+    "tag",
+    "os",
+    "arch",
+    "interface",
+    "root-dir",
+    "status",
+    "comment",
+]
+
 DEVICE_ATTRIBUTES_RAW = [
     "chain",
     "action",
@@ -353,6 +363,26 @@ SENSOR_TYPES: tuple[MikrotikSwitchEntityDescription, ...] = (
         data_reference="name",
         data_attributes_list=DEVICE_ATTRIBUTES_KIDCONTROL,
         func="MikrotikKidcontrolPauseSwitch",
+    ),
+    MikrotikSwitchEntityDescription(
+        key="container",
+        name="",
+        icon_enabled="mdi:docker",
+        icon_disabled="mdi:checkbox-blank-circle-outline",
+        entity_category=None,
+        ha_group="Container",
+        ha_connection=DOMAIN,
+        ha_connection_value="Container",
+        data_path="container",
+        data_attribute="running",
+        data_switch_path="/container",
+        data_switch_parameter=".id",
+        data_name="name",
+        data_name_comment=True,
+        data_uid=".id",
+        data_reference=".id",
+        data_attributes_list=DEVICE_ATTRIBUTES_CONTAINER,
+        func="MikrotikContainerSwitch",
     ),
 )
 

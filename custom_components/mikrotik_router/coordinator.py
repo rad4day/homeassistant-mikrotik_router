@@ -66,6 +66,8 @@ from .const import (
     DEFAULT_SENSOR_POE,
     CONF_SENSOR_RAW,
     DEFAULT_SENSOR_RAW,
+    CONF_SENSOR_CONTAINER,
+    DEFAULT_SENSOR_CONTAINER,
 )
 from .apiparser import parse_api
 from .mikrotikapi import MikrotikAPI
@@ -281,6 +283,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             "gps": {},
             "netwatch": {},
             "raw": {},
+            "container": {},
         }
 
         self.notified_flags = []
@@ -310,6 +313,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         self.support_ppp = False
         self.support_ups = False
         self.support_gps = False
+        self.support_container = False
         self._wifimodule = "wireless"
 
         self.major_fw_version = 0
@@ -448,6 +452,16 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         return self.config_entry.options.get(CONF_SENSOR_RAW, DEFAULT_SENSOR_RAW)
 
     # ---------------------------
+    #   option_sensor_container
+    # ---------------------------
+    @property
+    def option_sensor_container(self):
+        """Config entry option for container sensors."""
+        return self.config_entry.options.get(
+            CONF_SENSOR_CONTAINER, DEFAULT_SENSOR_CONTAINER
+        )
+
+    # ---------------------------
     #   option_sensor_scripts
     # ---------------------------
     @property
@@ -562,6 +576,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         if "gps" in packages and packages["gps"]["enabled"]:
             self.support_gps = True
+
+        if "container" in packages and packages["container"]["enabled"]:
+            self.support_container = True
 
     # ---------------------------
     #   async_get_host_hass
@@ -692,6 +709,13 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         if self.api.connected() and self.support_gps:
             await self.hass.async_add_executor_job(self.get_gps)
+
+        if (
+            self.api.connected()
+            and self.support_container
+            and self.option_sensor_container
+        ):
+            await self.hass.async_add_executor_job(self.get_container)
 
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")
@@ -1423,6 +1447,41 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 )
 
             del self.ds["raw"][uid]
+
+    # ---------------------------
+    #   get_container
+    # ---------------------------
+    def get_container(self) -> None:
+        """Get container data from Mikrotik"""
+        self.ds["container"] = parse_api(
+            data=self.ds["container"],
+            source=self.api.query("/container"),
+            key=".id",
+            vals=[
+                {"name": ".id"},
+                {"name": "name", "default": "unknown"},
+                {"name": "tag", "default": "unknown"},
+                {"name": "os", "default": "unknown"},
+                {"name": "arch", "default": "unknown"},
+                {"name": "interface", "default": "unknown"},
+                {"name": "root-dir", "default": "unknown"},
+                {"name": "mounts", "default": "unknown"},
+                {"name": "dns", "default": "unknown"},
+                {"name": "logging", "default": "unknown"},
+                {"name": "cmd", "default": ""},
+                {"name": "entrypoint", "default": ""},
+                {"name": "envlist", "default": ""},
+                {"name": "hostname", "default": ""},
+                {"name": "workdir", "default": ""},
+                {"name": "comment", "default": ""},
+                {"name": "status", "default": "stopped"},
+            ],
+        )
+
+        for uid in self.ds["container"]:
+            self.ds["container"][uid]["running"] = (
+                self.ds["container"][uid]["status"] == "running"
+            )
 
     # ---------------------------
     #   get_kidcontrol
