@@ -1,4 +1,4 @@
-# Test dependencies — matches CI workflow (.github/workflows/ci.yml)
+# Test framework
 pytest
 pytest-homeassistant-custom-component
 pytest-cov
@@ -6,3 +6,9 @@ pytest-cov
 # Runtime deps (must match manifest.json)
 librouteros>=3.4.1
 mac-vendor-lookup>=0.1.12
+
+# Linting & formatting
+ruff
+
+# Security
+bandit

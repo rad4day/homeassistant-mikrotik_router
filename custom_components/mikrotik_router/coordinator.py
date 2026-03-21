@@ -14,7 +14,6 @@ from mac_vendor_lookup import AsyncMacLookup
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.dt import utcnow
 
@@ -85,6 +84,19 @@ def is_valid_ip(address):
 def utc_from_timestamp(timestamp: float) -> datetime:
     """Return a UTC time from a timestamp."""
     return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+
+
+_UPTIME_UNITS = [("w", 604800), ("d", 86400), ("h", 3600), ("m", 60), ("s", 1)]
+
+
+def _parse_uptime_to_seconds(uptime_str: str) -> int:
+    """Parse MikroTik uptime string (e.g. '1w2d3h4m5s') to total seconds."""
+    total = 0
+    for unit, multiplier in _UPTIME_UNITS:
+        match = re.split(rf"(\d+){unit}", uptime_str)
+        if len(match) > 1:
+            total += int(match[1]) * multiplier
+    return total
 
 
 def as_local(dattim: datetime) -> datetime:
@@ -189,12 +201,12 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
                     "Ping host: %s", self.coordinator.ds["host"][uid]["address"]
                 )
 
-                self.coordinator.ds["host"][uid]["available"] = (
-                    await self.hass.async_add_executor_job(
-                        self.api.arp_ping,
-                        self.coordinator.ds["host"][uid]["address"],
-                        tmp_interface,
-                    )
+                self.coordinator.ds["host"][uid][
+                    "available"
+                ] = await self.hass.async_add_executor_job(
+                    self.api.arp_ping,
+                    self.coordinator.ds["host"][uid]["address"],
+                    tmp_interface,
                 )
 
             # Update last seen
@@ -513,21 +525,13 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self.support_capsman = False
                 self._wifimodule = "wifiwave2"
 
-            elif "wifi" in packages and packages["wifi"]["enabled"]:
-                self.support_capsman = False
-                self._wifimodule = "wifi"
-
-            elif "wifi-qcom" in packages and packages["wifi-qcom"]["enabled"]:
-                self.support_capsman = False
-                self._wifimodule = "wifi"
-
-            elif "wifi-qcom-ac" in packages and packages["wifi-qcom-ac"]["enabled"]:
-                self.support_capsman = False
-                self._wifimodule = "wifi"
-
-            elif (
-                self.major_fw_version == 7 and self.minor_fw_version >= 13
-            ) or self.major_fw_version > 7:
+            elif any(
+                pkg in packages and packages[pkg]["enabled"]
+                for pkg in ("wifi", "wifi-qcom", "wifi-qcom-ac")
+            ) or (
+                (self.major_fw_version == 7 and self.minor_fw_version >= 13)
+                or self.major_fw_version > 7
+            ):
                 self.support_capsman = False
                 self._wifimodule = "wifi"
 
@@ -607,9 +611,6 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self.last_hwinfo_update = datetime.now().replace(microsecond=0)
 
         await self.hass.async_add_executor_job(self.get_system_resource)
-
-        # if self.api.connected() and "available" not in self.ds["fw-update"]:
-        #     await self.hass.async_add_executor_job(self.get_firmware_update)
 
         if self.api.connected():
             await self.hass.async_add_executor_job(self.get_system_health)
@@ -851,9 +852,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
             if vals["default-name"] == "":
                 self.ds["interface"][uid]["default-name"] = vals["name"]
-                self.ds["interface"][uid][
-                    "port-mac-address"
-                ] = f"{vals['port-mac-address']}-{vals['name']}"
+                self.ds["interface"][uid]["port-mac-address"] = (
+                    f"{vals['port-mac-address']}-{vals['name']}"
+                )
 
             if self.ds["interface"][uid]["type"] == "ether":
                 if (
@@ -1398,10 +1399,11 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     "encoding"
                 ]
             else:
+                _PPP_NOT_CONNECTED = "not connected"
                 self.ds["ppp_secret"][uid]["connected"] = False
-                self.ds["ppp_secret"][uid]["caller-id"] = "not connected"
-                self.ds["ppp_secret"][uid]["address"] = "not connected"
-                self.ds["ppp_secret"][uid]["encoding"] = "not connected"
+                self.ds["ppp_secret"][uid]["caller-id"] = _PPP_NOT_CONNECTED
+                self.ds["ppp_secret"][uid]["address"] = _PPP_NOT_CONNECTED
+                self.ds["ppp_secret"][uid]["encoding"] = _PPP_NOT_CONNECTED
 
     # ---------------------------
     #   get_netwatch
@@ -1531,22 +1533,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             ],
         )
 
-        tmp_uptime = 0
-        tmp = re.split(r"(\d+)[s]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1])
-        tmp = re.split(r"(\d+)[m]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1]) * 60
-        tmp = re.split(r"(\d+)[h]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1]) * 3600
-        tmp = re.split(r"(\d+)[d]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1]) * 86400
-        tmp = re.split(r"(\d+)[w]", self.ds["resource"]["uptime_str"])
-        if len(tmp) > 1:
-            tmp_uptime += int(tmp[1]) * 604800
+        tmp_uptime = _parse_uptime_to_seconds(self.ds["resource"]["uptime_str"])
 
         self.ds["resource"]["uptime_epoch"] = tmp_uptime
         now = datetime.now().replace(microsecond=0)
@@ -1829,9 +1816,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 int(x) for x in vals["max-limit"].split("/")
             ]
             self.ds["queue"][uid]["upload-max-limit"] = f"{upload_max_limit_bps} bps"
-            self.ds["queue"][uid][
-                "download-max-limit"
-            ] = f"{download_max_limit_bps} bps"
+            self.ds["queue"][uid]["download-max-limit"] = (
+                f"{download_max_limit_bps} bps"
+            )
 
             upload_rate_bps, download_rate_bps = [
                 int(x) for x in vals["rate"].split("/")
@@ -1848,22 +1835,22 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             upload_burst_limit_bps, download_burst_limit_bps = [
                 int(x) for x in vals["burst-limit"].split("/")
             ]
-            self.ds["queue"][uid][
-                "upload-burst-limit"
-            ] = f"{upload_burst_limit_bps} bps"
-            self.ds["queue"][uid][
-                "download-burst-limit"
-            ] = f"{download_burst_limit_bps} bps"
+            self.ds["queue"][uid]["upload-burst-limit"] = (
+                f"{upload_burst_limit_bps} bps"
+            )
+            self.ds["queue"][uid]["download-burst-limit"] = (
+                f"{download_burst_limit_bps} bps"
+            )
 
             upload_burst_threshold_bps, download_burst_threshold_bps = [
                 int(x) for x in vals["burst-threshold"].split("/")
             ]
-            self.ds["queue"][uid][
-                "upload-burst-threshold"
-            ] = f"{upload_burst_threshold_bps} bps"
-            self.ds["queue"][uid][
-                "download-burst-threshold"
-            ] = f"{download_burst_threshold_bps} bps"
+            self.ds["queue"][uid]["upload-burst-threshold"] = (
+                f"{upload_burst_threshold_bps} bps"
+            )
+            self.ds["queue"][uid]["download-burst-threshold"] = (
+                f"{download_burst_threshold_bps} bps"
+            )
 
             upload_burst_time, download_burst_time = vals["burst-time"].split("/")
             self.ds["queue"][uid]["upload-burst-time"] = upload_burst_time
@@ -2244,9 +2231,6 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 if key not in self.ds["host"][uid]:
                     self.ds["host"][uid][key] = default
 
-        # if not self.host_tracking_initialized:
-        #     await self.async_ping_tracked_hosts()
-
         # Process hosts
         self.ds["resource"]["clients_wired"] = 0
         self.ds["resource"]["clients_wireless"] = 0
@@ -2355,9 +2339,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             # Resolve manufacturer
             if vals["manufacturer"] == "detect" and vals["mac-address"] != "unknown":
                 try:
-                    self.ds["host"][uid]["manufacturer"] = (
-                        await self.async_mac_lookup.lookup(vals["mac-address"])
-                    )
+                    self.ds["host"][uid][
+                        "manufacturer"
+                    ] = await self.async_mac_lookup.lookup(vals["mac-address"])
                 except asyncio.CancelledError:
                     raise
                 except Exception:

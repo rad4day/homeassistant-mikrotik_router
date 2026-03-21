@@ -2,9 +2,9 @@
 
 from unittest.mock import MagicMock
 
-import pytest
 
 from custom_components.mikrotik_router.entity import (
+    _copy_attrs,
     _skip_sensor,
     MikrotikInterfaceEntityMixin,
 )
@@ -339,3 +339,80 @@ def test_mixin_preserves_base_attributes():
     entity = _ConcreteEntity({"type": "ether", "status": "link-ok"})
     attrs = entity.extra_state_attributes
     assert attrs["attribution"] == "Mikrotik"
+
+
+# ---------------------------------------------------------------------------
+# _copy_attrs tests
+# ---------------------------------------------------------------------------
+
+
+def test_copy_attrs_copies_existing_keys():
+    """Copies matching variables from data to attributes."""
+    attributes = {}
+    data = {"status": "up", "rate": "1Gbps", "unused": "value"}
+    _copy_attrs(attributes, data, ["status", "rate"])
+    assert "status" in attributes
+    assert "rate" in attributes
+    assert "unused" not in attributes
+
+
+def test_copy_attrs_skips_missing_keys():
+    """Missing keys in data are skipped without error."""
+    attributes = {}
+    data = {"status": "up"}
+    _copy_attrs(attributes, data, ["status", "missing-key"])
+    assert "status" in attributes
+    assert len(attributes) == 1
+
+
+def test_copy_attrs_empty_variables_list():
+    """Empty variables list copies nothing."""
+    attributes = {}
+    data = {"status": "up"}
+    _copy_attrs(attributes, data, [])
+    assert len(attributes) == 0
+
+
+# ---------------------------------------------------------------------------
+# Client traffic skip tests
+# ---------------------------------------------------------------------------
+
+
+def test_no_skip_client_traffic_when_attribute_present():
+    """Client traffic sensor allowed when attribute exists in data entry."""
+    desc = make_entity_desc(data_path="client_traffic", data_attribute="wan-tx")
+    data = {"aa:bb:cc:dd:ee:ff": {"wan-tx": 100}}
+    cfg = make_config_entry()
+    assert _skip_sensor(cfg, desc, data, "aa:bb:cc:dd:ee:ff") is False
+
+
+# ---------------------------------------------------------------------------
+# Host tracker allowed test
+# ---------------------------------------------------------------------------
+
+
+def test_no_skip_host_tracker_when_enabled():
+    """Host device tracker allowed when CONF_TRACK_HOSTS is True."""
+    desc = make_entity_desc(
+        func="MikrotikHostDeviceTracker",
+        data_attribute="available",
+    )
+    data = {"aa:bb:cc:dd:ee:ff": {"available": True}}
+    cfg = make_config_entry({CONF_TRACK_HOSTS: True})
+    assert _skip_sensor(cfg, desc, data, "aa:bb:cc:dd:ee:ff") is False
+
+
+# ---------------------------------------------------------------------------
+# Netwatch allowed test
+# ---------------------------------------------------------------------------
+
+
+def test_no_skip_netwatch_when_enabled():
+    """Netwatch sensor allowed when CONF_SENSOR_NETWATCH_TRACKER is True."""
+    desc = make_entity_desc(
+        data_path="netwatch",
+        data_attribute="status",
+    )
+    data = {"8.8.8.8": {"status": "up"}}
+    cfg = make_config_entry({CONF_SENSOR_NETWATCH_TRACKER: True})
+    assert _skip_sensor(cfg, desc, data, "8.8.8.8") is False

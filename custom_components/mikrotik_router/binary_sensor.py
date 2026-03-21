@@ -9,14 +9,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .binary_sensor_types import SENSOR_TYPES, SENSOR_SERVICES
 from .const import (
     CONF_SENSOR_PPP,
     DEFAULT_SENSOR_PPP,
     CONF_SENSOR_PORT_TRACKER,
     DEFAULT_SENSOR_PORT_TRACKER,
-    CONF_SENSOR_NETWATCH_TRACKER,
-    DEFAULT_SENSOR_NETWATCH_TRACKER,
 )
 from .entity import MikrotikEntity, MikrotikInterfaceEntityMixin, async_add_entities
 
@@ -81,11 +78,6 @@ class MikrotikPPPSecretBinarySensor(MikrotikBinarySensor):
             else False
         )
 
-    # @property
-    # def available(self) -> bool:
-    #     """Return if controller is available."""
-    #     return self._ctrl.connected() if self.option_sensor_ppp else False
-
 
 # ---------------------------
 #   MikrotikPortBinarySensor
@@ -99,11 +91,6 @@ class MikrotikPortBinarySensor(MikrotikInterfaceEntityMixin, MikrotikBinarySenso
         return self._config_entry.options.get(
             CONF_SENSOR_PORT_TRACKER, DEFAULT_SENSOR_PORT_TRACKER
         )
-
-    # @property
-    # def available(self) -> bool:
-    #     """Return if controller is available."""
-    #     return self._ctrl.connected() if self.option_sensor_port_tracker else False
 
     @property
     def icon(self) -> str:

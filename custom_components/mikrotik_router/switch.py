@@ -15,8 +15,6 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from .entity import MikrotikEntity, async_add_entities
 from .helper import format_attribute
 from .switch_types import (
-    SENSOR_TYPES,
-    SENSOR_SERVICES,
     DEVICE_ATTRIBUTES_IFACE_ETHER,
     DEVICE_ATTRIBUTES_IFACE_SFP,
     DEVICE_ATTRIBUTES_IFACE_WIRELESS,
