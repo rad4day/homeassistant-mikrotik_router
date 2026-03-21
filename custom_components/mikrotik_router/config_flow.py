@@ -316,9 +316,7 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
                     ): bool,
                     vol.Optional(
                         CONF_SENSOR_RAW,
-                        default=self._options.get(
-                            CONF_SENSOR_RAW, DEFAULT_SENSOR_RAW
-                        ),
+                        default=self._options.get(CONF_SENSOR_RAW, DEFAULT_SENSOR_RAW),
                     ): bool,
                     vol.Optional(
                         CONF_SENSOR_CONTAINER,
