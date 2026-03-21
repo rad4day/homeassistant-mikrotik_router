@@ -12,6 +12,7 @@ Lightweight records of key design decisions for mikrotik_router HACS integration
 | [ADR-004](ADR-004-blocking-io-wrapping.md) | Blocking I/O Wrapped with async_add_executor_job | Accepted |
 | [ADR-005](ADR-005-lock-context-managers.md) | Lock Context Managers Replace Manual acquire/release | Accepted |
 | [ADR-006](ADR-006-naive-datetime-removal.md) | Replace naive datetime.now() with HA utility | Proposed |
+| [ADR-007](ADR-007-complexity-reduction-extraction.md) | Cognitive Complexity Reduction via Helper Extraction | Accepted |
 
 ## Template
 

@@ -27,6 +27,32 @@ All `MikrotikAPI` methods use a shared `threading.Lock`. Every method must acqui
 - Supported packages: `wireless`, `wifiwave2`, `wifi`, `wifi-qcom`, `wifi-qcom-ac`
 - Non-wireless routers (RB4011, RB5009, CCR) need package checks before wireless queries
 
+## Coordinator Helper Structure (ADR-007)
+
+Large coordinator methods have been decomposed into focused helpers. Each helper handles one responsibility and is independently testable.
+
+**Host processing** (`async_process_host` orchestrates):
+- `_merge_capsman_hosts()`, `_merge_wireless_hosts()`, `_merge_dhcp_hosts()`, `_merge_arp_hosts()` — source-specific host merging
+- `_recover_hass_hosts()` — one-time HA registry recovery
+- `_ensure_host_defaults()` — fill missing keys from `_HOST_DEFAULTS`
+- `_update_host_availability()`, `_update_host_address()` — per-host state
+- `_resolve_hostname()` → `_hostname_from_dns()`, `_hostname_from_dhcp()`, `_dhcp_comment_for_host()`
+- `_update_captive_portal()` — hotspot data sync
+
+**Update cycle** (`_async_update_data` orchestrates):
+- `_async_update_hwinfo()` — 4-hourly hardware info refresh
+- `_async_run_if_connected()` — guarded executor dispatch
+
+**Accounting** (`process_accounting` orchestrates):
+- `_init_accounting_hosts()`, `_classify_accounting_traffic()`, `_check_accounting_threshold()`, `_apply_accounting_throughput()`
+- `_add_traffic_bytes()` — static method for WAN/LAN bucket classification
+
+**Interface monitoring**:
+- `_monitor_ethernet_port()` — SFP/copper/PoE monitor with `_SFP_MONITOR_VALS`, `_COPPER_MONITOR_VALS`, `_POE_MONITOR_VALS` class constants
+
+**Entity skip logic** (`_skip_sensor` orchestrates):
+- `_skip_interface_traffic()`, `_skip_binary_sensor()`, `_skip_device_tracker()`, `_skip_poe_sensor()`
+
 ## Known Caveats
 
 - `ds` dict shared between coordinators (mutation overlap risk)
