@@ -129,6 +129,19 @@ DEVICE_ATTRIBUTES_PPP_SECRET = [
     "encoding",
 ]
 
+DEVICE_ATTRIBUTES_RAW = [
+    "chain",
+    "action",
+    "protocol",
+    "in-interface",
+    "src-address",
+    "src-port",
+    "out-interface",
+    "dst-address",
+    "dst-port",
+    "comment",
+]
+
 DEVICE_ATTRIBUTES_KIDCONTROL = [
     "blocked",
     "rate-limit",
@@ -255,6 +268,24 @@ SENSOR_TYPES: tuple[MikrotikSwitchEntityDescription, ...] = (
         data_reference="uniq-id",
         data_attributes_list=DEVICE_ATTRIBUTES_FILTER,
         func="MikrotikFilterSwitch",
+    ),
+    MikrotikSwitchEntityDescription(
+        key="raw",
+        name="",
+        icon_enabled="mdi:fire",
+        icon_disabled="mdi:fire-off",
+        entity_category=None,
+        ha_group="RAW",
+        ha_connection=DOMAIN,
+        ha_connection_value="RAW",
+        data_path="raw",
+        data_switch_path="/ip/firewall/raw",
+        data_name="name",
+        data_name_comment=True,
+        data_uid="uniq-id",
+        data_reference="uniq-id",
+        data_attributes_list=DEVICE_ATTRIBUTES_RAW,
+        func="MikrotikRawSwitch",
     ),
     MikrotikSwitchEntityDescription(
         key="ppp_secret",

@@ -64,6 +64,8 @@ from .const import (
     CONF_SENSOR_NETWATCH_TRACKER,
     CONF_SENSOR_POE,
     DEFAULT_SENSOR_POE,
+    CONF_SENSOR_RAW,
+    DEFAULT_SENSOR_RAW,
 )
 from .mikrotikapi import MikrotikAPI
 
@@ -309,6 +311,12 @@ class MikrotikControllerOptionsFlowHandler(OptionsFlowWithConfigEntry):
                     vol.Optional(
                         CONF_SENSOR_POE,
                         default=self._options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE),
+                    ): bool,
+                    vol.Optional(
+                        CONF_SENSOR_RAW,
+                        default=self._options.get(
+                            CONF_SENSOR_RAW, DEFAULT_SENSOR_RAW
+                        ),
                     ): bool,
                 },
             ),

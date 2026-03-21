@@ -53,7 +53,8 @@
                     "sensor_mangle": "Mangle switches",
                     "sensor_ppp": "PPP users",
                     "sensor_filter": "Filter switches",
-                    "sensor_poe": "PoE port sensors"
+                    "sensor_poe": "PoE port sensors",
+                    "sensor_raw": "Firewall RAW switches"
                 },
                 "title": "Mikrotik Router options (2/2)",
                 "description": "Enable sensors and switches"
