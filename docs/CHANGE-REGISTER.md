@@ -4,12 +4,52 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260322-port-upstream-frs — Port upstream feature requests (#310, #321, #334, #298)
+
+**Date:** 2026-03-22
+**Branch:** `feature/port-upstream-frs`
+**PR:** (targeting dev)
+**Status:** In Review
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | New `get_raw()` method for `/ip/firewall/raw` with dedup logic; new `get_container()` method for `/container` with running status derivation; enriched `get_dhcp_client()` with gateway, dns-server, dhcp-server, expires-after, comment; new option properties and capability detection |
+| `switch.py` | New `MikrotikRawSwitch` class (enable/disable via set_value); new `MikrotikContainerSwitch` class (start/stop via execute) |
+| `switch_types.py` | `DEVICE_ATTRIBUTES_RAW`, `DEVICE_ATTRIBUTES_CONTAINER`, 2 new switch entity descriptions |
+| `sensor_types.py` | `DEVICE_ATTRIBUTES_DHCP_CLIENT`, 2 new sensor entity descriptions (dhcp_client_status, dhcp_client_address) |
+| `button.py` | `async_refresh()` after script execution for environment variable updates |
+| `const.py` | New config constants: `CONF_SENSOR_RAW`, `CONF_SENSOR_CONTAINER` |
+| `config_flow.py` | New option toggles for RAW and Container in sensor_select step |
+| `strings.json` / `en.json` | Translations for new options |
+| `tests/` | 20 new tests (coordinator, switch, button, sensor) — 461 total |
+| `docs/decisions/` | ADR-008: Upstream Feature Port |
+
+### Why
+
+Four upstream feature requests implemented to keep the fork current while upstream is quiet:
+- tomaae#334: Container monitoring and control (RouterOS 7.4+)
+- tomaae#310: Firewall RAW rule enable/disable switches
+- tomaae#321: DHCP client sensors for WAN monitoring
+- tomaae#298: Environment refresh after script execution
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | pending | ⏳ |
+| Ruff format | pending | ⏳ |
+| Tests | 461 passed, 5 skipped | ✅ |
+
+---
+
 ## CR-260321-phase4-integration-tests — Entity-level integration tests for all platform types
 
 **Date:** 2026-03-21
 **Branch:** `feature/phase4-integration-tests`
 **PR:** #31 (targeting dev)
-**Status:** In Review
+**Status:** Merged
 
 ### What Changed
 
@@ -45,7 +85,7 @@ ISS-260320-test-coverage Phase 4: entity-level tests cover all 6 platform entity
 **Date:** 2026-03-21
 **Branch:** `feature/complexity-reduction`
 **PR:** #30 (targeting dev)
-**Status:** In Review
+**Status:** Merged
 
 ### What Changed
 

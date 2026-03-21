@@ -2,13 +2,31 @@
 
 ## Current Priorities
 
-1. ISS-260320-test-coverage — Increase test coverage to ≥80%
-2. ISS-260320-new-device-discovery — New devices require HA restart to appear
-3. ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
+1. ISS-260322-upstream-frs — Port upstream feature requests (in review)
+2. ISS-260320-test-coverage — Increase test coverage to ≥80%
+3. ISS-260320-new-device-discovery — New devices require HA restart to appear
+4. ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
 
 ---
 
 ## Active
+
+### ISS-260322-upstream-frs — Port upstream feature requests
+**Type:** Feature
+**Priority:** High
+**Created:** 2026-03-22
+**Status:** 🟢 Active — PR in review (feature/port-upstream-frs → dev)
+
+**Context:**
+Four upstream feature requests ported from FR branch to refactored `dev`:
+- ✅ tomaae#334: Container monitoring & control (RouterOS 7.4+)
+- ✅ tomaae#310: Firewall RAW rule enable/disable switches
+- ✅ tomaae#321: DHCP client sensors (status, address, gateway, DNS, lease expiry)
+- ✅ tomaae#298: Environment refresh after script execution
+
+**Reference:** ADR-008, CR-260322-port-upstream-frs. 20 new tests, 461 total.
+
+---
 
 ### ISS-260320-test-coverage — Increase test coverage to ≥80%
 **Type:** Testing
@@ -29,7 +47,7 @@
 - Full HA integration tests: async_setup_entry, async_unload_entry (requires full HA platform machinery)
 - Full coverage measurement and gap analysis
 
-**Reference:** 441 tests passing (303 PR #29, 58 PR #30, 80 PR #31), target ≥80% for SonarCloud Grade A
+**Reference:** 461 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port), target ≥80% for SonarCloud Grade A
 
 ---
 
