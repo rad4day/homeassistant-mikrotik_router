@@ -713,10 +713,20 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             ],
         )
 
-        if tmp_user[self.config_entry.data[CONF_USERNAME]]["group"] in tmp_group:
-            self.ds["access"] = tmp_group[
-                tmp_user[self.config_entry.data[CONF_USERNAME]]["group"]
-            ]["policy"].split(",")
+        username = self.config_entry.data[CONF_USERNAME]
+        if username not in tmp_user:
+            _LOGGER.error(
+                "Mikrotik %s user '%s' not found in router user list. "
+                "Check integration configuration.",
+                self.host,
+                username,
+            )
+            return
+
+        if tmp_user[username]["group"] in tmp_group:
+            self.ds["access"] = tmp_group[tmp_user[username]["group"]]["policy"].split(
+                ","
+            )
 
         if not self.accessrights_reported:
             self.accessrights_reported = True
@@ -729,7 +739,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 _LOGGER.warning(
                     "Mikrotik %s user %s does not have sufficient access rights. Integration functionality will be limited.",
                     self.host,
-                    self.config_entry.data[CONF_USERNAME],
+                    username,
                 )
 
     # ---------------------------
@@ -2414,7 +2424,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     ] = await self.async_mac_lookup.lookup(vals["mac-address"])
                 except asyncio.CancelledError:
                     raise
-                except Exception:
+                except Exception as err:
+                    _LOGGER.debug(
+                        "MAC vendor lookup failed for %s: %s",
+                        vals["mac-address"],
+                        err,
+                    )
                     self.ds["host"][uid]["manufacturer"] = ""
 
             if vals["manufacturer"] == "detect":
@@ -2586,9 +2601,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     #   _address_part_of_local_network
     # ---------------------------
     def _address_part_of_local_network(self, address) -> bool:
-        address = ip_address(address)
+        try:
+            addr = ip_address(address)
+        except ValueError:
+            return False
         for vals in self.ds["dhcp-network"].values():
-            if address in vals["IPv4Network"]:
+            if addr in vals["IPv4Network"]:
                 return True
         return False
 
