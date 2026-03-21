@@ -125,10 +125,36 @@ The `update_sensors` dispatcher was re-enabled in v2.3.6 to fix new devices not 
 **Remaining:**
 - coordinator.py: extract firewall rule dedup helper (get_nat/get_mangle/get_filter share ~75 LOC pattern)
 - switch.py: extract base class for NAT/Mangle/Filter/Queue UID lookup (~50 LOC)
-- apiparser.py: extract shared path traversal from from_entry/from_entry_bool (~20 LOC)
+- ~~apiparser.py: extract shared path traversal from from_entry/from_entry_bool~~ ✅ Done in PR #30
 - *_types.py: extract shared entity description base class (~80 LOC)
 
 **Reference:** SonarCloud CPD exclusions already cover sensor_types.py and coordinator.py intentional repetition
+
+---
+
+### ISS-260321-silent-failures — Silent failure patterns from security audit
+**Type:** Bug/Quality
+**Priority:** Medium
+**Created:** 2026-03-21
+**Status:** 🟡 Backlog (partially addressed in PR #30)
+
+**Context:**
+Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. Three critical/high items fixed in PR #30. Remaining items are pre-existing patterns.
+
+**Fixed in PR #30:**
+- ✅ `get_access()`: guard against KeyError when username not in router user list
+- ✅ MAC vendor lookup: log failures at debug level instead of silently swallowing
+- ✅ `_address_part_of_local_network()`: catch ValueError on malformed IPs
+
+**Remaining:**
+- switch.py: all `async_turn_on`/`async_turn_off` silently return when user lacks write access — should raise `HomeAssistantError` for UI feedback
+- switch.py (NAT/Mangle/Filter/Queue): `value=None` silently passed to API when rule not found after UID lookup loop — should log error and return
+- coordinator.py `get_queue()`: queue value parsing crashes on unexpected `split("/")` format — needs per-entry try/except
+- coordinator.py `get_firmware_update()`: version parse failure lets integration limp with `major_fw_version=0`, silently disabling features
+- entity.py `_handle_coordinator_update()`: KeyError if entity UID disappears from coordinator data
+- switch.py `MikrotikPortSwitch`: unguarded bracket access on `self._data["about"]` and `self._data["port-mac-address"]`
+- apiparser.py `from_entry()`: type coercion is identity operations (pre-existing)
+- apiparser.py `get_uid()`: dead code on line 157 masks empty-key entries (pre-existing)
 
 ---
 
