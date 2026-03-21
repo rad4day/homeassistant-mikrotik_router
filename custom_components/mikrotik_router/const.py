@@ -62,6 +62,10 @@ CONF_SENSOR_NETWATCH_TRACKER = "sensor_netwatch_tracker"
 DEFAULT_SENSOR_NETWATCH_TRACKER = False
 CONF_SENSOR_POE = "sensor_poe"
 DEFAULT_SENSOR_POE = False
+CONF_SENSOR_RAW = "sensor_raw"
+DEFAULT_SENSOR_RAW = False
+CONF_SENSOR_CONTAINER = "sensor_container"
+DEFAULT_SENSOR_CONTAINER = False
 
 TO_REDACT = {
     "ip-address",

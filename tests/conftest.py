@@ -76,6 +76,8 @@ def make_mock_coordinator(data=None, options=None, name="TestRouter", host="10.0
             "latest-version": "7.16.2",
             "available": False,
         },
+        "raw": {},
+        "container": {},
     }
     cfg = MagicMock()
     cfg.data = {CONF_NAME: name, CONF_HOST: host}

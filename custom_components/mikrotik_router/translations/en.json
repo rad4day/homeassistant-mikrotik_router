@@ -53,7 +53,9 @@
                     "sensor_filter": "Filter switches",
                     "sensor_client_captive": "Captive portal data",
                     "sensor_netwatch_tracker": "Netwatch tracker sensors",
-                    "sensor_poe": "PoE port sensors"
+                    "sensor_poe": "PoE port sensors",
+                    "sensor_raw": "Firewall RAW switches",
+                    "sensor_container": "Container sensors and switches"
                 },
                 "title": "Mikrotik Router options (2\/2)",
                 "description": "Enable sensors and switches"

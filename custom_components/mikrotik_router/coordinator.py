@@ -64,6 +64,10 @@ from .const import (
     DEFAULT_SENSOR_NETWATCH_TRACKER,
     CONF_SENSOR_POE,
     DEFAULT_SENSOR_POE,
+    CONF_SENSOR_RAW,
+    DEFAULT_SENSOR_RAW,
+    CONF_SENSOR_CONTAINER,
+    DEFAULT_SENSOR_CONTAINER,
 )
 from .apiparser import parse_api
 from .mikrotikapi import MikrotikAPI
@@ -278,6 +282,8 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             "ups": {},
             "gps": {},
             "netwatch": {},
+            "raw": {},
+            "container": {},
         }
 
         self.notified_flags = []
@@ -298,6 +304,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         self.nat_removed = {}
         self.mangle_removed = {}
         self.filter_removed = {}
+        self.raw_removed = {}
         self.host_hass_recovered = False
         self.host_tracking_initialized = False
 
@@ -306,6 +313,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         self.support_ppp = False
         self.support_ups = False
         self.support_gps = False
+        self.support_container = False
         self._wifimodule = "wireless"
 
         self.major_fw_version = 0
@@ -436,6 +444,24 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         return self.config_entry.options.get(CONF_SENSOR_POE, DEFAULT_SENSOR_POE)
 
     # ---------------------------
+    #   option_sensor_raw
+    # ---------------------------
+    @property
+    def option_sensor_raw(self):
+        """Config entry option for firewall raw rule sensors."""
+        return self.config_entry.options.get(CONF_SENSOR_RAW, DEFAULT_SENSOR_RAW)
+
+    # ---------------------------
+    #   option_sensor_container
+    # ---------------------------
+    @property
+    def option_sensor_container(self):
+        """Config entry option for container sensors."""
+        return self.config_entry.options.get(
+            CONF_SENSOR_CONTAINER, DEFAULT_SENSOR_CONTAINER
+        )
+
+    # ---------------------------
     #   option_sensor_scripts
     # ---------------------------
     @property
@@ -551,6 +577,9 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         if "gps" in packages and packages["gps"]["enabled"]:
             self.support_gps = True
 
+        if "container" in packages and packages["container"]["enabled"]:
+            self.support_container = True
+
     # ---------------------------
     #   async_get_host_hass
     # ---------------------------
@@ -650,6 +679,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             (self.option_sensor_kidcontrol, self.get_kidcontrol),
             (self.option_sensor_mangle, self.get_mangle),
             (self.option_sensor_filter, self.get_filter),
+            (self.option_sensor_raw, self.get_raw),
             (self.option_sensor_netwatch, self.get_netwatch),
         ]
         for enabled, func in optional_sensors:
@@ -679,6 +709,13 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         if self.api.connected() and self.support_gps:
             await self.hass.async_add_executor_job(self.get_gps)
+
+        if (
+            self.api.connected()
+            and self.support_container
+            and self.option_sensor_container
+        ):
+            await self.hass.async_add_executor_job(self.get_container)
 
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")
@@ -1306,6 +1343,145 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 )
 
             del self.ds["filter"][uid]
+
+    # ---------------------------
+    #   get_raw
+    # ---------------------------
+    def get_raw(self) -> None:
+        """Get Firewall RAW data from Mikrotik"""
+        self.ds["raw"] = parse_api(
+            data=self.ds["raw"],
+            source=self.api.query("/ip/firewall/raw"),
+            key=".id",
+            vals=[
+                {"name": ".id"},
+                {"name": "chain"},
+                {"name": "action"},
+                {"name": "comment"},
+                {"name": "protocol", "default": "any"},
+                {"name": "in-interface", "default": "any"},
+                {"name": "in-interface-list", "default": "any"},
+                {"name": "out-interface", "default": "any"},
+                {"name": "out-interface-list", "default": "any"},
+                {"name": "src-address", "default": "any"},
+                {"name": "src-address-list", "default": "any"},
+                {"name": "src-port", "default": "any"},
+                {"name": "dst-address", "default": "any"},
+                {"name": "dst-address-list", "default": "any"},
+                {"name": "dst-port", "default": "any"},
+                {
+                    "name": "enabled",
+                    "source": "disabled",
+                    "type": "bool",
+                    "reverse": True,
+                    "default": True,
+                },
+            ],
+            val_proc=[
+                [
+                    {"name": "uniq-id"},
+                    {"action": "combine"},
+                    {"key": "chain"},
+                    {"text": ","},
+                    {"key": "action"},
+                    {"text": ","},
+                    {"key": "protocol"},
+                    {"text": ","},
+                    {"key": "in-interface"},
+                    {"text": ","},
+                    {"key": "in-interface-list"},
+                    {"text": ":"},
+                    {"key": "src-address"},
+                    {"text": ","},
+                    {"key": "src-address-list"},
+                    {"text": ":"},
+                    {"key": "src-port"},
+                    {"text": "-"},
+                    {"key": "out-interface"},
+                    {"text": ","},
+                    {"key": "out-interface-list"},
+                    {"text": ":"},
+                    {"key": "dst-address"},
+                    {"text": ","},
+                    {"key": "dst-address-list"},
+                    {"text": ":"},
+                    {"key": "dst-port"},
+                ],
+                [
+                    {"name": "name"},
+                    {"action": "combine"},
+                    {"key": "action"},
+                    {"text": ","},
+                    {"key": "protocol"},
+                    {"text": ":"},
+                    {"key": "dst-port"},
+                ],
+            ],
+            skip=[
+                {"name": "dynamic", "value": True},
+                {"name": "action", "value": "jump"},
+            ],
+        )
+
+        # Remove duplicate raw entries to prevent crash
+        raw_uniq = {}
+        raw_del = {}
+        for uid in self.ds["raw"]:
+            self.ds["raw"][uid]["comment"] = str(self.ds["raw"][uid]["comment"])
+
+            tmp_name = self.ds["raw"][uid]["uniq-id"]
+            if tmp_name not in raw_uniq:
+                raw_uniq[tmp_name] = uid
+            else:
+                raw_del[uid] = 1
+                raw_del[raw_uniq[tmp_name]] = 1
+
+        for uid in raw_del:
+            if self.ds["raw"][uid]["uniq-id"] not in self.raw_removed:
+                self.raw_removed[self.ds["raw"][uid]["uniq-id"]] = 1
+                _LOGGER.error(
+                    "Mikrotik %s duplicate RAW rule %s (ID %s), entity will be unavailable.",
+                    self.host,
+                    self.ds["raw"][uid]["name"],
+                    self.ds["raw"][uid][".id"],
+                )
+
+            del self.ds["raw"][uid]
+
+    # ---------------------------
+    #   get_container
+    # ---------------------------
+    def get_container(self) -> None:
+        """Get container data from Mikrotik"""
+        self.ds["container"] = parse_api(
+            data=self.ds["container"],
+            source=self.api.query("/container"),
+            key=".id",
+            vals=[
+                {"name": ".id"},
+                {"name": "name", "default": "unknown"},
+                {"name": "tag", "default": "unknown"},
+                {"name": "os", "default": "unknown"},
+                {"name": "arch", "default": "unknown"},
+                {"name": "interface", "default": "unknown"},
+                {"name": "root-dir", "default": "unknown"},
+                {"name": "mounts", "default": "unknown"},
+                {"name": "dns", "default": "unknown"},
+                {"name": "logging", "default": "unknown"},
+                {"name": "cmd", "default": ""},
+                {"name": "entrypoint", "default": ""},
+                {"name": "envlist", "default": ""},
+                {"name": "hostname", "default": ""},
+                {"name": "workdir", "default": ""},
+                {"name": "comment", "default": ""},
+                {"name": "status", "default": "stopped"},
+            ],
+        )
+
+        for uid in self.ds["container"]:
+            self.ds["container"][uid]["running"] = (
+                self.ds["container"][uid]["status"] == "running"
+            )
 
     # ---------------------------
     #   get_kidcontrol
@@ -2009,6 +2185,11 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 {"name": "interface", "default": "unknown"},
                 {"name": "status", "default": "unknown"},
                 {"name": "address", "default": "unknown"},
+                {"name": "gateway", "default": "unknown"},
+                {"name": "dns-server", "default": "unknown"},
+                {"name": "dhcp-server", "default": "unknown"},
+                {"name": "expires-after", "default": "unknown"},
+                {"name": "comment", "default": ""},
             ],
         )
 

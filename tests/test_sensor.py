@@ -137,3 +137,64 @@ class TestClientTrafficSensorCustomName:
             uid="AA:BB:CC:DD:EE:FF",
         )
         assert entity.custom_name == "WAN TX"
+
+
+# ---------------------------------------------------------------------------
+# DHCP Client Sensors
+# ---------------------------------------------------------------------------
+
+
+class TestDHCPClientSensors:
+    def test_dhcp_status_sensor_value(self):
+        coord = make_mock_coordinator()
+        coord.data["dhcp-client"] = {
+            "ether1": {
+                "interface": "ether1",
+                "status": "bound",
+                "address": "10.0.0.5/24",
+                "gateway": "10.0.0.1",
+                "dns-server": "8.8.8.8",
+                "dhcp-server": "10.0.0.1",
+                "expires-after": "23:45:00",
+                "comment": "",
+            }
+        }
+        entity = _make_sensor(
+            coordinator=coord,
+            desc_overrides={
+                "data_path": "dhcp-client",
+                "data_attribute": "status",
+                "data_name": "interface",
+                "data_uid": "interface",
+                "data_reference": "interface",
+            },
+            uid="ether1",
+        )
+        assert entity.native_value == "bound"
+
+    def test_dhcp_address_sensor_value(self):
+        coord = make_mock_coordinator()
+        coord.data["dhcp-client"] = {
+            "ether1": {
+                "interface": "ether1",
+                "status": "bound",
+                "address": "10.0.0.5/24",
+                "gateway": "10.0.0.1",
+                "dns-server": "8.8.8.8",
+                "dhcp-server": "10.0.0.1",
+                "expires-after": "23:45:00",
+                "comment": "",
+            }
+        }
+        entity = _make_sensor(
+            coordinator=coord,
+            desc_overrides={
+                "data_path": "dhcp-client",
+                "data_attribute": "address",
+                "data_name": "interface",
+                "data_uid": "interface",
+                "data_reference": "interface",
+            },
+            uid="ether1",
+        )
+        assert entity.native_value == "10.0.0.5/24"

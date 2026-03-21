@@ -73,3 +73,30 @@ class TestMikrotikScriptButton:
         )
         # Should log error, not raise
         await entity.async_press()
+
+    @pytest.mark.asyncio
+    async def test_async_press_refreshes_coordinator(self):
+        coord = make_mock_coordinator()
+        coord.data["script"] = {"backup": {"name": "backup"}}
+        entity = _make_button(
+            cls=MikrotikScriptButton,
+            coordinator=coord,
+            desc_overrides={"data_path": "script", "data_reference": "name"},
+            uid="backup",
+        )
+        await entity.async_press()
+        coord.async_refresh.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_async_press_refreshes_even_on_error(self):
+        coord = make_mock_coordinator()
+        coord.data["script"] = {"missing": {"name": "missing"}}
+        coord.api.run_script.side_effect = ApiEntryNotFound("not found")
+        entity = _make_button(
+            cls=MikrotikScriptButton,
+            coordinator=coord,
+            desc_overrides={"data_path": "script", "data_reference": "name"},
+            uid="missing",
+        )
+        await entity.async_press()
+        coord.async_refresh.assert_awaited_once()
