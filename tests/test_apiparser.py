@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 from custom_components.mikrotik_router.apiparser import (
+    _traverse_entry,
+    _NOT_FOUND,
     from_entry,
     from_entry_bool,
     get_uid,
@@ -404,3 +406,79 @@ class TestUtcFromTimestamp:
     def test_specific_timestamp(self):
         result = utc_from_timestamp(0)
         assert result == datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+# --- _traverse_entry ---
+
+
+class TestTraverseEntry:
+    def test_simple_key_found(self):
+        assert _traverse_entry({"name": "ether1"}, "name") == "ether1"
+
+    def test_simple_key_missing(self):
+        assert _traverse_entry({"name": "ether1"}, "missing") is _NOT_FOUND
+
+    def test_nested_path_found(self):
+        entry = {"level1": {"level2": "deep_value"}}
+        assert _traverse_entry(entry, "level1/level2") == "deep_value"
+
+    def test_nested_path_missing_intermediate(self):
+        entry = {"level1": {"other": "val"}}
+        assert _traverse_entry(entry, "level1/level2") is _NOT_FOUND
+
+    def test_nested_path_not_dict(self):
+        entry = {"level1": "string_value"}
+        assert _traverse_entry(entry, "level1/level2") is _NOT_FOUND
+
+    def test_none_value_preserved(self):
+        """None values should be returned, not treated as missing."""
+        assert _traverse_entry({"comment": None}, "comment") is None
+
+    def test_nested_none_value_preserved(self):
+        entry = {"a": {"b": None}}
+        assert _traverse_entry(entry, "a/b") is None
+
+
+# --- from_entry_bool case-insensitive ---
+
+
+class TestFromEntryBoolCaseInsensitive:
+    def test_mixed_case_yes(self):
+        assert from_entry_bool({"enabled": "yEs"}, "enabled") is True
+
+    def test_mixed_case_no(self):
+        assert from_entry_bool({"enabled": "nO"}, "enabled") is False
+
+    def test_mixed_case_on(self):
+        assert from_entry_bool({"status": "oN"}, "status") is True
+
+    def test_mixed_case_off(self):
+        assert from_entry_bool({"status": "oFf"}, "status") is False
+
+    def test_mixed_case_up(self):
+        assert from_entry_bool({"link": "uP"}, "link") is True
+
+    def test_mixed_case_down(self):
+        assert from_entry_bool({"link": "dOwN"}, "link") is False
+
+    def test_none_value_returns_default(self):
+        """API entries with None values should return the default."""
+        assert from_entry_bool({"flag": None}, "flag") is False
+
+    def test_none_value_returns_custom_default(self):
+        assert from_entry_bool({"flag": None}, "flag", default=True) is True
+
+
+# --- from_entry None handling ---
+
+
+class TestFromEntryNoneHandling:
+    def test_none_value_returned_as_is(self):
+        """None in the API response is a valid value, not 'missing'."""
+        result = from_entry({"comment": None}, "comment")
+        assert result is None
+
+    def test_none_value_with_non_empty_default(self):
+        """None bypasses the type coercion since it's not str/int/float."""
+        result = from_entry({"comment": None}, "comment", default="fallback")
+        assert result is None

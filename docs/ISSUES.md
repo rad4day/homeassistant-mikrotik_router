@@ -14,22 +14,22 @@
 **Type:** Testing
 **Priority:** High
 **Created:** 2026-03-20
-**Status:** 🟢 Active — PR #29 (feature/tests-and-refactor → dev)
+**Status:** 🟡 Backlog — Phase 1-3 done (PR #29 merged), Phase 4 pending
 
 **Done:**
-- ✅ Phase 1: `helper.py` (13 tests), `apiparser.py` (52 tests), `mikrotikapi.py` (30 tests), `coordinator.py` basics (12 tests)
-- ✅ Phase 2: coordinator data methods — get_system_resource, get_firmware_update, get_nat/mangle/filter, get_interface, get_dhcp, get_access (38 tests)
-- ✅ Phase 3: entity helpers — _skip_sensor, _copy_attrs, MikrotikInterfaceEntityMixin (10 new tests), update.py pure functions (8 tests)
-- ✅ Devcontainer setup for local testing with pytest-homeassistant-custom-component
-- ✅ Ruff migration: all 32 source files pass lint and format
+- ✅ Phase 1: `helper.py` (13 tests), `apiparser.py` (52 tests), `mikrotikapi.py` (30 tests), `coordinator.py` basics (12 tests) — PR #29
+- ✅ Phase 2: coordinator data methods — get_system_resource, get_firmware_update, get_nat/mangle/filter, get_interface, get_dhcp, get_access (38 tests) — PR #29
+- ✅ Phase 3: entity helpers — _skip_sensor, copy_attrs, MikrotikInterfaceEntityMixin (10 new tests), update.py pure functions (8 tests) — PR #29
+- ✅ Phase 3.5: coordinator extracted helpers — 58 new tests for host merging, hostname resolution, accounting classification, captive portal, etc. — PR #30
+- ✅ Devcontainer setup for local testing with pytest-homeassistant-custom-component — PR #29
+- ✅ Ruff migration: all 32 source files pass lint and format — PR #29
 
-**Remaining:**
-- Phase 4: integration lifecycle tests (async_setup_entry, async_migrate_entry) — needs devcontainer
+**Remaining (Phase 4 — separate PR):**
+- Integration lifecycle tests (async_setup_entry, async_migrate_entry) — needs devcontainer
 - Platform entity integration tests (async_turn_on, is_connected, native_value) — needs devcontainer
-- process_accounting — client traffic snapshot processing
 - Full coverage measurement and gap analysis
 
-**Reference:** 151+ tests written, target ≥80% for SonarCloud Grade A
+**Reference:** 361 tests passing (303 from PR #29, 58 from PR #30), target ≥80% for SonarCloud Grade A
 
 ---
 
@@ -39,7 +39,7 @@
 **Type:** Quality
 **Priority:** High
 **Created:** 2026-03-21
-**Status:** 🟡 Backlog
+**Status:** 🟢 Active — PR #30 (feature/complexity-reduction → dev)
 
 **Context:**
 SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. Total project cognitive complexity is 1058. Worst offenders are upstream inherited code.
@@ -62,17 +62,26 @@ SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. 
 | `query()` | mikrotikapi.py:189 | 18 | 8m |
 | `get_system_resource()` | coordinator.py:1509 | 17 | 7m |
 
-**Quick wins (done in PR #29):**
+**Done (PR #29):**
 - ✅ `get_system_resource()`: extracted `_parse_uptime_to_seconds()` helper
 - ✅ `get_capabilities()`: consolidated duplicate wifi module branches
 
-**Remaining (separate PRs recommended):**
-- `async_process_host()` — extract per-source helpers (`_merge_capsman_hosts`, `_merge_wireless_hosts`, `_resolve_hostname`)
-- `parse_api()` — break into parsing pipeline stages
-- `process_accounting()` — extract traffic direction matrix
-- `_async_update_data()` (main) — extract connected-check pattern
+**Done (PR #30 — feature/complexity-reduction):**
+- ✅ `async_process_host()` (136→~10 per helper): extracted `_merge_capsman_hosts`, `_merge_wireless_hosts`, `_merge_dhcp_hosts`, `_merge_arp_hosts`, `_recover_hass_hosts`, `_ensure_host_defaults`, `_update_host_availability`, `_update_host_address`, `_resolve_hostname`, `_dhcp_comment_for_host`, `_update_captive_portal`
+- ✅ `_async_update_data()` (65→~15): extracted `_async_update_hwinfo`, `_async_run_if_connected`, optional sensor loop tables
+- ✅ `process_accounting()` (48→~10 per helper): extracted `_init_accounting_hosts`, `_classify_accounting_traffic`, `_check_accounting_threshold`, `_apply_accounting_throughput`
+- ✅ `get_interface()` (27→~10): extracted `_monitor_ethernet_port` with `_SFP_MONITOR_VALS`, `_COPPER_MONITOR_VALS`, `_POE_MONITOR_VALS` class constants
+- ✅ `_skip_sensor()` (23→~5 per helper): extracted `_skip_interface_traffic`, `_skip_binary_sensor`, `_skip_device_tracker`, `_skip_poe_sensor`
+- ✅ `extra_state_attributes` switch.py (21→~5): reused `_copy_attrs` from entity.py
+- ✅ `from_entry_bool()` (18→~8): extracted `_traverse_entry`, case-insensitive string matching via frozensets
 
-**Reference:** SonarCloud maintainability rating is A. These are not blockers but are technical debt.
+**Remaining:**
+- `process_interface_client()` (27) — not yet refactored
+- `async_process_host()` tracker (22) — not yet refactored
+- `_async_update_data()` tracker (21) — not yet refactored
+- `query()` mikrotikapi.py (18) — not yet refactored
+
+**Reference:** SonarCloud maintainability rating is A. 48 new tests cover extracted helpers.
 
 ---
 
@@ -116,10 +125,36 @@ The `update_sensors` dispatcher was re-enabled in v2.3.6 to fix new devices not 
 **Remaining:**
 - coordinator.py: extract firewall rule dedup helper (get_nat/get_mangle/get_filter share ~75 LOC pattern)
 - switch.py: extract base class for NAT/Mangle/Filter/Queue UID lookup (~50 LOC)
-- apiparser.py: extract shared path traversal from from_entry/from_entry_bool (~20 LOC)
+- ~~apiparser.py: extract shared path traversal from from_entry/from_entry_bool~~ ✅ Done in PR #30
 - *_types.py: extract shared entity description base class (~80 LOC)
 
 **Reference:** SonarCloud CPD exclusions already cover sensor_types.py and coordinator.py intentional repetition
+
+---
+
+### ISS-260321-silent-failures — Silent failure patterns from security audit
+**Type:** Bug/Quality
+**Priority:** Medium
+**Created:** 2026-03-21
+**Status:** 🟡 Backlog (partially addressed in PR #30)
+
+**Context:**
+Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. Three critical/high items fixed in PR #30. Remaining items are pre-existing patterns.
+
+**Fixed in PR #30:**
+- ✅ `get_access()`: guard against KeyError when username not in router user list
+- ✅ MAC vendor lookup: log failures at debug level instead of silently swallowing
+- ✅ `_address_part_of_local_network()`: catch ValueError on malformed IPs
+
+**Remaining:**
+- switch.py: all `async_turn_on`/`async_turn_off` silently return when user lacks write access — should raise `HomeAssistantError` for UI feedback
+- switch.py (NAT/Mangle/Filter/Queue): `value=None` silently passed to API when rule not found after UID lookup loop — should log error and return
+- coordinator.py `get_queue()`: queue value parsing crashes on unexpected `split("/")` format — needs per-entry try/except
+- coordinator.py `get_firmware_update()`: version parse failure lets integration limp with `major_fw_version=0`, silently disabling features
+- entity.py `_handle_coordinator_update()`: KeyError if entity UID disappears from coordinator data
+- switch.py `MikrotikPortSwitch`: unguarded bracket access on `self._data["about"]` and `self._data["port-mac-address"]`
+- apiparser.py `from_entry()`: type coercion is identity operations (pre-existing)
+- apiparser.py `get_uid()`: dead code on line 157 masks empty-key entries (pre-existing)
 
 ---
 

@@ -4,6 +4,45 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260321-complexity-reduction — Cognitive complexity reduction across coordinator, entity, apiparser
+
+**Date:** 2026-03-21
+**Branch:** `feature/complexity-reduction`
+**PR:** #30 (targeting dev)
+**Status:** In Review
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | Extracted 11 helpers from `async_process_host()` (136→~10 each): `_merge_capsman_hosts`, `_merge_wireless_hosts`, `_merge_dhcp_hosts`, `_merge_arp_hosts`, `_recover_hass_hosts`, `_ensure_host_defaults`, `_update_host_availability`, `_update_host_address`, `_resolve_hostname`, `_dhcp_comment_for_host`, `_update_captive_portal` |
+| `coordinator.py` | Extracted `_async_update_hwinfo` and `_async_run_if_connected` from `_async_update_data()` (65→~15), plus optional sensor loop tables |
+| `coordinator.py` | Extracted `_init_accounting_hosts`, `_classify_accounting_traffic`, `_check_accounting_threshold`, `_apply_accounting_throughput` from `process_accounting()` (48→~10 each) |
+| `coordinator.py` | Extracted `_monitor_ethernet_port` with SFP/copper/PoE monitor val constants from `get_interface()` (27→~10) |
+| `entity.py` | Split `_skip_sensor()` into `_skip_interface_traffic`, `_skip_binary_sensor`, `_skip_device_tracker`, `_skip_poe_sensor` (23→~5 each) |
+| `switch.py` | Replaced inline attribute loops with shared `copy_attrs` from entity.py (21→~5) |
+| `apiparser.py` | Extracted `_traverse_entry` helper with `_NOT_FOUND` sentinel, case-insensitive bool matching via frozensets (18→~8) |
+| `coordinator.py` | Further extracted `_hostname_from_dns`, `_hostname_from_dhcp`, `_add_traffic_bytes` to bring two remaining functions under threshold |
+| `coordinator.py` | Silent-failure fixes: username guard in `get_access`, debug logging on MAC lookup, ValueError guard on `_address_part_of_local_network` |
+| `coordinator.py` | Restored independent `connected()` check between `get_wireless`/`get_wireless_hosts`; guarded `_apply_accounting_throughput` against zero `time_diff` |
+| `tests/` | 58 new tests covering all extracted helpers (361 total, up from 303) |
+| `docs/decisions/` | ADR-007: Cognitive Complexity Reduction via Helper Extraction |
+| `docs/ISSUES.md` | Added ISS-260321-silent-failures tracking remaining audit findings |
+
+### Why
+
+ISS-260321-cognitive-complexity: SonarCloud quality target is ≤15 cognitive complexity per function. Seven of the worst offenders (totalling 358 complexity points) are now refactored into focused helpers, each well under the threshold. Silent-failure audit (pr-review-toolkit) identified 12 issues; 3 critical/high fixed, 8 pre-existing tracked.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 361 passed, 5 skipped | ✅ |
+
+---
+
 ## CR-260320-tests-and-refactor — Test suite, devcontainer, CI/CD alignment, ruff migration
 
 **Date:** 2026-03-20

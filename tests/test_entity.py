@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 
 from custom_components.mikrotik_router.entity import (
-    _copy_attrs,
+    copy_attrs,
     _skip_sensor,
     MikrotikInterfaceEntityMixin,
 )
@@ -342,34 +342,34 @@ def test_mixin_preserves_base_attributes():
 
 
 # ---------------------------------------------------------------------------
-# _copy_attrs tests
+# copy_attrs tests
 # ---------------------------------------------------------------------------
 
 
-def test_copy_attrs_copies_existing_keys():
+def testcopy_attrs_copies_existing_keys():
     """Copies matching variables from data to attributes."""
     attributes = {}
     data = {"status": "up", "rate": "1Gbps", "unused": "value"}
-    _copy_attrs(attributes, data, ["status", "rate"])
+    copy_attrs(attributes, data, ["status", "rate"])
     assert "status" in attributes
     assert "rate" in attributes
     assert "unused" not in attributes
 
 
-def test_copy_attrs_skips_missing_keys():
+def testcopy_attrs_skips_missing_keys():
     """Missing keys in data are skipped without error."""
     attributes = {}
     data = {"status": "up"}
-    _copy_attrs(attributes, data, ["status", "missing-key"])
+    copy_attrs(attributes, data, ["status", "missing-key"])
     assert "status" in attributes
     assert len(attributes) == 1
 
 
-def test_copy_attrs_empty_variables_list():
+def testcopy_attrs_empty_variables_list():
     """Empty variables list copies nothing."""
     attributes = {}
     data = {"status": "up"}
-    _copy_attrs(attributes, data, [])
+    copy_attrs(attributes, data, [])
     assert len(attributes) == 0
 
 

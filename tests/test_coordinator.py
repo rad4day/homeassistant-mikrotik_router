@@ -3147,3 +3147,645 @@ def test_get_iface_from_entry():
     assert coordinator._get_iface_from_entry({"interface": "LAN"}) == "ether1"
     assert coordinator._get_iface_from_entry({"interface": "WAN"}) == "ether2"
     assert coordinator._get_iface_from_entry({"interface": "unknown"}) is None
+
+
+# ---------------------------------------------------------------------------
+# Extracted helper method tests
+# ---------------------------------------------------------------------------
+
+
+def test_merge_capsman_hosts_returns_detected():
+    """_merge_capsman_hosts merges CAPS-MAN entries and returns detected dict."""
+    coordinator = make_coordinator_for_host()
+    coordinator.support_capsman = True
+    coordinator.ds["capsman_hosts"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "interface": "cap1",
+        }
+    }
+
+    detected = coordinator._merge_capsman_hosts()
+
+    assert "AA:BB:CC:DD:EE:01" in detected
+    host = coordinator.ds["host"]["AA:BB:CC:DD:EE:01"]
+    assert host["source"] == "capsman"
+    assert host["available"] is True
+    assert host["interface"] == "cap1"
+
+
+def test_merge_capsman_hosts_skips_when_not_supported():
+    """_merge_capsman_hosts returns empty when CAPS-MAN not supported."""
+    coordinator = make_coordinator_for_host()
+    coordinator.support_capsman = False
+    coordinator.ds["capsman_hosts"] = {"AA:BB:CC:DD:EE:01": {}}
+
+    detected = coordinator._merge_capsman_hosts()
+    assert detected == {}
+    assert "AA:BB:CC:DD:EE:01" not in coordinator.ds["host"]
+
+
+def test_merge_capsman_hosts_skips_existing_non_capsman():
+    """_merge_capsman_hosts skips host already tracked by different source."""
+    coordinator = make_coordinator_for_host()
+    coordinator.support_capsman = True
+    coordinator.ds["host"]["AA:BB:CC:DD:EE:01"] = {"source": "dhcp"}
+    coordinator.ds["capsman_hosts"] = {
+        "AA:BB:CC:DD:EE:01": {
+            "mac-address": "AA:BB:CC:DD:EE:01",
+            "interface": "cap1",
+        }
+    }
+
+    detected = coordinator._merge_capsman_hosts()
+    assert "AA:BB:CC:DD:EE:01" not in detected
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:01"]["source"] == "dhcp"
+
+
+def test_merge_wireless_hosts_returns_detected():
+    """_merge_wireless_hosts merges wireless entries and returns detected dict."""
+    coordinator = make_coordinator_for_host()
+    coordinator.support_wireless = True
+    coordinator.ds["wireless_hosts"] = {
+        "AA:BB:CC:DD:EE:02": {
+            "mac-address": "AA:BB:CC:DD:EE:02",
+            "interface": "wlan1",
+            "ap": False,
+            "signal-strength": "-50",
+            "tx-ccq": "90",
+            "tx-rate": "100M",
+            "rx-rate": "100M",
+        }
+    }
+
+    detected = coordinator._merge_wireless_hosts()
+
+    assert "AA:BB:CC:DD:EE:02" in detected
+    host = coordinator.ds["host"]["AA:BB:CC:DD:EE:02"]
+    assert host["source"] == "wireless"
+    assert host["signal-strength"] == "-50"
+
+
+def test_merge_wireless_hosts_skips_ap():
+    """_merge_wireless_hosts skips entries marked as AP."""
+    coordinator = make_coordinator_for_host()
+    coordinator.support_wireless = True
+    coordinator.ds["wireless_hosts"] = {
+        "AA:BB:CC:DD:EE:03": {
+            "mac-address": "AA:BB:CC:DD:EE:03",
+            "interface": "wlan1",
+            "ap": True,
+            "signal-strength": "-50",
+            "tx-ccq": "90",
+            "tx-rate": "100M",
+            "rx-rate": "100M",
+        }
+    }
+
+    detected = coordinator._merge_wireless_hosts()
+    assert detected == {}
+    assert "AA:BB:CC:DD:EE:03" not in coordinator.ds["host"]
+
+
+def test_merge_dhcp_hosts():
+    """_merge_dhcp_hosts adds DHCP-enabled hosts."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {
+        "AA:BB:CC:DD:EE:04": {
+            "enabled": True,
+            "address": "192.168.1.20",
+            "mac-address": "AA:BB:CC:DD:EE:04",
+            "interface": "ether1",
+        }
+    }
+
+    coordinator._merge_dhcp_hosts()
+
+    host = coordinator.ds["host"]["AA:BB:CC:DD:EE:04"]
+    assert host["source"] == "dhcp"
+    assert host["address"] == "192.168.1.20"
+
+
+def test_merge_dhcp_hosts_skips_disabled():
+    """_merge_dhcp_hosts skips disabled DHCP entries."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {
+        "AA:BB:CC:DD:EE:05": {
+            "enabled": False,
+            "address": "192.168.1.21",
+            "mac-address": "AA:BB:CC:DD:EE:05",
+            "interface": "ether1",
+        }
+    }
+
+    coordinator._merge_dhcp_hosts()
+    assert "AA:BB:CC:DD:EE:05" not in coordinator.ds["host"]
+
+
+def test_merge_arp_hosts_returns_detected_excluding_failed():
+    """_merge_arp_hosts returns detected set excluding failed entries."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["arp"] = {
+        "AA:BB:CC:DD:EE:06": {
+            "address": "192.168.1.22",
+            "mac-address": "AA:BB:CC:DD:EE:06",
+            "interface": "ether1",
+            "status": "",
+        },
+        "AA:BB:CC:DD:EE:07": {
+            "address": "192.168.1.23",
+            "mac-address": "AA:BB:CC:DD:EE:07",
+            "interface": "ether1",
+            "status": "failed",
+        },
+    }
+
+    detected = coordinator._merge_arp_hosts()
+
+    assert "AA:BB:CC:DD:EE:06" in detected
+    assert "AA:BB:CC:DD:EE:07" not in detected
+    # Both still get added as hosts
+    assert "AA:BB:CC:DD:EE:06" in coordinator.ds["host"]
+    assert "AA:BB:CC:DD:EE:07" in coordinator.ds["host"]
+
+
+def test_recover_hass_hosts_runs_once():
+    """_recover_hass_hosts only runs on first call."""
+    coordinator = make_coordinator_for_host()
+    coordinator.host_hass_recovered = False
+    coordinator.ds["host_hass"] = {"AA:BB:CC:DD:EE:08": "restored-pc"}
+
+    coordinator._recover_hass_hosts()
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:08"]["source"] == "restored"
+    assert coordinator.host_hass_recovered is True
+
+    # Second call should not re-add
+    coordinator.ds["host"] = {}
+    coordinator._recover_hass_hosts()
+    assert "AA:BB:CC:DD:EE:08" not in coordinator.ds["host"]
+
+
+def test_ensure_host_defaults():
+    """_ensure_host_defaults fills missing keys with defaults."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {"AA:BB:CC:DD:EE:09": {"source": "arp"}}
+
+    coordinator._ensure_host_defaults()
+
+    host = coordinator.ds["host"]["AA:BB:CC:DD:EE:09"]
+    assert host["address"] == "unknown"
+    assert host["host-name"] == "unknown"
+    assert host["manufacturer"] == "detect"
+    assert host["available"] is False
+    assert host["last-seen"] is False
+
+
+def test_update_host_availability_capsman_not_detected():
+    """Capsman host not in detected set becomes unavailable."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {
+        "AA:BB:CC:DD:EE:10": {"source": "capsman", "available": True}
+    }
+
+    coordinator._update_host_availability(
+        "AA:BB:CC:DD:EE:10",
+        coordinator.ds["host"]["AA:BB:CC:DD:EE:10"],
+        capsman_detected={},
+        wireless_detected={},
+        arp_detected={},
+    )
+
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:10"]["available"] is False
+
+
+def test_update_host_availability_wired_arp_detected():
+    """Wired host in arp_detected set becomes available."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {
+        "AA:BB:CC:DD:EE:11": {"source": "arp", "available": False, "last-seen": False}
+    }
+
+    coordinator._update_host_availability(
+        "AA:BB:CC:DD:EE:11",
+        coordinator.ds["host"]["AA:BB:CC:DD:EE:11"],
+        capsman_detected={},
+        wireless_detected={},
+        arp_detected={"AA:BB:CC:DD:EE:11": True},
+    )
+
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:11"]["available"] is True
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:11"]["last-seen"] is not False
+
+
+def test_update_host_address_from_dhcp():
+    """DHCP address update changes host address and source."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {
+        "mac1": {
+            "source": "arp",
+            "address": "192.168.1.1",
+            "interface": "ether1",
+        }
+    }
+    coordinator.ds["dhcp"] = {
+        "mac1": {
+            "enabled": True,
+            "address": "192.168.1.100",
+            "interface": "ether2",
+        }
+    }
+
+    coordinator._update_host_address("mac1", coordinator.ds["host"]["mac1"])
+
+    assert coordinator.ds["host"]["mac1"]["address"] == "192.168.1.100"
+    assert coordinator.ds["host"]["mac1"]["source"] == "dhcp"
+    assert coordinator.ds["host"]["mac1"]["interface"] == "ether2"
+
+
+def test_update_host_address_preserves_wireless_source():
+    """Wireless hosts keep their source even when DHCP has a different address."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {
+        "mac1": {
+            "source": "wireless",
+            "address": "192.168.1.1",
+            "interface": "wlan1",
+        }
+    }
+    coordinator.ds["dhcp"] = {
+        "mac1": {
+            "enabled": True,
+            "address": "192.168.1.100",
+            "interface": "ether2",
+        }
+    }
+
+    coordinator._update_host_address("mac1", coordinator.ds["host"]["mac1"])
+
+    assert coordinator.ds["host"]["mac1"]["address"] == "192.168.1.100"
+    assert coordinator.ds["host"]["mac1"]["source"] == "wireless"
+
+
+def test_resolve_hostname_from_dns():
+    """Hostname resolved from DNS comment."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {
+        "mac1": {
+            "host-name": "unknown",
+            "address": "192.168.1.10",
+        }
+    }
+    coordinator.ds["dns"] = {
+        "entry1": {
+            "address": "192.168.1.10",
+            "comment": "MyPC#ignored",
+            "name": "mypc.local",
+        }
+    }
+
+    coordinator._resolve_hostname("mac1", coordinator.ds["host"]["mac1"])
+    assert coordinator.ds["host"]["mac1"]["host-name"] == "MyPC"
+
+
+def test_resolve_hostname_from_dns_name():
+    """Hostname resolved from DNS name when comment is empty."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {
+        "mac1": {"host-name": "unknown", "address": "192.168.1.10"}
+    }
+    coordinator.ds["dns"] = {
+        "entry1": {
+            "address": "192.168.1.10",
+            "comment": "",
+            "name": "workstation.local",
+        }
+    }
+    coordinator.ds["dhcp"] = {}
+
+    coordinator._resolve_hostname("mac1", coordinator.ds["host"]["mac1"])
+    assert coordinator.ds["host"]["mac1"]["host-name"] == "workstation"
+
+
+def test_resolve_hostname_from_dhcp_comment():
+    """Hostname resolved from DHCP comment when DNS has no match."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {"mac1": {"host-name": "unknown", "address": "unknown"}}
+    coordinator.ds["dns"] = {}
+    coordinator.ds["dhcp"] = {
+        "mac1": {
+            "enabled": True,
+            "comment": "LaptopName#extra",
+            "host-name": "other",
+        }
+    }
+
+    coordinator._resolve_hostname("mac1", coordinator.ds["host"]["mac1"])
+    assert coordinator.ds["host"]["mac1"]["host-name"] == "LaptopName"
+
+
+def test_resolve_hostname_from_dhcp_hostname():
+    """Hostname resolved from DHCP host-name when comment is empty."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {"mac1": {"host-name": "unknown", "address": "unknown"}}
+    coordinator.ds["dns"] = {}
+    coordinator.ds["dhcp"] = {
+        "mac1": {
+            "enabled": True,
+            "comment": "",
+            "host-name": "dhcp-hostname",
+        }
+    }
+
+    coordinator._resolve_hostname("mac1", coordinator.ds["host"]["mac1"])
+    assert coordinator.ds["host"]["mac1"]["host-name"] == "dhcp-hostname"
+
+
+def test_resolve_hostname_fallback_to_mac():
+    """Hostname falls back to MAC address when no other source available."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {
+        "AA:BB:CC:DD:EE:FF": {"host-name": "unknown", "address": "unknown"}
+    }
+    coordinator.ds["dns"] = {}
+    coordinator.ds["dhcp"] = {}
+
+    coordinator._resolve_hostname(
+        "AA:BB:CC:DD:EE:FF", coordinator.ds["host"]["AA:BB:CC:DD:EE:FF"]
+    )
+    assert (
+        coordinator.ds["host"]["AA:BB:CC:DD:EE:FF"]["host-name"] == "AA:BB:CC:DD:EE:FF"
+    )
+
+
+def test_resolve_hostname_skips_when_already_known():
+    """_resolve_hostname does nothing when hostname is already set."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["host"] = {
+        "mac1": {"host-name": "already-known", "address": "192.168.1.10"}
+    }
+    coordinator.ds["dns"] = {}
+
+    coordinator._resolve_hostname("mac1", coordinator.ds["host"]["mac1"])
+    assert coordinator.ds["host"]["mac1"]["host-name"] == "already-known"
+
+
+def test_dhcp_comment_for_host_returns_comment():
+    """_dhcp_comment_for_host returns comment before '#'."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {"mac1": {"enabled": True, "comment": "MyDevice#tag"}}
+    assert coordinator._dhcp_comment_for_host("mac1") == "MyDevice"
+
+
+def test_dhcp_comment_for_host_returns_none_for_empty():
+    """_dhcp_comment_for_host returns None when comment is empty."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {"mac1": {"enabled": True, "comment": ""}}
+    assert coordinator._dhcp_comment_for_host("mac1") is None
+
+
+def test_dhcp_comment_for_host_returns_none_when_disabled():
+    """_dhcp_comment_for_host returns None when DHCP lease is disabled."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {"mac1": {"enabled": False, "comment": "MyDevice"}}
+    assert coordinator._dhcp_comment_for_host("mac1") is None
+
+
+def test_dhcp_comment_for_host_returns_none_when_missing():
+    """_dhcp_comment_for_host returns None when host not in DHCP."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {}
+    assert coordinator._dhcp_comment_for_host("mac1") is None
+
+
+def test_update_captive_portal_adds_data():
+    """_update_captive_portal copies hotspot data to host."""
+    coordinator = make_coordinator_for_host()
+    coordinator.config_entry.options["sensor_client_captive"] = True
+    coordinator.ds["host"] = {"mac1": {}}
+    coordinator.ds["hostspot_host"] = {"mac1": {"authorized": True, "bypassed": False}}
+
+    coordinator._update_captive_portal("mac1")
+
+    assert coordinator.ds["host"]["mac1"]["authorized"] is True
+    assert coordinator.ds["host"]["mac1"]["bypassed"] is False
+
+
+def test_update_captive_portal_removes_stale_data():
+    """_update_captive_portal removes authorized/bypassed when host leaves hotspot."""
+    coordinator = make_coordinator_for_host()
+    coordinator.config_entry.options["sensor_client_captive"] = True
+    coordinator.ds["host"] = {"mac1": {"authorized": True, "bypassed": False}}
+    coordinator.ds["hostspot_host"] = {}
+
+    coordinator._update_captive_portal("mac1")
+
+    assert "authorized" not in coordinator.ds["host"]["mac1"]
+    assert "bypassed" not in coordinator.ds["host"]["mac1"]
+
+
+def test_update_captive_portal_noop_when_disabled():
+    """_update_captive_portal does nothing when option is disabled."""
+    coordinator = make_coordinator_for_host()
+    # option defaults to False
+    coordinator.ds["host"] = {"mac1": {}}
+    coordinator.ds["hostspot_host"] = {"mac1": {"authorized": True, "bypassed": False}}
+
+    coordinator._update_captive_portal("mac1")
+
+    assert "authorized" not in coordinator.ds["host"]["mac1"]
+
+
+def test_init_accounting_hosts():
+    """_init_accounting_hosts creates client_traffic entries for new hosts."""
+    coordinator = make_coordinator()
+    coordinator.ds["host"] = {
+        "mac1": {
+            "address": "192.168.1.1",
+            "mac-address": "mac1",
+            "host-name": "pc1",
+        }
+    }
+    coordinator.ds["client_traffic"] = {}
+
+    coordinator._init_accounting_hosts()
+
+    assert "mac1" in coordinator.ds["client_traffic"]
+    ct = coordinator.ds["client_traffic"]["mac1"]
+    assert ct["address"] == "192.168.1.1"
+    assert ct["available"] is False
+
+
+def test_init_accounting_hosts_skips_existing():
+    """_init_accounting_hosts does not overwrite existing entries."""
+    coordinator = make_coordinator()
+    coordinator.ds["host"] = {
+        "mac1": {
+            "address": "192.168.1.1",
+            "mac-address": "mac1",
+            "host-name": "pc1",
+        }
+    }
+    coordinator.ds["client_traffic"] = {
+        "mac1": {"address": "192.168.1.1", "available": True}
+    }
+
+    coordinator._init_accounting_hosts()
+    assert coordinator.ds["client_traffic"]["mac1"]["available"] is True
+
+
+def test_classify_accounting_traffic_wan():
+    """_classify_accounting_traffic classifies WAN TX/RX correctly."""
+    coordinator = make_coordinator()
+    coordinator.ds["dhcp-network"] = {
+        "net1": {"IPv4Network": __import__("ipaddress").IPv4Network("192.168.1.0/24")}
+    }
+
+    tmp = {"192.168.1.10": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0}}
+    accounting_data = {
+        "1": {
+            "src-address": "192.168.1.10",
+            "dst-address": "8.8.8.8",
+            "bytes": "1000",
+        },
+        "2": {
+            "src-address": "1.1.1.1",
+            "dst-address": "192.168.1.10",
+            "bytes": "2000",
+        },
+    }
+
+    coordinator._classify_accounting_traffic(accounting_data, tmp)
+
+    assert tmp["192.168.1.10"]["wan-tx"] == 1000
+    assert tmp["192.168.1.10"]["wan-rx"] == 2000
+    assert tmp["192.168.1.10"]["lan-tx"] == 0
+    assert tmp["192.168.1.10"]["lan-rx"] == 0
+
+
+def test_classify_accounting_traffic_lan():
+    """_classify_accounting_traffic classifies LAN TX/RX correctly."""
+    coordinator = make_coordinator()
+    coordinator.ds["dhcp-network"] = {
+        "net1": {"IPv4Network": __import__("ipaddress").IPv4Network("192.168.1.0/24")}
+    }
+
+    tmp = {
+        "192.168.1.10": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0},
+        "192.168.1.20": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0},
+    }
+    accounting_data = {
+        "1": {
+            "src-address": "192.168.1.10",
+            "dst-address": "192.168.1.20",
+            "bytes": "500",
+        }
+    }
+
+    coordinator._classify_accounting_traffic(accounting_data, tmp)
+
+    assert tmp["192.168.1.10"]["lan-tx"] == 500
+    assert tmp["192.168.1.20"]["lan-rx"] == 500
+
+
+# ---------------------------------------------------------------------------
+# _hostname_from_dns / _hostname_from_dhcp tests
+# ---------------------------------------------------------------------------
+
+
+def test_hostname_from_dns_returns_comment():
+    """DNS comment takes priority for hostname."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dns"] = {
+        "e1": {"address": "10.0.0.1", "comment": "MyPC#tag", "name": "mypc.local"}
+    }
+    assert coordinator._hostname_from_dns("mac1", "10.0.0.1") == "MyPC"
+
+
+def test_hostname_from_dns_falls_back_to_name():
+    """DNS name (before first dot) used when comment is empty and no DHCP comment."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dns"] = {
+        "e1": {"address": "10.0.0.1", "comment": "", "name": "server.lan"}
+    }
+    coordinator.ds["dhcp"] = {}
+    assert coordinator._hostname_from_dns("mac1", "10.0.0.1") == "server"
+
+
+def test_hostname_from_dns_no_match():
+    """Returns None when no DNS entry matches the address."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dns"] = {
+        "e1": {"address": "10.0.0.99", "comment": "Other", "name": "other.lan"}
+    }
+    assert coordinator._hostname_from_dns("mac1", "10.0.0.1") is None
+
+
+def test_hostname_from_dhcp_returns_comment():
+    """DHCP comment used when available."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {
+        "mac1": {"enabled": True, "comment": "Laptop#x", "host-name": "other"}
+    }
+    assert coordinator._hostname_from_dhcp("mac1") == "Laptop"
+
+
+def test_hostname_from_dhcp_returns_hostname():
+    """DHCP host-name used when comment is empty."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {
+        "mac1": {"enabled": True, "comment": "", "host-name": "dhcp-name"}
+    }
+    assert coordinator._hostname_from_dhcp("mac1") == "dhcp-name"
+
+
+def test_hostname_from_dhcp_falls_back_to_uid():
+    """MAC address returned when no DHCP data available."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["dhcp"] = {}
+    assert coordinator._hostname_from_dhcp("AA:BB:CC:DD:EE:FF") == "AA:BB:CC:DD:EE:FF"
+
+
+# ---------------------------------------------------------------------------
+# _add_traffic_bytes tests
+# ---------------------------------------------------------------------------
+
+
+def test_add_traffic_bytes_lan():
+    """LAN traffic increments both lan-tx and lan-rx."""
+    tmp = {
+        "10.0.0.1": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0},
+        "10.0.0.2": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0},
+    }
+    MikrotikCoordinator._add_traffic_bytes(
+        tmp, "10.0.0.1", "10.0.0.2", 100, src_local=True, dst_local=True
+    )
+    assert tmp["10.0.0.1"]["lan-tx"] == 100
+    assert tmp["10.0.0.2"]["lan-rx"] == 100
+
+
+def test_add_traffic_bytes_wan_tx():
+    """WAN TX when source is local and destination is external."""
+    tmp = {"10.0.0.1": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0}}
+    MikrotikCoordinator._add_traffic_bytes(
+        tmp, "10.0.0.1", "8.8.8.8", 200, src_local=True, dst_local=False
+    )
+    assert tmp["10.0.0.1"]["wan-tx"] == 200
+
+
+def test_add_traffic_bytes_wan_rx():
+    """WAN RX when source is external and destination is local."""
+    tmp = {"10.0.0.1": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0}}
+    MikrotikCoordinator._add_traffic_bytes(
+        tmp, "8.8.8.8", "10.0.0.1", 300, src_local=False, dst_local=True
+    )
+    assert tmp["10.0.0.1"]["wan-rx"] == 300
+
+
+def test_add_traffic_bytes_external_to_external():
+    """External-to-external traffic is ignored."""
+    tmp = {"10.0.0.1": {"wan-tx": 0, "wan-rx": 0, "lan-tx": 0, "lan-rx": 0}}
+    MikrotikCoordinator._add_traffic_bytes(
+        tmp, "8.8.8.8", "1.1.1.1", 400, src_local=False, dst_local=False
+    )
+    assert tmp["10.0.0.1"]["wan-tx"] == 0
+    assert tmp["10.0.0.1"]["wan-rx"] == 0
