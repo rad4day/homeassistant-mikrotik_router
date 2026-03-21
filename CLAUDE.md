@@ -21,11 +21,16 @@
 - New code coverage ≥80%
 - Zero ruff errors
 
+## Testing
+
+- Tests require Docker on Windows — `homeassistant` won't pip install natively
+- Refactoring pattern: ADR-007 (see `docs/decisions/`)
+
 ## Standards & References
 
 - [HA Coding Standards](docs/ha-coding-standards.md) — async rules, entity patterns, datetime, type hints
 - [Quality Gates](docs/quality-gates.md) — CI, SonarCloud targets, pre-commit, pre-PR checklist
-- [Architecture Notes](docs/architecture.md) — coordinator design, API client, known caveats
+- [Architecture Notes](docs/architecture.md) — coordinator design, API client, helper structure
 
 ## Pre-PR Checklist (overrides global)
 
