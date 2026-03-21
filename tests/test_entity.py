@@ -1,11 +1,11 @@
-"""Unit tests for Mikrotik Router entity _skip_sensor() and MikrotikInterfaceEntityMixin."""
+"""Unit tests for Mikrotik Router entity _skip_sensor(), MikrotikInterfaceEntityMixin, and MikrotikEntity."""
 
-from unittest.mock import MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from custom_components.mikrotik_router.entity import (
+    copy_attrs,
     _skip_sensor,
+    MikrotikEntity,
     MikrotikInterfaceEntityMixin,
 )
 from custom_components.mikrotik_router.const import (
@@ -14,6 +14,11 @@ from custom_components.mikrotik_router.const import (
     CONF_SENSOR_NETWATCH_TRACKER,
     CONF_TRACK_HOSTS,
     CONF_SENSOR_POE,
+)
+from .conftest import (
+    make_mock_coordinator,
+    make_mock_entity_description,
+    patch_coordinator_entity_init,
 )
 
 # ---------------------------------------------------------------------------
@@ -35,6 +40,296 @@ def make_config_entry(options=None):
     cfg = MagicMock()
     cfg.options = options or {}
     return cfg
+
+
+def _make_entity(coordinator=None, desc_overrides=None, uid=None):
+    """Build a MikrotikEntity with patched CoordinatorEntity.__init__."""
+    coord = coordinator or make_mock_coordinator()
+    desc = make_mock_entity_description(**(desc_overrides or {}))
+    with patch_coordinator_entity_init():
+        entity = MikrotikEntity(coord, desc, uid)
+    return entity
+
+
+# ---------------------------------------------------------------------------
+# MikrotikEntity.__init__ tests
+# ---------------------------------------------------------------------------
+
+
+class TestMikrotikEntityInit:
+    """Tests for MikrotikEntity construction."""
+
+    def test_init_without_uid(self):
+        """Entity without uid uses data_path data directly."""
+        coord = make_mock_coordinator()
+        coord.data["health"] = {"temperature": 45}
+        desc = make_mock_entity_description(
+            data_path="health", data_attribute="temperature", data_reference=""
+        )
+        with patch_coordinator_entity_init():
+            entity = MikrotikEntity(coord, desc)
+        assert entity._inst == "TestRouter"
+        assert entity._uid is None
+        assert entity._data == {"temperature": 45}
+
+    def test_init_with_uid(self):
+        """Entity with uid indexes into nested data."""
+        coord = make_mock_coordinator()
+        coord.data["interface"] = {
+            "ether1": {"name": "ether1", "enabled": True, "type": "ether"}
+        }
+        desc = make_mock_entity_description(
+            data_path="interface", data_reference="name"
+        )
+        with patch_coordinator_entity_init():
+            entity = MikrotikEntity(coord, desc, uid="ether1")
+        assert entity._uid == "ether1"
+        assert entity._data["name"] == "ether1"
+
+
+# ---------------------------------------------------------------------------
+# MikrotikEntity.custom_name tests
+# ---------------------------------------------------------------------------
+
+
+class TestMikrotikEntityCustomName:
+    """Tests for entity custom_name property."""
+
+    def test_custom_name_no_uid_returns_description_name(self):
+        entity = _make_entity(
+            desc_overrides={"name": "Uptime", "data_path": "resource"},
+            coordinator=make_mock_coordinator(
+                data={
+                    "resource": {"uptime": 12345},
+                    "routerboard": {"serial-number": "X"},
+                }
+            ),
+        )
+        assert entity.custom_name == "Uptime"
+
+    def test_custom_name_no_uid_comment_override(self):
+        coord = make_mock_coordinator(
+            data={
+                "resource": {"uptime": 12345, "comment": "My Router Uptime"},
+                "routerboard": {"serial-number": "X"},
+            }
+        )
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "name": "Uptime",
+                "data_path": "resource",
+                "data_name_comment": True,
+            },
+        )
+        assert entity.custom_name == "My Router Uptime"
+
+    def test_custom_name_with_uid_reference_equals_name_shortens(self):
+        """When data_reference == data_name, name is just entity_description.name."""
+        coord = make_mock_coordinator()
+        coord.data["interface"] = {"ether1": {"name": "ether1", "enabled": True}}
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "name": "Port",
+                "data_path": "interface",
+                "data_reference": "name",
+                "data_name": "name",
+            },
+            uid="ether1",
+        )
+        assert entity.custom_name == "Port"
+
+    def test_custom_name_with_uid_different_reference_and_name(self):
+        """When data_reference != data_name, includes data_name in output."""
+        coord = make_mock_coordinator()
+        coord.data["interface"] = {
+            "ether1": {
+                "name": "ether1",
+                "default-name": "ether1",
+                "mac": "AA:BB:CC:DD:EE:FF",
+            }
+        }
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "name": "TX",
+                "data_path": "interface",
+                "data_reference": "mac",
+                "data_name": "name",
+            },
+            uid="ether1",
+        )
+        assert entity.custom_name == "ether1 TX"
+
+    def test_custom_name_with_uid_no_description_name(self):
+        """When entity_description.name is empty, returns just data_name."""
+        coord = make_mock_coordinator()
+        coord.data["interface"] = {"ether1": {"name": "ether1"}}
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "name": "",
+                "data_path": "interface",
+                "data_name": "name",
+            },
+            uid="ether1",
+        )
+        assert entity.custom_name == "ether1"
+
+
+# ---------------------------------------------------------------------------
+# MikrotikEntity.unique_id tests
+# ---------------------------------------------------------------------------
+
+
+class TestMikrotikEntityUniqueId:
+    def test_unique_id_without_uid(self):
+        entity = _make_entity(
+            desc_overrides={"key": "system_uptime", "data_path": "resource"},
+            coordinator=make_mock_coordinator(
+                data={"resource": {"uptime": 1}, "routerboard": {"serial-number": "X"}}
+            ),
+        )
+        assert entity.unique_id == "testrouter-system_uptime"
+
+    def test_unique_id_with_uid(self):
+        coord = make_mock_coordinator()
+        coord.data["interface"] = {"ether1": {"name": "ether1", "mac": "AA:BB"}}
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "key": "port_status",
+                "data_path": "interface",
+                "data_reference": "name",
+            },
+            uid="ether1",
+        )
+        assert entity.unique_id == "testrouter-port_status-ether1"
+
+
+# ---------------------------------------------------------------------------
+# MikrotikEntity.device_info tests
+# ---------------------------------------------------------------------------
+
+
+class TestMikrotikEntityDeviceInfo:
+    def test_device_info_system_group(self):
+        coord = make_mock_coordinator()
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "ha_group": "System",
+                "data_path": "resource",
+                "data_reference": "",
+            },
+        )
+        info = entity.device_info
+        assert info["model"] == "hAP ax3"
+        assert info["manufacturer"] == "MikroTik"
+
+    def test_device_info_mac_address_group(self):
+        coord = make_mock_coordinator()
+        coord.data["interface"] = {
+            "ether1": {"name": "ether1", "mac-address": "AA:BB:CC:DD:EE:FF"}
+        }
+        coord.data["host"] = {
+            "AA:BB:CC:DD:EE:FF": {"host-name": "MyPC", "manufacturer": "Intel"}
+        }
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "ha_group": "Interface",
+                "data_path": "interface",
+                "data_reference": "mac-address",
+                "data_name": "name",
+                "ha_connection": None,
+                "ha_connection_value": "data__mac-address",
+            },
+            uid="ether1",
+        )
+        info = entity.device_info
+        assert info["name"] == "MyPC"
+        assert info["manufacturer"] == "Intel"
+
+    def test_device_info_generic_group(self):
+        coord = make_mock_coordinator()
+        coord.data["nat"] = {"rule1": {"name": "NAT Rule 1", "chain": "srcnat"}}
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "ha_group": "NAT",
+                "data_path": "nat",
+                "data_reference": "name",
+                "data_name": "name",
+                "ha_connection": None,
+                "ha_connection_value": None,
+            },
+            uid="rule1",
+        )
+        info = entity.device_info
+        assert "via_device" in info
+
+
+# ---------------------------------------------------------------------------
+# MikrotikEntity.extra_state_attributes tests
+# ---------------------------------------------------------------------------
+
+
+class TestMikrotikEntityExtraStateAttributes:
+    def test_copies_data_attributes_list(self):
+        coord = make_mock_coordinator()
+        coord.data["interface"] = {
+            "ether1": {"name": "ether1", "rate": "1Gbps", "status": "up"}
+        }
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={
+                "data_path": "interface",
+                "data_attributes_list": ["rate", "status"],
+            },
+            uid="ether1",
+        )
+        attrs = entity.extra_state_attributes
+        assert attrs["rate"] == "1Gbps"
+        assert attrs["status"] == "up"
+
+
+# ---------------------------------------------------------------------------
+# MikrotikEntity._handle_coordinator_update tests
+# ---------------------------------------------------------------------------
+
+
+class TestMikrotikEntityCoordinatorUpdate:
+    def test_handle_update_refreshes_data_with_uid(self):
+        coord = make_mock_coordinator()
+        coord.data["interface"] = {"ether1": {"name": "ether1", "enabled": True}}
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={"data_path": "interface", "data_reference": "name"},
+            uid="ether1",
+        )
+        # Simulate coordinator data change
+        coord.data["interface"]["ether1"]["enabled"] = False
+        with patch.object(
+            type(entity).__mro__[2], "_handle_coordinator_update", return_value=None
+        ):
+            entity._handle_coordinator_update()
+        assert entity._data["enabled"] is False
+
+    def test_handle_update_refreshes_data_without_uid(self):
+        coord = make_mock_coordinator()
+        coord.data["resource"] = {"uptime": 100}
+        entity = _make_entity(
+            coordinator=coord,
+            desc_overrides={"data_path": "resource"},
+        )
+        coord.data["resource"]["uptime"] = 200
+        with patch.object(
+            type(entity).__mro__[2], "_handle_coordinator_update", return_value=None
+        ):
+            entity._handle_coordinator_update()
+        assert entity._data["uptime"] == 200
 
 
 # ---------------------------------------------------------------------------
@@ -339,3 +634,80 @@ def test_mixin_preserves_base_attributes():
     entity = _ConcreteEntity({"type": "ether", "status": "link-ok"})
     attrs = entity.extra_state_attributes
     assert attrs["attribution"] == "Mikrotik"
+
+
+# ---------------------------------------------------------------------------
+# copy_attrs tests
+# ---------------------------------------------------------------------------
+
+
+def testcopy_attrs_copies_existing_keys():
+    """Copies matching variables from data to attributes."""
+    attributes = {}
+    data = {"status": "up", "rate": "1Gbps", "unused": "value"}
+    copy_attrs(attributes, data, ["status", "rate"])
+    assert "status" in attributes
+    assert "rate" in attributes
+    assert "unused" not in attributes
+
+
+def testcopy_attrs_skips_missing_keys():
+    """Missing keys in data are skipped without error."""
+    attributes = {}
+    data = {"status": "up"}
+    copy_attrs(attributes, data, ["status", "missing-key"])
+    assert "status" in attributes
+    assert len(attributes) == 1
+
+
+def testcopy_attrs_empty_variables_list():
+    """Empty variables list copies nothing."""
+    attributes = {}
+    data = {"status": "up"}
+    copy_attrs(attributes, data, [])
+    assert len(attributes) == 0
+
+
+# ---------------------------------------------------------------------------
+# Client traffic skip tests
+# ---------------------------------------------------------------------------
+
+
+def test_no_skip_client_traffic_when_attribute_present():
+    """Client traffic sensor allowed when attribute exists in data entry."""
+    desc = make_entity_desc(data_path="client_traffic", data_attribute="wan-tx")
+    data = {"aa:bb:cc:dd:ee:ff": {"wan-tx": 100}}
+    cfg = make_config_entry()
+    assert _skip_sensor(cfg, desc, data, "aa:bb:cc:dd:ee:ff") is False
+
+
+# ---------------------------------------------------------------------------
+# Host tracker allowed test
+# ---------------------------------------------------------------------------
+
+
+def test_no_skip_host_tracker_when_enabled():
+    """Host device tracker allowed when CONF_TRACK_HOSTS is True."""
+    desc = make_entity_desc(
+        func="MikrotikHostDeviceTracker",
+        data_attribute="available",
+    )
+    data = {"aa:bb:cc:dd:ee:ff": {"available": True}}
+    cfg = make_config_entry({CONF_TRACK_HOSTS: True})
+    assert _skip_sensor(cfg, desc, data, "aa:bb:cc:dd:ee:ff") is False
+
+
+# ---------------------------------------------------------------------------
+# Netwatch allowed test
+# ---------------------------------------------------------------------------
+
+
+def test_no_skip_netwatch_when_enabled():
+    """Netwatch sensor allowed when CONF_SENSOR_NETWATCH_TRACKER is True."""
+    desc = make_entity_desc(
+        data_path="netwatch",
+        data_attribute="status",
+    )
+    data = {"8.8.8.8": {"status": "up"}}
+    cfg = make_config_entry({CONF_SENSOR_NETWATCH_TRACKER: True})
+    assert _skip_sensor(cfg, desc, data, "8.8.8.8") is False

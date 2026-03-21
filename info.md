@@ -4,16 +4,30 @@ Monitor and control your MikroTik router from Home Assistant.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-### What's new in v2.3.6
+### What's new in v2.3.9-beta.1
+- **Firewall RAW switches** — enable/disable individual RAW rules ([upstream #310](https://github.com/tomaae/homeassistant-mikrotik_router/issues/310))
+- **Container monitoring** — monitor and start/stop MikroTik containers, RouterOS 7.4+ ([upstream #334](https://github.com/tomaae/homeassistant-mikrotik_router/issues/334))
+- **DHCP client sensors** — WAN IP, gateway, DNS, lease expiry per interface ([upstream #321](https://github.com/tomaae/homeassistant-mikrotik_router/issues/321))
+- **Script env refresh** — environment variables update immediately after script execution ([upstream #298](https://github.com/tomaae/homeassistant-mikrotik_router/issues/298))
+
+### v2.3.8
+- **Device tracking fix** — disabled duplicate entity registration that caused thousands of "does not generate unique IDs" log errors every 30s
+- **ARP filtering** — failed ARP entries no longer cause false "home" status ([#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17))
+
+### v2.3.7
+- **ARP failed-status filtering** moved to `async_process_host()` for correct bridge-interface lookups
+
+### v2.3.6
 - **Options flow crash fixed** — config panel now works on HA 2025.12+ ([upstream #470](https://github.com/tomaae/homeassistant-mikrotik_router/issues/470), [#471](https://github.com/tomaae/homeassistant-mikrotik_router/issues/471))
 - **Deadlock fix** — `run_script()` lock leak permanently freezing the integration is resolved
 - **Blocking I/O eliminated** — switch toggles, button presses, and firmware updates no longer freeze the HA UI
-- **Device tracking fixes** — failed ARP entries no longer cause false "home" status; new devices now appear without requiring HA restart ([#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17))
 - **Deprecated API cleanup** — updated `DeviceInfo` params and added missing PoE translation
 
 ### Features
  * Interfaces: enable/disable, SFP info, PoE-Out control & power monitoring, RX/TX traffic, device presence
- * NAT / Mangle / Filter / Simple Queue rule switches
+ * NAT / Mangle / Filter / RAW / Simple Queue rule switches
+ * Container monitoring and control (RouterOS 7.4+)
+ * DHCP client sensors (WAN IP, gateway, DNS, lease expiry)
  * PPP user monitoring and control
  * Kid Control
  * Client traffic monitoring (Accounting on v6, Kid Control Devices on v7+)

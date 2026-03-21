@@ -15,7 +15,21 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.8
+## What's New — v2.3.9-beta.1
+
+Four upstream feature requests implemented — available as a beta for testing before stable release.
+
+| Feature | Detail | Upstream |
+|---------|--------|----------|
+| **Firewall RAW switches** | Enable/disable individual `/ip/firewall/raw` rules. Opt-in via integration options. | [#310](https://github.com/tomaae/homeassistant-mikrotik_router/issues/310) |
+| **Container monitoring** | Monitor status and start/stop MikroTik containers (RouterOS 7.4+). Requires container package. Opt-in via integration options. | [#334](https://github.com/tomaae/homeassistant-mikrotik_router/issues/334) |
+| **DHCP client sensors** | WAN IP, gateway, DNS server, DHCP server, lease expiry per DHCP client interface. Always-on. | [#321](https://github.com/tomaae/homeassistant-mikrotik_router/issues/321) |
+| **Script env refresh** | Coordinator refreshes immediately after script button press — environment variables update without waiting for next poll. | [#298](https://github.com/tomaae/homeassistant-mikrotik_router/issues/298) |
+
+Also includes: cognitive complexity reduction (ADR-007), 461 automated tests, ruff migration, and CI/CD improvements from v2.3.8 dev work.
+
+<details>
+<summary>Previous: v2.3.8 — Bug fixes</summary>
 
 The v2.3.6–v2.3.8 releases fix critical bugs and align with HA best practices. **Install v2.3.8** — it includes all fixes from v2.3.6 and v2.3.7 plus a patch for log spam introduced in v2.3.6.
 
@@ -50,6 +64,8 @@ The v2.3.6–v2.3.8 releases fix critical bugs and align with HA best practices.
 | **Crash on empty accounting query** | No longer crashes when `/ip/accounting` returns no data |
 | **Firmware version parse** | Handles RouterOS versions without a minor segment |
 | **Host manufacturer lookup** | Exception during MAC OUI lookup no longer propagates |
+
+</details>
 
 </details>
 
@@ -118,6 +134,9 @@ Your existing configuration and entities are preserved — no reconfiguration ne
 - **NAT rules** — enable/disable individual rules
 - **Mangle rules** — enable/disable individual rules
 - **Filter rules** — enable/disable individual rules
+- **Firewall RAW rules** *(new)* — enable/disable individual RAW rules
+- **Containers** *(new)* — monitor status and start/stop MikroTik containers
+- **DHCP client** *(new)* — WAN IP, gateway, DNS server, lease expiry per DHCP client interface
 - **Simple Queues** — control bandwidth queues
 - **PPP users** — monitor and control PPP connections
 - **Host tracking** — presence detection for all LAN, wireless and CAPsMAN devices
@@ -126,7 +145,7 @@ Your existing configuration and entities are preserved — no reconfiguration ne
 - **System sensors** — CPU, memory, HDD, temperature (Celsius/Fahrenheit)
 - **System health** — PoE-in voltage/current on supported hardware, UPS, environment sensors
 - **Firmware updates** — check and update RouterOS and RouterBOARD firmware from HA
-- **Scripts** — execute RouterOS scripts from HA
+- **Scripts** — execute RouterOS scripts from HA (now refreshes environment variables immediately)
 - **GPS** — monitor GPS coordinates
 - **Kid Control** — monitor and control internet schedules
 - **Multiple devices** — monitor several MikroTik devices simultaneously
@@ -209,6 +228,36 @@ More information about Mangle rules can be found on [Mikrotik support page](http
 
 ![Mangle switch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/mangle_switch.png)
 
+## Firewall RAW Rules *(new)*
+Enable/disable individual firewall RAW rules — the same control you have for NAT, Mangle and Filter, now extended to `/ip/firewall/raw`. Dynamic and jump rules are automatically excluded. Each rule exposes chain, action, protocol, src/dst addresses and ports as attributes.
+
+Enable **Firewall RAW switches** in the integration options.
+
+More information about RAW rules can be found on the [MikroTik support page](https://help.mikrotik.com/docs/display/ROS/RAW).
+
+> Implements [upstream feature request #310](https://github.com/tomaae/homeassistant-mikrotik_router/issues/310).
+
+## Containers *(new)*
+Monitor and control MikroTik containers (RouterOS 7.4+). Each container appears as:
+- **Status sensor** — shows `running`, `stopped`, or `error` with attributes (image tag, OS, arch, interface, root-dir, mounts, DNS, cmd, entrypoint)
+- **Start/stop switch** — toggle containers on and off, usable in automations
+
+The container package must be installed and enabled on your router. Enable **Container sensors and switches** in the integration options.
+
+More information about containers can be found on the [MikroTik support page](https://help.mikrotik.com/docs/display/ROS/Container).
+
+> Implements [upstream feature request #334](https://github.com/tomaae/homeassistant-mikrotik_router/issues/334).
+
+## DHCP Client *(new)*
+Monitor DHCP client status on each interface (typically WAN). Two sensors per DHCP client interface:
+- **DHCP status** — `bound`, `searching`, `stopped`, etc.
+- **DHCP address** — the current IP address assigned by the ISP/upstream
+
+Each sensor exposes gateway, DNS server, DHCP server address, lease expiry (`expires-after`), and comment as attributes. Useful for WAN IP change detection, multi-WAN failover awareness, and ISP DNS drift monitoring.
+
+DHCP client sensors appear automatically for each interface that has a DHCP client configured — no opt-in required.
+
+> Implements [upstream feature request #321](https://github.com/tomaae/homeassistant-mikrotik_router/issues/321).
 
 ## Simple Queue
 Control simple queues.
@@ -237,7 +286,11 @@ Track netwatch probe status.
 ![Netwatch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/netwatch_tracker.png)
 
 ## Scripts
-Execute MikroTik Router scripts from Home Assistant via automatically created switches or services.
+Execute MikroTik Router scripts from Home Assistant via automatically created buttons.
+
+After a script executes, all sensor data (including environment variables) is refreshed immediately — no need to wait for the next polling cycle. This makes script → read-environment-variable automations reliable.
+
+> Environment variable refresh implements [upstream feature request #298](https://github.com/tomaae/homeassistant-mikrotik_router/issues/298).
 
 ![Script Switch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/script_switch.png)
 

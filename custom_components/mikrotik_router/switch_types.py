@@ -129,6 +129,29 @@ DEVICE_ATTRIBUTES_PPP_SECRET = [
     "encoding",
 ]
 
+DEVICE_ATTRIBUTES_CONTAINER = [
+    "tag",
+    "os",
+    "arch",
+    "interface",
+    "root-dir",
+    "status",
+    "comment",
+]
+
+DEVICE_ATTRIBUTES_RAW = [
+    "chain",
+    "action",
+    "protocol",
+    "in-interface",
+    "src-address",
+    "src-port",
+    "out-interface",
+    "dst-address",
+    "dst-port",
+    "comment",
+]
+
 DEVICE_ATTRIBUTES_KIDCONTROL = [
     "blocked",
     "rate-limit",
@@ -257,6 +280,24 @@ SENSOR_TYPES: tuple[MikrotikSwitchEntityDescription, ...] = (
         func="MikrotikFilterSwitch",
     ),
     MikrotikSwitchEntityDescription(
+        key="raw",
+        name="",
+        icon_enabled="mdi:fire",
+        icon_disabled="mdi:fire-off",
+        entity_category=None,
+        ha_group="RAW",
+        ha_connection=DOMAIN,
+        ha_connection_value="RAW",
+        data_path="raw",
+        data_switch_path="/ip/firewall/raw",
+        data_name="name",
+        data_name_comment=True,
+        data_uid="uniq-id",
+        data_reference="uniq-id",
+        data_attributes_list=DEVICE_ATTRIBUTES_RAW,
+        func="MikrotikRawSwitch",
+    ),
+    MikrotikSwitchEntityDescription(
         key="ppp_secret",
         name="PPP Secret",
         icon_enabled="mdi:account-outline",
@@ -322,6 +363,26 @@ SENSOR_TYPES: tuple[MikrotikSwitchEntityDescription, ...] = (
         data_reference="name",
         data_attributes_list=DEVICE_ATTRIBUTES_KIDCONTROL,
         func="MikrotikKidcontrolPauseSwitch",
+    ),
+    MikrotikSwitchEntityDescription(
+        key="container",
+        name="",
+        icon_enabled="mdi:docker",
+        icon_disabled="mdi:checkbox-blank-circle-outline",
+        entity_category=None,
+        ha_group="Container",
+        ha_connection=DOMAIN,
+        ha_connection_value="Container",
+        data_path="container",
+        data_attribute="running",
+        data_switch_path="/container",
+        data_switch_parameter=".id",
+        data_name="name",
+        data_name_comment=True,
+        data_uid=".id",
+        data_reference=".id",
+        data_attributes_list=DEVICE_ATTRIBUTES_CONTAINER,
+        func="MikrotikContainerSwitch",
     ),
 )
 

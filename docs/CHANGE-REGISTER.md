@@ -4,12 +4,210 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260322-port-upstream-frs — Port upstream feature requests (#310, #321, #334, #298)
+
+**Date:** 2026-03-22
+**Branch:** `feature/port-upstream-frs`
+**PR:** (targeting dev)
+**Status:** In Review
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | New `get_raw()` method for `/ip/firewall/raw` with dedup logic; new `get_container()` method for `/container` with running status derivation; enriched `get_dhcp_client()` with gateway, dns-server, dhcp-server, expires-after, comment; new option properties and capability detection |
+| `switch.py` | New `MikrotikRawSwitch` class (enable/disable via set_value); new `MikrotikContainerSwitch` class (start/stop via execute) |
+| `switch_types.py` | `DEVICE_ATTRIBUTES_RAW`, `DEVICE_ATTRIBUTES_CONTAINER`, 2 new switch entity descriptions |
+| `sensor_types.py` | `DEVICE_ATTRIBUTES_DHCP_CLIENT`, 2 new sensor entity descriptions (dhcp_client_status, dhcp_client_address) |
+| `button.py` | `async_refresh()` after script execution for environment variable updates |
+| `const.py` | New config constants: `CONF_SENSOR_RAW`, `CONF_SENSOR_CONTAINER` |
+| `config_flow.py` | New option toggles for RAW and Container in sensor_select step |
+| `strings.json` / `en.json` | Translations for new options |
+| `tests/` | 20 new tests (coordinator, switch, button, sensor) — 461 total |
+| `docs/decisions/` | ADR-008: Upstream Feature Port |
+
+### Why
+
+Four upstream feature requests implemented to keep the fork current while upstream is quiet:
+- tomaae#334: Container monitoring and control (RouterOS 7.4+)
+- tomaae#310: Firewall RAW rule enable/disable switches
+- tomaae#321: DHCP client sensors for WAN monitoring
+- tomaae#298: Environment refresh after script execution
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | pending | ⏳ |
+| Ruff format | pending | ⏳ |
+| Tests | 461 passed, 5 skipped | ✅ |
+
+---
+
+## CR-260321-phase4-integration-tests — Entity-level integration tests for all platform types
+
+**Date:** 2026-03-21
+**Branch:** `feature/phase4-integration-tests`
+**PR:** #31 (targeting dev)
+**Status:** Merged
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `tests/conftest.py` | Added `make_mock_coordinator()`, `make_mock_entity_description()`, `patch_coordinator_entity_init()` shared helpers |
+| `tests/test_init.py` | New: 4 tests for `async_migrate_entry` (v1→v2, noop, data preservation) and `async_remove_config_entry_device` |
+| `tests/test_entity.py` | Extended: 15 new tests for `MikrotikEntity` class (init, custom_name, unique_id, device_info, extra_state_attributes, `_handle_coordinator_update`) |
+| `tests/test_sensor.py` | New: 7 tests for `MikrotikSensor` (native_value, native_unit_of_measurement, ClientTrafficSensor.custom_name) |
+| `tests/test_binary_sensor.py` | New: 10 tests for binary sensor is_on, icon branches, PPP disabled guard, PortBinarySensor 3-state icon |
+| `tests/test_switch.py` | New: 19 tests for 5 switch classes — turn_on/off, write access guard, CAPsMAN guard, PoE side-effects, NAT/Queue UID lookup, Kidcontrol resume/pause |
+| `tests/test_button.py` | New: 3 tests for Button no-op, ScriptButton run_script, ApiEntryNotFound handling |
+| `tests/test_device_tracker.py` | New: 12 tests for is_connected (tracking disabled, wireless, capsman, ARP timeout), state, extra_state_attributes |
+| `tests/test_update.py` | Extended: 8 new tests for RouterOS/RouterBOARD install (with/without backup), version properties |
+| `docs/ISSUES.md` | Updated ISS-260320-test-coverage with Phase 4 completion |
+
+### Why
+
+ISS-260320-test-coverage Phase 4: entity-level tests cover all 6 platform entity types and the MikrotikEntity base class. Previous phases covered helpers and coordinator data methods but the actual entity behaviour (properties, actions, state) was untested. 80 new tests bring total to 441.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 441 passed, 5 skipped | ✅ |
+
+---
+
+## CR-260321-complexity-reduction — Cognitive complexity reduction across coordinator, entity, apiparser
+
+**Date:** 2026-03-21
+**Branch:** `feature/complexity-reduction`
+**PR:** #30 (targeting dev)
+**Status:** Merged
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | Extracted 11 helpers from `async_process_host()` (136→~10 each): `_merge_capsman_hosts`, `_merge_wireless_hosts`, `_merge_dhcp_hosts`, `_merge_arp_hosts`, `_recover_hass_hosts`, `_ensure_host_defaults`, `_update_host_availability`, `_update_host_address`, `_resolve_hostname`, `_dhcp_comment_for_host`, `_update_captive_portal` |
+| `coordinator.py` | Extracted `_async_update_hwinfo` and `_async_run_if_connected` from `_async_update_data()` (65→~15), plus optional sensor loop tables |
+| `coordinator.py` | Extracted `_init_accounting_hosts`, `_classify_accounting_traffic`, `_check_accounting_threshold`, `_apply_accounting_throughput` from `process_accounting()` (48→~10 each) |
+| `coordinator.py` | Extracted `_monitor_ethernet_port` with SFP/copper/PoE monitor val constants from `get_interface()` (27→~10) |
+| `entity.py` | Split `_skip_sensor()` into `_skip_interface_traffic`, `_skip_binary_sensor`, `_skip_device_tracker`, `_skip_poe_sensor` (23→~5 each) |
+| `switch.py` | Replaced inline attribute loops with shared `copy_attrs` from entity.py (21→~5) |
+| `apiparser.py` | Extracted `_traverse_entry` helper with `_NOT_FOUND` sentinel, case-insensitive bool matching via frozensets (18→~8) |
+| `coordinator.py` | Further extracted `_hostname_from_dns`, `_hostname_from_dhcp`, `_add_traffic_bytes` to bring two remaining functions under threshold |
+| `coordinator.py` | Silent-failure fixes: username guard in `get_access`, debug logging on MAC lookup, ValueError guard on `_address_part_of_local_network` |
+| `coordinator.py` | Restored independent `connected()` check between `get_wireless`/`get_wireless_hosts`; guarded `_apply_accounting_throughput` against zero `time_diff` |
+| `tests/` | 58 new tests covering all extracted helpers (361 total, up from 303) |
+| `docs/decisions/` | ADR-007: Cognitive Complexity Reduction via Helper Extraction |
+| `docs/ISSUES.md` | Added ISS-260321-silent-failures tracking remaining audit findings |
+
+### Why
+
+ISS-260321-cognitive-complexity: SonarCloud quality target is ≤15 cognitive complexity per function. Seven of the worst offenders (totalling 358 complexity points) are now refactored into focused helpers, each well under the threshold. Silent-failure audit (pr-review-toolkit) identified 12 issues; 3 critical/high fixed, 8 pre-existing tracked.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 361 passed, 5 skipped | ✅ |
+
+---
+
+## CR-260320-tests-and-refactor — Test suite, devcontainer, CI/CD alignment, ruff migration
+
+**Date:** 2026-03-20
+**Branch:** `feature/tests-and-refactor`
+**PR:** [#29](https://github.com/jnctech/homeassistant-mikrotik_router/pull/29)
+**Status:** In Review (targeting dev)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `tests/` | 151+ tests across 7 files: apiparser (52), mikrotikapi (30), helper (13), coordinator (80), entity (30), update (8) |
+| `.devcontainer/` | Python 3.13 devcontainer with pytest-homeassistant-custom-component, Ruff, Pylance |
+| `.github/workflows/` | CI/CD aligned to gold standard: SHA-pinned actions, Ruff replaces Black+flake8, gitleaks, pip-audit, actionlint, dependency-review, scorecard added |
+| `.github/dependabot.yml` | Dependabot configured for GitHub Actions and pip |
+| `requirements_dev.txt` | New: all dev/test dependencies |
+| `requirements_tests.txt` | Modernised from 2019-era pinned versions to match CI |
+| `apiparser.py` | `type() == dict` → `isinstance(source, dict)` (E721) |
+| `*.py` (14 files) | Ruff: remove 43 unused imports (F401), reformat 4 files |
+| `docs/quality-gates.md` | Black/flake8 → Ruff references, local dev setup instructions |
+| `docs/ISSUES.md` | Test coverage plan, refactor backlog, status updates |
+
+### Why
+
+1. Test coverage was ~11% — well below the 80% SonarCloud target
+2. No local dev environment — tests could only run in CI
+3. CI was using unpinned actions and legacy linters (Black+flake8)
+4. Ruff migration tracked as ISS-260320-ruff-migration — now completed
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 151+ (CI pending) | ⏳ |
+
+### Post-Deploy Actions
+
+- [ ] Open in devcontainer and verify `pytest tests/ -v` passes
+- [ ] Confirm CI passes on dev branch
+- [ ] Measure coverage and compare against 80% target
+
+---
+
+## CR-260320-dispatcher-spam — Disable update_sensors dispatcher to fix log spam
+
+**Date:** 2026-03-20
+**Branch:** `fix/disable-dispatcher-spam-v2`
+**PR:** [#26](https://github.com/jnctech/homeassistant-mikrotik_router/pull/26)
+**Status:** Merged (v2.3.8)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | Disable `async_dispatcher_send("update_sensors")` that caused "does not generate unique IDs" log errors every 30s |
+
+### Why
+
+The dispatcher re-enabled in v2.3.6 for new device discovery caused thousands of log errors because `_check_entity_exists()` doesn't guard against re-adding existing entities. Proper fix tracked as ISS-260320-new-device-discovery.
+
+---
+
+## CR-260320-arp-failed-filter — ARP failed-status filtering for device tracking
+
+**Date:** 2026-03-20
+**Branch:** `fix/arp-failed-filter-v2`
+**PR:** [#23](https://github.com/jnctech/homeassistant-mikrotik_router/pull/23)
+**Status:** Merged (v2.3.7)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | Move ARP failed-status filtering from `get_arp()` to `async_process_host()` |
+
+### Why
+
+ARP entries with `status: failed` were causing devices to show as home when they were unreachable. Failed entries are now excluded from `arp_detected` but kept in `ds["arp"]` for bridge-interface lookups. Fixes [#17](https://github.com/jnctech/homeassistant-mikrotik_router/issues/17).
+
+---
+
 ## CR-260320-ha-compliance-blocking-io — HA compliance: deadlocks, blocking I/O, options flow crash
 
 **Date:** 2026-03-20
 **Branch:** `fix/ha-compliance-blocking-io-deadlocks`
 **PR:** [#19](https://github.com/jnctech/homeassistant-mikrotik_router/pull/19)
-**Status:** In Review
+**Status:** Merged (v2.3.6)
 
 ### What Changed
 
@@ -36,20 +234,9 @@ Multiple HA best-practice violations discovered during HACS compliance audit:
 3. Critical deadlock bug in `run_script()` that permanently freezes the integration
 4. Deprecated APIs that will be removed in future HA releases
 
-### Quality Gate Results
-
-| Metric | Value | Gate |
-|--------|-------|------|
-| Tests | 59 passed, 5 skipped | ✅ |
-| Black format | Clean | ✅ |
-| Bandit | Clean | ✅ |
-| hassfest | Pass | ✅ |
-| HACS validation | Pass | ✅ |
-| SonarCloud | Token expired (infra issue) | ⚠️ |
-
 ### Post-Deploy Actions
 
-- [ ] Validate options flow opens without error on HA
-- [ ] Toggle a switch and verify no UI freeze
-- [ ] Run a script button and verify no deadlock
+- [x] Validate options flow opens without error on HA
+- [x] Toggle a switch and verify no UI freeze
+- [x] Run a script button and verify no deadlock
 - [ ] Comment on upstream issues #470, #471

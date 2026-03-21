@@ -10,10 +10,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import MikrotikEntity, async_add_entities
-from .button_types import (
-    SENSOR_TYPES,
-    SENSOR_SERVICES,
-)
 from .exceptions import ApiEntryNotFound
 
 _LOGGER = getLogger(__name__)
@@ -62,3 +58,4 @@ class MikrotikScriptButton(MikrotikButton):
             )
         except ApiEntryNotFound as error:
             _LOGGER.error("Failed to run script: %s", error)
+        await self.coordinator.async_refresh()

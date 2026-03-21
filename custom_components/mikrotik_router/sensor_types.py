@@ -26,9 +26,6 @@ from homeassistant.const import (
 from .const import DOMAIN
 from .iface_attributes import (
     DEVICE_ATTRIBUTES_IFACE,
-    DEVICE_ATTRIBUTES_IFACE_ETHER,
-    DEVICE_ATTRIBUTES_IFACE_SFP,
-    DEVICE_ATTRIBUTES_IFACE_WIRELESS,
 )
 
 DEVICE_ATTRIBUTES_IFACE_POE = [
@@ -46,6 +43,15 @@ DEVICE_ATTRIBUTES_CLIENT_TRAFFIC = [
     "host-name",
     "authorized",
     "bypassed",
+]
+DEVICE_ATTRIBUTES_DHCP_CLIENT = [
+    "interface",
+    "address",
+    "gateway",
+    "dns-server",
+    "dhcp-server",
+    "expires-after",
+    "comment",
 ]
 DEVICE_ATTRIBUTES_GPS = [
     "valid",
@@ -819,6 +825,38 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
         data_name="name",
         data_uid="name",
         data_reference="name",
+    ),
+    MikrotikSensorEntityDescription(
+        key="dhcp_client_status",
+        name="DHCP status",
+        icon="mdi:ip-network",
+        native_unit_of_measurement=None,
+        device_class=None,
+        state_class=None,
+        entity_category=None,
+        ha_group="System",
+        data_path="dhcp-client",
+        data_attribute="status",
+        data_name="interface",
+        data_uid="interface",
+        data_reference="interface",
+        data_attributes_list=DEVICE_ATTRIBUTES_DHCP_CLIENT,
+    ),
+    MikrotikSensorEntityDescription(
+        key="dhcp_client_address",
+        name="DHCP address",
+        icon="mdi:ip",
+        native_unit_of_measurement=None,
+        device_class=None,
+        state_class=None,
+        entity_category=None,
+        ha_group="System",
+        data_path="dhcp-client",
+        data_attribute="address",
+        data_name="interface",
+        data_uid="interface",
+        data_reference="interface",
+        data_attributes_list=DEVICE_ATTRIBUTES_DHCP_CLIENT,
     ),
 )
 
