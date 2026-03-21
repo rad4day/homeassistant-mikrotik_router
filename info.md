@@ -4,7 +4,7 @@ Monitor and control your MikroTik router from Home Assistant.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-### What's new in v2.3.9-beta.1
+### What's new in v2.3.9
 - **Firewall RAW switches** — enable/disable individual RAW rules ([upstream #310](https://github.com/tomaae/homeassistant-mikrotik_router/issues/310))
 - **Container monitoring** — monitor and start/stop MikroTik containers, RouterOS 7.4+ ([upstream #334](https://github.com/tomaae/homeassistant-mikrotik_router/issues/334))
 - **DHCP client sensors** — WAN IP, gateway, DNS, lease expiry per interface ([upstream #321](https://github.com/tomaae/homeassistant-mikrotik_router/issues/321))
