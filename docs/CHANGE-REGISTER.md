@@ -4,6 +4,42 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260321-phase4-integration-tests — Entity-level integration tests for all platform types
+
+**Date:** 2026-03-21
+**Branch:** `feature/phase4-integration-tests`
+**PR:** #31 (targeting dev)
+**Status:** In Review
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `tests/conftest.py` | Added `make_mock_coordinator()`, `make_mock_entity_description()`, `patch_coordinator_entity_init()` shared helpers |
+| `tests/test_init.py` | New: 4 tests for `async_migrate_entry` (v1→v2, noop, data preservation) and `async_remove_config_entry_device` |
+| `tests/test_entity.py` | Extended: 15 new tests for `MikrotikEntity` class (init, custom_name, unique_id, device_info, extra_state_attributes, `_handle_coordinator_update`) |
+| `tests/test_sensor.py` | New: 7 tests for `MikrotikSensor` (native_value, native_unit_of_measurement, ClientTrafficSensor.custom_name) |
+| `tests/test_binary_sensor.py` | New: 10 tests for binary sensor is_on, icon branches, PPP disabled guard, PortBinarySensor 3-state icon |
+| `tests/test_switch.py` | New: 19 tests for 5 switch classes — turn_on/off, write access guard, CAPsMAN guard, PoE side-effects, NAT/Queue UID lookup, Kidcontrol resume/pause |
+| `tests/test_button.py` | New: 3 tests for Button no-op, ScriptButton run_script, ApiEntryNotFound handling |
+| `tests/test_device_tracker.py` | New: 12 tests for is_connected (tracking disabled, wireless, capsman, ARP timeout), state, extra_state_attributes |
+| `tests/test_update.py` | Extended: 8 new tests for RouterOS/RouterBOARD install (with/without backup), version properties |
+| `docs/ISSUES.md` | Updated ISS-260320-test-coverage with Phase 4 completion |
+
+### Why
+
+ISS-260320-test-coverage Phase 4: entity-level tests cover all 6 platform entity types and the MikrotikEntity base class. Previous phases covered helpers and coordinator data methods but the actual entity behaviour (properties, actions, state) was untested. 80 new tests bring total to 441.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 441 passed, 5 skipped | ✅ |
+
+---
+
 ## CR-260321-complexity-reduction — Cognitive complexity reduction across coordinator, entity, apiparser
 
 **Date:** 2026-03-21
