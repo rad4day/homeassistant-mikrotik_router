@@ -478,10 +478,9 @@ class MikrotikContainerSwitch(MikrotikSwitch):
         if "write" not in self.coordinator.data["access"]:
             return
 
-        path = "/container"
-        command = "start"
+        path = self.entity_description.data_switch_path
         await self.hass.async_add_executor_job(
-            self.coordinator.execute, path, command, ".id", self._data[".id"]
+            self.coordinator.execute, path, "start", ".id", self._data[".id"]
         )
         await self.coordinator.async_refresh()
 
@@ -490,9 +489,8 @@ class MikrotikContainerSwitch(MikrotikSwitch):
         if "write" not in self.coordinator.data["access"]:
             return
 
-        path = "/container"
-        command = "stop"
+        path = self.entity_description.data_switch_path
         await self.hass.async_add_executor_job(
-            self.coordinator.execute, path, command, ".id", self._data[".id"]
+            self.coordinator.execute, path, "stop", ".id", self._data[".id"]
         )
         await self.coordinator.async_refresh()

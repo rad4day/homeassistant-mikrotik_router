@@ -404,6 +404,13 @@ class TestMikrotikKidcontrolPauseSwitch:
 # ---------------------------------------------------------------------------
 
 
+_RAW_DESC = {
+    **_SWITCH_DESC,
+    "data_path": "raw",
+    "data_switch_path": "/ip/firewall/raw",
+}
+
+
 class TestMikrotikRawSwitch:
     def _make_raw_data(self):
         return {
@@ -435,11 +442,7 @@ class TestMikrotikRawSwitch:
         entity = _make_switch(
             cls=MikrotikRawSwitch,
             coordinator=coord,
-            desc_overrides={
-                **_SWITCH_DESC,
-                "data_path": "raw",
-                "data_switch_path": "/ip/firewall/raw",
-            },
+            desc_overrides={**_RAW_DESC},
             uid="rule1",
         )
         await entity.async_turn_on()
@@ -456,11 +459,7 @@ class TestMikrotikRawSwitch:
         entity = _make_switch(
             cls=MikrotikRawSwitch,
             coordinator=coord,
-            desc_overrides={
-                **_SWITCH_DESC,
-                "data_path": "raw",
-                "data_switch_path": "/ip/firewall/raw",
-            },
+            desc_overrides={**_RAW_DESC},
             uid="rule1",
         )
         await entity.async_turn_off()
@@ -477,11 +476,7 @@ class TestMikrotikRawSwitch:
         entity = _make_switch(
             cls=MikrotikRawSwitch,
             coordinator=coord,
-            desc_overrides={
-                **_SWITCH_DESC,
-                "data_path": "raw",
-                "data_switch_path": "/ip/firewall/raw",
-            },
+            desc_overrides={**_RAW_DESC},
             uid="rule1",
         )
         await entity.async_turn_on()
@@ -491,6 +486,16 @@ class TestMikrotikRawSwitch:
 # ---------------------------------------------------------------------------
 # MikrotikContainerSwitch
 # ---------------------------------------------------------------------------
+
+
+_CONTAINER_DESC = {
+    **_SWITCH_DESC,
+    "data_path": "container",
+    "data_attribute": "running",
+    "data_switch_path": "/container",
+    "data_uid": ".id",
+    "data_reference": ".id",
+}
 
 
 class TestMikrotikContainerSwitch:
@@ -515,13 +520,7 @@ class TestMikrotikContainerSwitch:
         entity = _make_switch(
             cls=MikrotikContainerSwitch,
             coordinator=coord,
-            desc_overrides={
-                **_SWITCH_DESC,
-                "data_path": "container",
-                "data_attribute": "running",
-                "data_uid": ".id",
-                "data_reference": ".id",
-            },
+            desc_overrides={**_CONTAINER_DESC},
             uid="*1",
         )
         await entity.async_turn_on()
@@ -540,13 +539,7 @@ class TestMikrotikContainerSwitch:
         entity = _make_switch(
             cls=MikrotikContainerSwitch,
             coordinator=coord,
-            desc_overrides={
-                **_SWITCH_DESC,
-                "data_path": "container",
-                "data_attribute": "running",
-                "data_uid": ".id",
-                "data_reference": ".id",
-            },
+            desc_overrides={**_CONTAINER_DESC},
             uid="*1",
         )
         await entity.async_turn_off()
@@ -563,13 +556,7 @@ class TestMikrotikContainerSwitch:
         entity = _make_switch(
             cls=MikrotikContainerSwitch,
             coordinator=coord,
-            desc_overrides={
-                **_SWITCH_DESC,
-                "data_path": "container",
-                "data_attribute": "running",
-                "data_uid": ".id",
-                "data_reference": ".id",
-            },
+            desc_overrides={**_CONTAINER_DESC},
             uid="*1",
         )
         await entity.async_turn_on()
@@ -583,13 +570,7 @@ class TestMikrotikContainerSwitch:
         entity = _make_switch(
             cls=MikrotikContainerSwitch,
             coordinator=coord,
-            desc_overrides={
-                **_SWITCH_DESC,
-                "data_path": "container",
-                "data_attribute": "running",
-                "data_uid": ".id",
-                "data_reference": ".id",
-            },
+            desc_overrides={**_CONTAINER_DESC},
             uid="*1",
         )
         await entity.async_turn_on()
