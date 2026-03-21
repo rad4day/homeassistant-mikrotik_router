@@ -191,6 +191,8 @@ def generate_version_list(start_version: str, end_version: str) -> list:
     current = end
     while current >= start:
         versions.append(str(current))
+        if current == start:
+            break
         current = decrement_version(current, start)
 
     return versions

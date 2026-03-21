@@ -7,7 +7,7 @@
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "charliermarsh.ruff",
+        "astral-sh.ruff",
         "ryanluker.vscode-coverage-gutters"
       ],
       "settings": {
@@ -15,14 +15,24 @@
         "python.testing.pytestArgs": ["tests"],
         "python.defaultInterpreterPath": "/usr/local/bin/python",
         "[python]": {
-          "editor.defaultFormatter": "charliermarsh.ruff",
-          "editor.formatOnSave": true
-        },
-        "ruff.lint.run": "onSave"
+          "editor.defaultFormatter": "astral-sh.ruff",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+          }
+        }
       }
     }
   },
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
-  }
+  },
+  "mounts": [
+    {
+      "source": "${localEnv:USERPROFILE}/.claude/skills",
+      "target": "/home/vscode/.claude/skills",
+      "type": "bind"
+    }
+  ]
 }
