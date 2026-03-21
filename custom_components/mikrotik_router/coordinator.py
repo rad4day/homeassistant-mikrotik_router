@@ -2522,6 +2522,11 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     # ---------------------------
     #   _apply_accounting_throughput
     # ---------------------------
+    @staticmethod
+    def _calc_throughput(byte_count, time_diff) -> float:
+        """Calculate throughput rate, returning 0.0 if inputs are zero."""
+        return round(byte_count / time_diff) if byte_count and time_diff else 0.0
+
     def _apply_accounting_throughput(
         self, tmp_values, time_diff, accounting_enabled, local_traffic_enabled
     ) -> None:
@@ -2534,36 +2539,21 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 )
                 continue
 
-            self.ds["client_traffic"][uid]["available"] = accounting_enabled
-            self.ds["client_traffic"][uid]["local_accounting"] = local_traffic_enabled
+            ct = self.ds["client_traffic"][uid]
+            ct["available"] = accounting_enabled
+            ct["local_accounting"] = local_traffic_enabled
 
             if not accounting_enabled:
                 continue
 
-            self.ds["client_traffic"][uid]["wan-tx"] = (
-                round(vals["wan-tx"] / time_diff)
-                if vals["wan-tx"] and time_diff
-                else 0.0
-            )
-            self.ds["client_traffic"][uid]["wan-rx"] = (
-                round(vals["wan-rx"] / time_diff)
-                if vals["wan-rx"] and time_diff
-                else 0.0
-            )
+            ct["wan-tx"] = self._calc_throughput(vals["wan-tx"], time_diff)
+            ct["wan-rx"] = self._calc_throughput(vals["wan-rx"], time_diff)
 
             if not local_traffic_enabled:
                 continue
 
-            self.ds["client_traffic"][uid]["lan-tx"] = (
-                round(vals["lan-tx"] / time_diff)
-                if vals["lan-tx"] and time_diff
-                else 0.0
-            )
-            self.ds["client_traffic"][uid]["lan-rx"] = (
-                round(vals["lan-rx"] / time_diff)
-                if vals["lan-rx"] and time_diff
-                else 0.0
-            )
+            ct["lan-tx"] = self._calc_throughput(vals["lan-tx"], time_diff)
+            ct["lan-rx"] = self._calc_throughput(vals["lan-rx"], time_diff)
 
     # ---------------------------
     #   process_accounting
