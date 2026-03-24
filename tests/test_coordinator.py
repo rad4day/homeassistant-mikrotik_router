@@ -656,10 +656,11 @@ async def test_arp_empty_status_detected():
 
 
 @pytest.mark.asyncio
-async def test_mixed_arp_statuses_only_failed_excluded():
-    """Only 'failed' ARP entries are excluded from detection; others are detected."""
+async def test_mixed_arp_statuses_only_unreachable_excluded():
+    """Only 'failed'/'incomplete' ARP entries are excluded; others are detected."""
     mac_ok = "AA:BB:CC:DD:EE:A1"
     mac_failed = "AA:BB:CC:DD:EE:A2"
+    mac_incomplete = "AA:BB:CC:DD:EE:A3"
     coordinator = make_coordinator_for_host(
         arp_entries={
             mac_ok: {
@@ -674,6 +675,12 @@ async def test_mixed_arp_statuses_only_failed_excluded():
                 "interface": "ether1",
                 "status": "failed",
             },
+            mac_incomplete: {
+                "mac-address": mac_incomplete,
+                "address": "192.168.1.62",
+                "interface": "ether1",
+                "status": "incomplete",
+            },
         }
     )
 
@@ -681,6 +688,38 @@ async def test_mixed_arp_statuses_only_failed_excluded():
 
     assert coordinator.ds["host"][mac_ok]["available"] is True
     assert coordinator.ds["host"][mac_failed]["available"] is False
+    assert coordinator.ds["host"][mac_incomplete]["available"] is False
+
+
+@pytest.mark.asyncio
+async def test_arp_incomplete_status_not_detected_but_host_created():
+    """ARP entry with status 'incomplete' is NOT counted as detected.
+
+    'incomplete' means the router sent an ARP request but received no reply —
+    the device is unreachable, same as 'failed'.
+    """
+    mac = "AA:BB:CC:DD:EE:F4"
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            mac: {
+                "mac-address": mac,
+                "address": "192.168.1.53",
+                "interface": "ether1",
+                "status": "incomplete",
+                "bridge": "bridge",
+            }
+        }
+    )
+
+    await coordinator.async_process_host()
+
+    # Host entry created (visible in UI) but marked unavailable
+    assert mac in coordinator.ds["host"]
+    assert coordinator.ds["host"][mac]["available"] is False
+
+    # Entry kept in ds["arp"] for bridge lookups
+    assert mac in coordinator.ds["arp"]
+    assert coordinator.ds["arp"][mac]["bridge"] == "bridge"
 
 
 # ---------------------------------------------------------------------------
@@ -3329,8 +3368,8 @@ def test_merge_dhcp_hosts_skips_disabled():
     assert "AA:BB:CC:DD:EE:05" not in coordinator.ds["host"]
 
 
-def test_merge_arp_hosts_returns_detected_excluding_failed():
-    """_merge_arp_hosts returns detected set excluding failed entries."""
+def test_merge_arp_hosts_returns_detected_excluding_unreachable():
+    """_merge_arp_hosts returns detected set excluding failed/incomplete entries."""
     coordinator = make_coordinator_for_host()
     coordinator.ds["arp"] = {
         "AA:BB:CC:DD:EE:06": {
@@ -3345,15 +3384,23 @@ def test_merge_arp_hosts_returns_detected_excluding_failed():
             "interface": "ether1",
             "status": "failed",
         },
+        "AA:BB:CC:DD:EE:08": {
+            "address": "192.168.1.24",
+            "mac-address": "AA:BB:CC:DD:EE:08",
+            "interface": "ether1",
+            "status": "incomplete",
+        },
     }
 
     detected = coordinator._merge_arp_hosts()
 
     assert "AA:BB:CC:DD:EE:06" in detected
     assert "AA:BB:CC:DD:EE:07" not in detected
-    # Both still get added as hosts
+    assert "AA:BB:CC:DD:EE:08" not in detected
+    # All still get added as hosts
     assert "AA:BB:CC:DD:EE:06" in coordinator.ds["host"]
     assert "AA:BB:CC:DD:EE:07" in coordinator.ds["host"]
+    assert "AA:BB:CC:DD:EE:08" in coordinator.ds["host"]
 
 
 def test_recover_hass_hosts_runs_once():

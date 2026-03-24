@@ -15,7 +15,12 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.9
+## What's New — v2.3.10
+
+**Device tracker fix** — ARP entries with `"incomplete"` status were incorrectly treated as reachable, causing devices to show as "home" when they were actually unreachable. Both `"failed"` and `"incomplete"` ARP statuses are now filtered. See [ADR-001](docs/decisions/ADR-001-arp-failed-filtering.md).
+
+<details>
+<summary>Previous: v2.3.9 — Upstream feature ports</summary>
 
 Four upstream feature requests implemented.
 
@@ -27,6 +32,8 @@ Four upstream feature requests implemented.
 | **Script env refresh** | Coordinator refreshes immediately after script button press — environment variables update without waiting for next poll. | [#298](https://github.com/tomaae/homeassistant-mikrotik_router/issues/298) |
 
 Also includes: cognitive complexity reduction (ADR-007), 461 automated tests, ruff migration, and CI/CD improvements from v2.3.8 dev work.
+
+</details>
 
 <details>
 <summary>Previous: v2.3.8 — Bug fixes</summary>
