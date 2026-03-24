@@ -2,45 +2,13 @@
 
 ## Current Priorities
 
-1. ISS-260324-arp-incomplete — ARP "incomplete" status treated as home (fix in progress)
-2. ISS-260322-upstream-frs — Port upstream feature requests (in review)
-3. ISS-260320-test-coverage — Increase test coverage to ≥80%
-4. ISS-260320-new-device-discovery — New devices require HA restart to appear
-5. ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
+1. ISS-260320-test-coverage — Increase test coverage to ≥80%
+2. ISS-260320-new-device-discovery — New devices require HA restart to appear
+3. ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
 
 ---
 
 ## Active
-
-### ISS-260324-arp-incomplete — ARP "incomplete" status incorrectly shows device as home
-**Type:** Bug
-**Priority:** High
-**Created:** 2026-03-24
-**Status:** 🟢 Active — fix in progress (claude/fix-device-tracker-incomplete-nYKrC)
-
-**Context:**
-Device tracker showed devices as "home" when ARP status was `"incomplete"`. The `"incomplete"` status means the router sent an ARP request but received no reply — semantically identical to `"failed"`. ADR-001 only covered `"failed"`; now extended to both.
-
-**Fix:** `_merge_arp_hosts()` uses `_ARP_UNREACHABLE_STATUSES = frozenset({"failed", "incomplete"})` instead of checking only `"failed"`.
-
----
-
-### ISS-260322-upstream-frs — Port upstream feature requests
-**Type:** Feature
-**Priority:** High
-**Created:** 2026-03-22
-**Status:** 🟢 Active — PR in review (feature/port-upstream-frs → dev)
-
-**Context:**
-Four upstream feature requests ported from FR branch to refactored `dev`:
-- ✅ tomaae#334: Container monitoring & control (RouterOS 7.4+)
-- ✅ tomaae#310: Firewall RAW rule enable/disable switches
-- ✅ tomaae#321: DHCP client sensors (status, address, gateway, DNS, lease expiry)
-- ✅ tomaae#298: Environment refresh after script execution
-
-**Reference:** ADR-008, CR-260322-port-upstream-frs. 20 new tests, 461 total.
-
----
 
 ### ISS-260320-test-coverage — Increase test coverage to ≥80%
 **Type:** Testing
@@ -191,6 +159,14 @@ Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. 
 ---
 
 ## Completed
+
+### ISS-260324-arp-incomplete — ARP "incomplete" status incorrectly shows device as home
+**Type:** Bug | **Priority:** High | **Created:** 2026-03-24
+**Status:** 🔴 Closed — fixed in v2.3.10 (PR #38)
+
+### ISS-260322-upstream-frs — Port upstream feature requests
+**Type:** Feature | **Priority:** High | **Created:** 2026-03-22
+**Status:** 🔴 Closed — released in v2.3.9 (PR #32)
 
 ### ISS-260320-options-flow-crash — Options flow crash on HA 2025.12+
 **Type:** Bug | **Priority:** Critical | **Created:** 2026-03-20

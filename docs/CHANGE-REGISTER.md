@@ -8,7 +8,7 @@ Changes listed in reverse chronological order.
 
 **Date:** 2026-03-24
 **Branch:** `claude/fix-device-tracker-incomplete-nYKrC`
-**Status:** In Progress
+**Status:** Released (v2.3.10)
 
 ### What Changed
 
