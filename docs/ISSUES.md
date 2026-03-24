@@ -2,14 +2,28 @@
 
 ## Current Priorities
 
-1. ISS-260322-upstream-frs — Port upstream feature requests (in review)
-2. ISS-260320-test-coverage — Increase test coverage to ≥80%
-3. ISS-260320-new-device-discovery — New devices require HA restart to appear
-4. ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
+1. ISS-260324-arp-incomplete — ARP "incomplete" status treated as home (fix in progress)
+2. ISS-260322-upstream-frs — Port upstream feature requests (in review)
+3. ISS-260320-test-coverage — Increase test coverage to ≥80%
+4. ISS-260320-new-device-discovery — New devices require HA restart to appear
+5. ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
 
 ---
 
 ## Active
+
+### ISS-260324-arp-incomplete — ARP "incomplete" status incorrectly shows device as home
+**Type:** Bug
+**Priority:** High
+**Created:** 2026-03-24
+**Status:** 🟢 Active — fix in progress (claude/fix-device-tracker-incomplete-nYKrC)
+
+**Context:**
+Device tracker showed devices as "home" when ARP status was `"incomplete"`. The `"incomplete"` status means the router sent an ARP request but received no reply — semantically identical to `"failed"`. ADR-001 only covered `"failed"`; now extended to both.
+
+**Fix:** `_merge_arp_hosts()` uses `_ARP_UNREACHABLE_STATUSES = frozenset({"failed", "incomplete"})` instead of checking only `"failed"`.
+
+---
 
 ### ISS-260322-upstream-frs — Port upstream feature requests
 **Type:** Feature

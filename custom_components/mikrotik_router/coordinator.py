@@ -2390,17 +2390,28 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     # ---------------------------
     #   _merge_arp_hosts
     # ---------------------------
+    # RouterOS ARP statuses (Linux neighbor table states):
+    #   ""          – static entry or no explicit status  → reachable
+    #   reachable   – confirmed via ARP reply             → reachable
+    #   stale       – previously reachable, not refreshed → reachable
+    #   delay       – waiting for confirmation probe      → reachable (transitional)
+    #   probe       – actively sending ARP probes         → reachable (transitional)
+    #   noarp       – interface doesn't use ARP           → reachable
+    #   incomplete  – ARP request sent, no reply yet      → UNREACHABLE
+    #   failed      – ARP resolution failed               → UNREACHABLE
+    _ARP_UNREACHABLE_STATUSES = frozenset({"failed", "incomplete"})
+
     def _merge_arp_hosts(self) -> dict:
         """Merge ARP hosts into ds['host'] and return detected set.
 
-        Only count non-failed ARP entries as detected — failed entries
-        indicate the device is unreachable (#17).  We keep failed entries
-        in ds["arp"] so that bridge-interface lookups still work for the
-        tracker coordinator's ping logic.
+        Only count reachable ARP entries as detected — failed/incomplete
+        entries indicate the device is unreachable (#17).  We keep all
+        entries in ds["arp"] so that bridge-interface lookups still work
+        for the tracker coordinator's ping logic.
         """
         detected = {}
         for uid, vals in self.ds["arp"].items():
-            if vals.get("status") != "failed":
+            if vals.get("status") not in self._ARP_UNREACHABLE_STATUSES:
                 detected[uid] = True
             if uid not in self.ds["host"]:
                 self.ds["host"][uid] = {"source": "arp"}

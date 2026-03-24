@@ -4,6 +4,26 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260324-arp-incomplete-filtering — Treat ARP "incomplete" as unreachable
+
+**Date:** 2026-03-24
+**Branch:** `claude/fix-device-tracker-incomplete-nYKrC`
+**Status:** In Progress
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | `_merge_arp_hosts()` now excludes both `"failed"` and `"incomplete"` ARP statuses from the detected set via `_ARP_UNREACHABLE_STATUSES` frozenset |
+| `tests/test_coordinator.py` | Updated existing tests and added new test for `"incomplete"` status |
+| `docs/decisions/ADR-001` | Updated to cover `"incomplete"` status alongside `"failed"` |
+
+### Why
+
+Devices with ARP status `"incomplete"` (ARP request sent, no reply received) were incorrectly shown as "home" in the device tracker. Only `"failed"` was being filtered. Both statuses indicate the device is unreachable and should result in `not_home`.
+
+---
+
 ## CR-260322-port-upstream-frs — Port upstream feature requests (#310, #321, #334, #298)
 
 **Date:** 2026-03-22
