@@ -2390,6 +2390,15 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     # ---------------------------
     #   _merge_arp_hosts
     # ---------------------------
+    # RouterOS ARP statuses (Linux neighbor table states):
+    #   ""          – static entry or no explicit status  → reachable
+    #   reachable   – confirmed via ARP reply             → reachable
+    #   stale       – previously reachable, not refreshed → reachable
+    #   delay       – waiting for confirmation probe      → reachable (transitional)
+    #   probe       – actively sending ARP probes         → reachable (transitional)
+    #   noarp       – interface doesn't use ARP           → reachable
+    #   incomplete  – ARP request sent, no reply yet      → UNREACHABLE
+    #   failed      – ARP resolution failed               → UNREACHABLE
     _ARP_UNREACHABLE_STATUSES = frozenset({"failed", "incomplete"})
 
     def _merge_arp_hosts(self) -> dict:
