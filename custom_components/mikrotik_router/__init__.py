@@ -122,9 +122,7 @@ async def async_cleanup_entities(
             )
             entity_registry.async_remove(entity.entity_id)
 
-        _LOGGER.info(
-            "Cleanup complete: removed %d orphaned entities", len(removed)
-        )
+        _LOGGER.info("Cleanup complete: removed %d orphaned entities", len(removed))
         return {"removed_count": len(removed), "removed_entities": removed}
     except Exception as err:
         _LOGGER.exception("cleanup_entities failed: %s", err)
@@ -229,9 +227,7 @@ async def async_cleanup_stale_hosts(
             )
             return {"stale_count": len(stale), "stale_hosts": stale}
 
-        _LOGGER.info(
-            "Stale hosts cleanup: removed %d host entities", len(removed)
-        )
+        _LOGGER.info("Stale hosts cleanup: removed %d host entities", len(removed))
         return {
             "stale_count": len(stale),
             "removed_count": len(removed),
