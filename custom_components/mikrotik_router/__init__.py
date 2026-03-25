@@ -5,7 +5,12 @@ from __future__ import annotations
 import voluptuous as vol
 import logging
 
-from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry
 from homeassistant.helpers import entity_registry as er
@@ -24,9 +29,7 @@ SCRIPT_SCHEMA = vol.Schema(
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_CLEANUP_ENTITIES = "cleanup_entities"
-CLEANUP_SCHEMA = vol.Schema(
-    {vol.Required("entry_id"): cv.string}
-)
+CLEANUP_SCHEMA = vol.Schema({vol.Required("entry_id"): cv.string})
 
 
 def _collect_all_descriptions() -> list:
@@ -71,8 +74,7 @@ def _build_valid_unique_ids(inst: str, coordinator_data: dict) -> set[str]:
                 ref_value = data[uid].get(desc.data_reference)
                 if ref_value is not None:
                     valid_ids.add(
-                        f"{inst_lower}-{desc.key}-"
-                        f"{slugify(str(ref_value).lower())}"
+                        f"{inst_lower}-{desc.key}-{slugify(str(ref_value).lower())}"
                     )
 
     return valid_ids
@@ -108,9 +110,7 @@ async def async_cleanup_entities(
             entity.entity_id,
             entity.unique_id,
         )
-        removed.append(
-            {"entity_id": entity.entity_id, "unique_id": entity.unique_id}
-        )
+        removed.append({"entity_id": entity.entity_id, "unique_id": entity.unique_id})
         entity_registry.async_remove(entity.entity_id)
 
     _LOGGER.info("Cleanup complete: removed %d orphaned entities", len(removed))
@@ -159,7 +159,7 @@ async def async_cleanup_stale_hosts(
         if not unique_id.startswith(prefix):
             continue
 
-        mac_slug = unique_id[len(prefix):]
+        mac_slug = unique_id[len(prefix) :]
         # Find matching host by slugified mac-address
         host_entry = None
         for uid, hdata in host_data.items():
@@ -205,14 +205,10 @@ async def async_cleanup_stale_hosts(
                 removed.append(entry_info)
 
     if dry_run:
-        _LOGGER.info(
-            "Stale hosts dry run: found %d stale host entities", len(stale)
-        )
+        _LOGGER.info("Stale hosts dry run: found %d stale host entities", len(stale))
         return {"stale_count": len(stale), "stale_hosts": stale}
 
-    _LOGGER.info(
-        "Stale hosts cleanup: removed %d host entities", len(removed)
-    )
+    _LOGGER.info("Stale hosts cleanup: removed %d host entities", len(removed))
     return {
         "stale_count": len(stale),
         "removed_count": len(removed),
