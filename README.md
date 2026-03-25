@@ -174,6 +174,9 @@ Your existing configuration and entities are preserved — no reconfiguration ne
 - **Kid Control** — monitor and control internet schedules
 - **Multiple devices** — monitor several MikroTik devices simultaneously
 
+### Roadmap
+For a full analysis of potential new sensors and capabilities, including WireGuard VPN monitoring, address list management, LTE modem stats, certificate expiry alerts, and more, see the [Sensor Gap Analysis](docs/sensor-gap-analysis.md).
+
 ---
 
 # Features

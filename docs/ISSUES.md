@@ -29,7 +29,7 @@
 - Full HA integration tests: async_setup_entry, async_unload_entry (requires full HA platform machinery)
 - Full coverage measurement and gap analysis
 
-**Reference:** 461 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port), target ≥80% for SonarCloud Grade A
+**Reference:** 473 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port, 12 attribute cleanup), target ≥80% for SonarCloud Grade A
 
 ---
 
