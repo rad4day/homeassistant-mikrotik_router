@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from logging import getLogger
-from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
@@ -12,16 +11,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .entity import MikrotikEntity, copy_attrs, async_add_entities
-from .helper import format_attribute
+from .entity import MikrotikEntity, MikrotikInterfaceEntityMixin, async_add_entities
 from .switch_types import (
     SENSOR_TYPES,  # noqa: F401
     SENSOR_SERVICES,  # noqa: F401
-    DEVICE_ATTRIBUTES_IFACE_ETHER,
-    DEVICE_ATTRIBUTES_IFACE_SFP,
-    DEVICE_ATTRIBUTES_IFACE_WIRELESS,
 )
-from .iface_attributes import DEVICE_ATTRIBUTES_IFACE_CLIENT
 
 _LOGGER = getLogger(__name__)
 
@@ -100,45 +94,8 @@ class MikrotikSwitch(MikrotikEntity, SwitchEntity, RestoreEntity):
 # ---------------------------
 #   MikrotikPortSwitch
 # ---------------------------
-class MikrotikPortSwitch(MikrotikSwitch):
+class MikrotikPortSwitch(MikrotikInterfaceEntityMixin, MikrotikSwitch):
     """Representation of a network port switch."""
-
-    @property
-    def extra_state_attributes(self) -> Mapping[str, Any]:
-        """Return the state attributes."""
-        attributes = super().extra_state_attributes
-
-        # Client IP/MAC — only when values are meaningful
-        copy_attrs(
-            attributes,
-            self._data,
-            DEVICE_ATTRIBUTES_IFACE_CLIENT,
-            skip_junk=True,
-        )
-
-        if self._data["type"] == "ether":
-            has_sfp = self._data.get("sfp-shutdown-temperature") not in (
-                0,
-                "",
-                None,
-            )
-            if has_sfp:
-                copy_attrs(
-                    attributes,
-                    self._data,
-                    DEVICE_ATTRIBUTES_IFACE_SFP,
-                    skip_junk=True,
-                )
-            else:
-                copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
-            # PoE — only when the port actually supports it
-            poe_out = self._data.get("poe-out")
-            if poe_out not in (None, "N/A", ""):
-                attributes[format_attribute("poe-out")] = poe_out
-        elif self._data["type"] == "wlan":
-            copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_WIRELESS)
-
-        return attributes
 
     @property
     def icon(self) -> str:
