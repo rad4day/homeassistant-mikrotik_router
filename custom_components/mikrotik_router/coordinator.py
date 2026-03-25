@@ -15,7 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.util.dt import utcnow
+from homeassistant.util.dt import now as dt_now, utcnow
 
 
 from homeassistant.const import (
@@ -626,7 +626,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         Returns True if the refresh ran (so callers can skip duplicate work).
         """
-        delta = datetime.now().replace(microsecond=0) - self.last_hwinfo_update
+        delta = dt_now().replace(microsecond=0) - self.last_hwinfo_update
         if not self.api.has_reconnected() and delta.total_seconds() <= 60 * 60 * 4:
             return False
 
@@ -640,9 +640,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         ]:
             await self._run_if_enabled(func)
 
-        await self._run_if_enabled(
-            self.get_script, requires=self.option_sensor_scripts
-        )
+        await self._run_if_enabled(self.get_script, requires=self.option_sensor_scripts)
 
         for func in [self.get_dhcp_network, self.get_dns]:
             await self._run_if_enabled(func)
@@ -650,7 +648,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")
 
-        self.last_hwinfo_update = datetime.now().replace(microsecond=0)
+        self.last_hwinfo_update = dt_now().replace(microsecond=0)
         return True
 
     # ---------------------------
@@ -702,9 +700,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             if 0 < self.major_fw_version < 7:
                 await self.hass.async_add_executor_job(self.process_accounting)
             elif self.major_fw_version >= 7:
-                await self.hass.async_add_executor_job(
-                    self.process_kid_control_devices
-                )
+                await self.hass.async_add_executor_job(self.process_kid_control_devices)
 
         for func, enabled in [
             (self.get_captive, self.option_sensor_client_captive),
@@ -712,7 +708,10 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             (self.get_environment, self.option_sensor_environment),
             (self.get_ups, self.support_ups),
             (self.get_gps, self.support_gps),
-            (self.get_container, self.support_container and self.option_sensor_container),
+            (
+                self.get_container,
+                self.support_container and self.option_sensor_container,
+            ),
         ]:
             await self._run_if_enabled(func, requires=enabled)
 
@@ -1722,7 +1721,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         tmp_uptime = _parse_uptime_to_seconds(self.ds["resource"]["uptime_str"])
 
         self.ds["resource"]["uptime_epoch"] = tmp_uptime
-        now = datetime.now().replace(microsecond=0)
+        now = dt_now().replace(microsecond=0)
         uptime_tm = datetime.timestamp(now - timedelta(seconds=tmp_uptime))
         update_uptime = False
         if not self.ds["resource"]["uptime"]:
@@ -2600,15 +2599,13 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     async def _resolve_manufacturer(self, uid: str, mac: str) -> None:
         """Resolve a single MAC address to a manufacturer name."""
         try:
-            self.ds["host"][uid]["manufacturer"] = (
-                await self.async_mac_lookup.lookup(mac)
+            self.ds["host"][uid]["manufacturer"] = await self.async_mac_lookup.lookup(
+                mac
             )
         except asyncio.CancelledError:
             raise
         except Exception as err:
-            _LOGGER.debug(
-                "MAC vendor lookup failed for %s: %s", mac, err
-            )
+            _LOGGER.debug("MAC vendor lookup failed for %s: %s", mac, err)
             self.ds["host"][uid]["manufacturer"] = ""
 
     async def async_process_host(self) -> None:
@@ -2624,32 +2621,31 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         self.ds["resource"]["clients_wired"] = 0
         self.ds["resource"]["clients_wireless"] = 0
         mac_tasks: list[asyncio.Task] = []
-        try:
-            for uid, vals in self.ds["host"].items():
-                self._update_captive_portal(uid)
-                self._update_host_availability(
-                    uid, vals, capsman_detected, wireless_detected, arp_detected
-                )
-                self._update_host_address(uid, vals)
-                self._resolve_hostname(uid, vals)
+        for uid, vals in self.ds["host"].items():
+            self._update_captive_portal(uid)
+            self._update_host_availability(
+                uid, vals, capsman_detected, wireless_detected, arp_detected
+            )
+            self._update_host_address(uid, vals)
+            self._resolve_hostname(uid, vals)
 
-                if vals["manufacturer"] == "detect" and vals["mac-address"] != "unknown":
-                    mac_tasks.append(
-                        asyncio.create_task(
-                            self._resolve_manufacturer(uid, vals["mac-address"])
-                        )
+            if vals["manufacturer"] == "detect" and vals["mac-address"] != "unknown":
+                mac_tasks.append(
+                    asyncio.create_task(
+                        self._resolve_manufacturer(uid, vals["mac-address"])
                     )
-                elif vals["manufacturer"] == "detect":
-                    self.ds["host"][uid]["manufacturer"] = ""
+                )
+            elif vals["manufacturer"] == "detect":
+                self.ds["host"][uid]["manufacturer"] = ""
 
-                if self.ds["host"][uid]["available"]:
-                    if vals["source"] in ["capsman", "wireless"]:
-                        self.ds["resource"]["clients_wireless"] += 1
-                    else:
-                        self.ds["resource"]["clients_wired"] += 1
-        finally:
-            if mac_tasks:
-                await asyncio.gather(*mac_tasks, return_exceptions=True)
+            if self.ds["host"][uid]["available"]:
+                if vals["source"] in ["capsman", "wireless"]:
+                    self.ds["resource"]["clients_wireless"] += 1
+                else:
+                    self.ds["resource"]["clients_wired"] += 1
+
+        if mac_tasks:
+            await asyncio.gather(*mac_tasks)
 
     # ---------------------------
     #   process_accounting

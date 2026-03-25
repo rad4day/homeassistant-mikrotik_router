@@ -1,7 +1,7 @@
 """Unit tests for Mikrotik Router coordinator and apiparser logic."""
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -404,7 +404,7 @@ def make_coordinator_for_host(arp_entries=None, dhcp_entries=None, host_entries=
     coordinator.host_hass_recovered = True  # skip HA registry recovery
 
     mac_lookup = MagicMock()
-    mac_lookup.lookup = MagicMock(return_value="Vendor")
+    mac_lookup.lookup = AsyncMock(return_value="Vendor")
     coordinator.async_mac_lookup = mac_lookup
 
     coordinator.ds["arp"] = arp_entries or {}

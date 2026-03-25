@@ -1,5 +1,7 @@
 """Shared interface attribute lists used by sensor and binary sensor types."""
 
+from __future__ import annotations
+
 DEVICE_ATTRIBUTES_IFACE = [
     "running",
     "enabled",
