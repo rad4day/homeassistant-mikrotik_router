@@ -29,7 +29,7 @@
 - Full HA integration tests: async_setup_entry, async_unload_entry (requires full HA platform machinery)
 - Full coverage measurement and gap analysis
 
-**Reference:** 461 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port), target ≥80% for SonarCloud Grade A
+**Reference:** 473 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port, 12 attribute cleanup), target ≥80% for SonarCloud Grade A
 
 ---
 
@@ -159,6 +159,14 @@ Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. 
 ---
 
 ## Completed
+
+### ISS-260325-attribute-bloat — ~1300 junk attributes on interface and tracker entities
+**Type:** Bug/Quality | **Priority:** High | **Created:** 2026-03-25
+**Status:** 🔴 Closed — fixed in v2.3.11-beta.1 (feature/attribute-cleanup)
+
+### ISS-260325-mangle-dedup — Mangle rules with different interfaces removed as duplicates
+**Type:** Bug | **Priority:** High | **Created:** 2026-03-25
+**Status:** 🔴 Closed — fixed in PR #40 (fix/mangle-duplicate-interface)
 
 ### ISS-260324-arp-incomplete — ARP "incomplete" status incorrectly shows device as home
 **Type:** Bug | **Priority:** High | **Created:** 2026-03-24

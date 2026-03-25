@@ -15,9 +15,26 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.10
+## What's New — v2.3.11
+
+**Attribute cleanup** — Entity attributes now only show information relevant to each port type. Previously, all ethernet ports displayed SFP diagnostics, PoE status, and client tracking fields regardless of hardware capability. Now:
+
+| Attribute type | Before | After |
+|----------------|--------|-------|
+| SFP diagnostics | Shown on all ethernet ports | Only SFP ports |
+| Link rate & duplex | Only copper ports | Both copper and SFP ports |
+| PoE status | Shown as "N/A" on non-PoE ports | Only PoE-capable ports |
+| Client IP/MAC | Shown as "unknown" on all interfaces | Only when a client is connected |
+| Wireless metrics | Shown on all tracked devices | Only wireless/CAPsMAN clients |
+
+**Mangle fix** — Rules differing only by `in-interface`/`out-interface` (e.g. MSS clamping for inbound vs outbound PPPoE) were silently removed as duplicates. Interface fields are now included in the rule unique ID.
+
+<details>
+<summary>Previous: v2.3.10 — Device tracker fix</summary>
 
 **Device tracker fix** — ARP entries with `"incomplete"` status were incorrectly treated as reachable, causing devices to show as "home" when they were actually unreachable. Both `"failed"` and `"incomplete"` ARP statuses are now filtered. See [ADR-001](docs/decisions/ADR-001-arp-failed-filtering.md).
+
+</details>
 
 <details>
 <summary>Previous: v2.3.9 — Upstream feature ports</summary>
@@ -137,7 +154,7 @@ Your existing configuration and entities are preserved — no reconfiguration ne
 ## Feature Highlights
 
 - **Interfaces** — enable/disable, SFP info, RX/TX traffic, connected device IP/MAC, interface presence
-- **PoE monitoring** *(new in v2.3.x)* — per-port status, voltage, current and power for PoE-capable switches
+- **PoE monitoring** *(v2.3.3+)* — per-port status, voltage, current and power for PoE-capable switches
 - **NAT rules** — enable/disable individual rules
 - **Mangle rules** — enable/disable individual rules
 - **Filter rules** — enable/disable individual rules
@@ -157,6 +174,9 @@ Your existing configuration and entities are preserved — no reconfiguration ne
 - **Kid Control** — monitor and control internet schedules
 - **Multiple devices** — monitor several MikroTik devices simultaneously
 
+### Roadmap
+For a full analysis of potential new sensors and capabilities, including WireGuard VPN monitoring, address list management, LTE modem stats, certificate expiry alerts, and more, see the [Sensor Gap Analysis](docs/sensor-gap-analysis.md).
+
 ---
 
 # Features
@@ -168,7 +188,7 @@ Monitor and control status on each MikroTik interface — LAN, WLAN, physical an
 ![Interface Switch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface_switch.png)
 ![Interface Sensor](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface_sensor.png)
 
-## PoE Monitoring *(new — v2.3.x pre-release)*
+## PoE Monitoring *(v2.3.3+)*
 Monitor Power over Ethernet (PoE) status and power metrics for each PoE-capable port on your MikroTik switch or router directly in Home Assistant.
 
 More information about PoE-Out can be found on the [MikroTik support page](https://help.mikrotik.com/docs/display/ROS/PoE-Out).
@@ -349,7 +369,7 @@ This integration is distributed using [HACS](https://hacs.xyz/).
 
 **Minimum requirements:**
 - RouterOS v6.43 or v7.1+
-- Home Assistant 0.114.0+
+- Home Assistant 2024.3.0+
 
 ## Setup
 
@@ -404,13 +424,13 @@ This provides device presence detection and per-client traffic stats regardless 
 
 **Affected devices:** RB4011, RB5009, CCR1009, CCR1016, CCR1036, CCR2004, CCR2116, and any MikroTik router where the wireless package is absent.
 
-**Status:** Fixed in the [v2.3.x pre-release](#whats-new--v23x-pre-release). The fix checks which WiFi packages are installed before querying wireless endpoints. ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
+**Status:** Fixed in v2.3.3. The fix checks which WiFi packages are installed before querying wireless endpoints. ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
 
 ## Temperature sensors always show Celsius, ignore Fahrenheit preference
 
 **Affected users:** Home Assistant instances configured for imperial/Fahrenheit units.
 
-**Status:** Fixed in the [v2.3.x pre-release](#whats-new--v23x-pre-release). Temperature sensors now respect HA unit preferences and auto-convert. ([upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
+**Status:** Fixed in v2.3.3. Temperature sensors now respect HA unit preferences and auto-convert. ([upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
 
 ---
 

@@ -786,10 +786,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     # ---------------------------
     _SFP_MONITOR_VALS = [
         {"name": "status", "default": "unknown"},
+        {"name": "rate", "default": "unknown"},
+        {"name": "full-duplex", "default": "unknown"},
         {"name": "auto-negotiation", "default": "unknown"},
         {"name": "advertising", "default": "unknown"},
         {"name": "link-partner-advertising", "default": "unknown"},
-        {"name": "sfp-temperature", "default": 0},
+        {"name": "sfp-temperature", "default": None},
         {"name": "sfp-supply-voltage", "default": "unknown"},
         {"name": "sfp-module-present", "default": "unknown"},
         {"name": "sfp-tx-bias-current", "default": "unknown"},
@@ -1165,6 +1167,8 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 {"name": "dst-port", "default": "any"},
                 {"name": "src-address-list", "default": "any"},
                 {"name": "dst-address-list", "default": "any"},
+                {"name": "in-interface", "default": "any"},
+                {"name": "out-interface", "default": "any"},
                 {
                     "name": "enabled",
                     "source": "disabled",
@@ -1193,6 +1197,10 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     {"key": "src-address-list"},
                     {"text": "-"},
                     {"key": "dst-address-list"},
+                    {"text": ","},
+                    {"key": "in-interface"},
+                    {"text": "-"},
+                    {"key": "out-interface"},
                 ],
                 [
                     {"name": "name"},

@@ -14,6 +14,7 @@ Lightweight records of key design decisions for mikrotik_router HACS integration
 | [ADR-006](ADR-006-naive-datetime-removal.md) | Replace naive datetime.now() with HA utility | Proposed |
 | [ADR-007](ADR-007-complexity-reduction-extraction.md) | Cognitive Complexity Reduction via Helper Extraction | Accepted |
 | [ADR-008](ADR-008-upstream-feature-port.md) | Port Upstream Feature Requests (#310, #321, #334, #298) | Accepted |
+| [ADR-009](ADR-009-attribute-filtering-by-hardware.md) | Entity Attribute Filtering by Hardware Capability | Accepted |
 
 ## Template
 

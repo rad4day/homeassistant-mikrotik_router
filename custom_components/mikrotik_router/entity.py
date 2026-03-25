@@ -35,6 +35,7 @@ from .const import (
 from .coordinator import MikrotikCoordinator, MikrotikTrackerCoordinator
 from .helper import format_attribute
 from .iface_attributes import (
+    DEVICE_ATTRIBUTES_IFACE_CLIENT,
     DEVICE_ATTRIBUTES_IFACE_ETHER,
     DEVICE_ATTRIBUTES_IFACE_SFP,
     DEVICE_ATTRIBUTES_IFACE_WIRELESS,
@@ -43,11 +44,26 @@ from .iface_attributes import (
 _LOGGER = getLogger(__name__)
 
 
-def copy_attrs(attributes: dict, data: dict, variables: list) -> None:
-    """Copy data values for each variable in the list into attributes."""
+_JUNK_DEFAULTS = frozenset({"unknown", "none", "N/A"})
+
+
+def copy_attrs(
+    attributes: dict, data: dict, variables: list, *, skip_junk: bool = False
+) -> None:
+    """Copy data values for each variable in the list into attributes.
+
+    When *skip_junk* is True, values that are meaningless defaults
+    ("unknown", "none", "N/A", or None) are omitted so that entities
+    only expose attributes that carry real information.
+    """
     for variable in variables:
         if variable in data:
-            attributes[format_attribute(variable)] = data[variable]
+            value = data[variable]
+            if skip_junk and (
+                value is None or (isinstance(value, str) and value in _JUNK_DEFAULTS)
+            ):
+                continue
+            attributes[format_attribute(variable)] = value
 
 
 class MikrotikInterfaceEntityMixin:
@@ -62,10 +78,33 @@ class MikrotikInterfaceEntityMixin:
         """Return type-specific interface state attributes."""
         attributes = super().extra_state_attributes
 
+        # Client IP/MAC — only when values are meaningful
+        copy_attrs(
+            attributes,
+            self._data,
+            DEVICE_ATTRIBUTES_IFACE_CLIENT,
+            skip_junk=True,
+        )
+
         if self._data.get("type") == "ether":
-            copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
-            if "sfp-shutdown-temperature" in self._data:
-                copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_SFP)
+            has_sfp = self._data.get("sfp-shutdown-temperature") not in (
+                0,
+                "",
+                None,
+            )
+            if has_sfp:
+                copy_attrs(
+                    attributes,
+                    self._data,
+                    DEVICE_ATTRIBUTES_IFACE_SFP,
+                    skip_junk=True,
+                )
+            else:
+                copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
+            # PoE — only when the port actually supports it
+            poe_out = self._data.get("poe-out")
+            if poe_out not in (None, "N/A", ""):
+                attributes[format_attribute("poe-out")] = poe_out
         elif self._data.get("type") == "wlan":
             copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_WIRELESS)
 

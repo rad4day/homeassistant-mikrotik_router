@@ -53,6 +53,27 @@ Large coordinator methods have been decomposed into focused helpers. Each helper
 **Entity skip logic** (`_skip_sensor` orchestrates):
 - `_skip_interface_traffic()`, `_skip_binary_sensor()`, `_skip_device_tracker()`, `_skip_poe_sensor()`
 
+## Attribute Selection Patterns (ADR-009)
+
+Entity attributes are filtered by hardware capability to avoid displaying meaningless defaults.
+
+**`copy_attrs(skip_junk=True)`** — filters `"unknown"`, `"none"`, `"N/A"`, and `None` values. Does NOT filter `0`, `False`, or `""` (valid operational states). Used for SFP diagnostics and client IP/MAC attributes.
+
+**`MikrotikInterfaceEntityMixin`** — shared mixin for `MikrotikInterfaceTrafficSensor`, `MikrotikPortBinarySensor`, and `MikrotikPortSwitch`. Selects attribute set based on interface type:
+
+| Interface type | Detection | Attribute list |
+|----------------|-----------|----------------|
+| Copper ethernet | `sfp-shutdown-temperature` is `0`/empty/absent | `DEVICE_ATTRIBUTES_IFACE_ETHER` |
+| SFP ethernet | `sfp-shutdown-temperature` has real value | `DEVICE_ATTRIBUTES_IFACE_SFP` (with `skip_junk`) |
+| Wireless | `type == "wlan"` | `DEVICE_ATTRIBUTES_IFACE_WIRELESS` |
+
+Additionally:
+- `client-ip-address`/`client-mac-address` — shown only when meaningful (via `DEVICE_ATTRIBUTES_IFACE_CLIENT` + `skip_junk`)
+- `poe-out` — shown only when port has PoE support (not `"N/A"`)
+- Wireless metrics (`signal-strength`, `tx-ccq`, `tx/rx-rate`) — shown only for wireless/CAPsMAN hosts in device tracker
+
+**Canonical attribute lists** live in `iface_attributes.py`. All entity types import from there (no duplicates).
+
 ## Known Caveats
 
 - `ds` dict shared between coordinators (mutation overlap risk)

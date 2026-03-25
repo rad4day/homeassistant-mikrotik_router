@@ -4,8 +4,6 @@ DEVICE_ATTRIBUTES_IFACE = [
     "running",
     "enabled",
     "comment",
-    "client-ip-address",
-    "client-mac-address",
     "port-mac-address",
     "last-link-down-time",
     "last-link-up-time",
@@ -15,18 +13,26 @@ DEVICE_ATTRIBUTES_IFACE = [
     "name",
 ]
 
+# Shown only when client tracking is enabled and values are meaningful.
+DEVICE_ATTRIBUTES_IFACE_CLIENT = [
+    "client-ip-address",
+    "client-mac-address",
+]
+
 DEVICE_ATTRIBUTES_IFACE_ETHER = [
     "status",
     "auto-negotiation",
     "rate",
     "full-duplex",
     "default-name",
-    "poe-out",
 ]
 
 DEVICE_ATTRIBUTES_IFACE_SFP = [
     "status",
+    "rate",
+    "full-duplex",
     "auto-negotiation",
+    "default-name",
     "advertising",
     "link-partner-advertising",
     "sfp-temperature",
