@@ -170,8 +170,10 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
         if "test" not in self.coordinator.ds["access"]:
             return
 
+        first_run = not self.coordinator.host_tracking_initialized
+
         for uid in list(self.coordinator.ds["host"]):
-            if not self.coordinator.host_tracking_initialized:
+            if first_run:
                 # Add missing default values
                 for key, default in zip(
                     [
@@ -187,8 +189,13 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
                     if key not in self.coordinator.ds["host"][uid]:
                         self.coordinator.ds["host"][uid][key] = default
 
-            # Check host availability
-            if (
+            # On first run, use ARP data instead of pinging every host
+            # sequentially.  Pings will run on subsequent 10s updates.
+            if first_run:
+                self.coordinator.ds["host"][uid]["available"] = (
+                    uid in self.coordinator.ds["arp"]
+                )
+            elif (
                 self.coordinator.ds["host"][uid]["source"]
                 not in ["capsman", "wireless"]
                 and self.coordinator.ds["host"][uid]["address"] not in ["unknown", ""]
@@ -614,11 +621,14 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     # ---------------------------
     #   _async_update_hwinfo
     # ---------------------------
-    async def _async_update_hwinfo(self) -> None:
-        """Refresh hardware info (runs every 4 hours or on reconnect)."""
+    async def _async_update_hwinfo(self) -> bool:
+        """Refresh hardware info (runs every 4 hours or on reconnect).
+
+        Returns True if the refresh ran (so callers can skip duplicate work).
+        """
         delta = datetime.now().replace(microsecond=0) - self.last_hwinfo_update
         if not self.api.has_reconnected() and delta.total_seconds() <= 60 * 60 * 4:
-            return
+            return False
 
         await self.hass.async_add_executor_job(self.get_access)
 
@@ -640,15 +650,19 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             raise UpdateFailed("Mikrotik Disconnected")
 
         self.last_hwinfo_update = datetime.now().replace(microsecond=0)
+        return True
 
     # ---------------------------
     #   _async_update_data
     # ---------------------------
     async def _async_update_data(self):
         """Update Mikrotik data"""
-        await self._async_update_hwinfo()
+        hwinfo_ran = await self._async_update_hwinfo()
 
-        await self.hass.async_add_executor_job(self.get_system_resource)
+        # get_system_resource already ran inside _async_update_hwinfo;
+        # only call it again on normal polling cycles where hwinfo was skipped.
+        if not hwinfo_ran:
+            await self.hass.async_add_executor_job(self.get_system_resource)
 
         for func in [self.get_system_health, self.get_dhcp_client, self.get_interface]:
             await self._async_run_if_connected(func)
@@ -2598,6 +2612,20 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     # ---------------------------
     #   async_process_host
     # ---------------------------
+    async def _resolve_manufacturer(self, uid: str, mac: str) -> None:
+        """Resolve a single MAC address to a manufacturer name."""
+        try:
+            self.ds["host"][uid]["manufacturer"] = (
+                await self.async_mac_lookup.lookup(mac)
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:
+            _LOGGER.debug(
+                "MAC vendor lookup failed for %s: %s", mac, err
+            )
+            self.ds["host"][uid]["manufacturer"] = ""
+
     async def async_process_host(self) -> None:
         """Get host tracking data"""
         capsman_detected = self._merge_capsman_hosts()
@@ -2610,6 +2638,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         # Process hosts
         self.ds["resource"]["clients_wired"] = 0
         self.ds["resource"]["clients_wireless"] = 0
+        mac_tasks: list[asyncio.Task] = []
         for uid, vals in self.ds["host"].items():
             self._update_captive_portal(uid)
             self._update_host_availability(
@@ -2618,23 +2647,14 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self._update_host_address(uid, vals)
             self._resolve_hostname(uid, vals)
 
-            # Resolve manufacturer
+            # Queue manufacturer lookups to run concurrently
             if vals["manufacturer"] == "detect" and vals["mac-address"] != "unknown":
-                try:
-                    self.ds["host"][uid][
-                        "manufacturer"
-                    ] = await self.async_mac_lookup.lookup(vals["mac-address"])
-                except asyncio.CancelledError:
-                    raise
-                except Exception as err:
-                    _LOGGER.debug(
-                        "MAC vendor lookup failed for %s: %s",
-                        vals["mac-address"],
-                        err,
+                mac_tasks.append(
+                    asyncio.create_task(
+                        self._resolve_manufacturer(uid, vals["mac-address"])
                     )
-                    self.ds["host"][uid]["manufacturer"] = ""
-
-            if vals["manufacturer"] == "detect":
+                )
+            elif vals["manufacturer"] == "detect":
                 self.ds["host"][uid]["manufacturer"] = ""
 
             # Count hosts
@@ -2643,6 +2663,10 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     self.ds["resource"]["clients_wireless"] += 1
                 else:
                     self.ds["resource"]["clients_wired"] += 1
+
+        # Resolve all MAC vendor lookups concurrently
+        if mac_tasks:
+            await asyncio.gather(*mac_tasks)
 
     # ---------------------------
     #   process_accounting
