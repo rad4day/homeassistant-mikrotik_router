@@ -16,6 +16,10 @@ DEVICE_ATTRIBUTES_HOST = [
     "authorized",
     "bypassed",
     "last-seen",
+]
+
+# Only shown for wireless/capsman hosts.
+DEVICE_ATTRIBUTES_HOST_WIRELESS = [
     "signal-strength",
     "tx-ccq",
     "tx-rate",

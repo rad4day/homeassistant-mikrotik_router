@@ -19,8 +19,12 @@ from homeassistant.util.dt import utcnow
 from homeassistant.components.device_tracker.const import SourceType
 
 from .coordinator import MikrotikCoordinator
-from .device_tracker_types import SENSOR_TYPES, SENSOR_SERVICES  # noqa: F401
-from .entity import _run_entity_setup_loop, MikrotikEntity
+from .device_tracker_types import (
+    SENSOR_TYPES,  # noqa: F401
+    SENSOR_SERVICES,  # noqa: F401
+    DEVICE_ATTRIBUTES_HOST_WIRELESS,
+)
+from .entity import _run_entity_setup_loop, MikrotikEntity, copy_attrs
 from .helper import format_attribute
 from .const import (
     DOMAIN,
@@ -190,5 +194,9 @@ class MikrotikHostDeviceTracker(MikrotikDeviceTracker):
 
         if not attributes[format_attribute("last-seen")]:
             attributes[format_attribute("last-seen")] = "Unknown"
+
+        # Wireless metrics only for wireless/capsman hosts
+        if self._data.get("source") in ("capsman", "wireless"):
+            copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_HOST_WIRELESS)
 
         return attributes

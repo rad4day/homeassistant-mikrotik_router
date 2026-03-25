@@ -16,8 +16,6 @@ DEVICE_ATTRIBUTES_IFACE = [
     "running",
     "enabled",
     "comment",
-    "client-ip-address",
-    "client-mac-address",
     "port-mac-address",
     "last-link-down-time",
     "last-link-up-time",
@@ -33,7 +31,6 @@ DEVICE_ATTRIBUTES_IFACE_ETHER = [
     "rate",
     "full-duplex",
     "default-name",
-    "poe-out",
 ]
 
 DEVICE_ATTRIBUTES_IFACE_SFP = [
