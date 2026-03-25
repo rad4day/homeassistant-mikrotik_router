@@ -1510,6 +1510,40 @@ def test_mangle_duplicate_removal():
     assert len(coordinator.ds["mangle"]) == 0
 
 
+def test_mangle_interface_differentiates_rules():
+    """Rules with same chain/action/protocol but different interfaces are not duplicates."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/firewall/mangle": [
+                {
+                    ".id": "*1",
+                    "chain": "forward",
+                    "action": "change MSS",
+                    "protocol": "tcp",
+                    "in-interface": "pppoe-out1",
+                    "disabled": False,
+                },
+                {
+                    ".id": "*2",
+                    "chain": "forward",
+                    "action": "change MSS",
+                    "protocol": "tcp",
+                    "out-interface": "pppoe-out1",
+                    "disabled": False,
+                },
+            ]
+        }
+    )
+    coordinator.mangle_removed = {}
+    coordinator.host = "10.0.0.1"
+    coordinator.get_mangle()
+    assert len(coordinator.ds["mangle"]) == 2
+    assert "*1" in coordinator.ds["mangle"]
+    assert "*2" in coordinator.ds["mangle"]
+    assert coordinator.ds["mangle"]["*1"]["in-interface"] == "pppoe-out1"
+    assert coordinator.ds["mangle"]["*2"]["out-interface"] == "pppoe-out1"
+
+
 # ---------------------------------------------------------------------------
 # Group N: get_filter() — filter rule parsing
 # ---------------------------------------------------------------------------

@@ -1165,6 +1165,8 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 {"name": "dst-port", "default": "any"},
                 {"name": "src-address-list", "default": "any"},
                 {"name": "dst-address-list", "default": "any"},
+                {"name": "in-interface", "default": "any"},
+                {"name": "out-interface", "default": "any"},
                 {
                     "name": "enabled",
                     "source": "disabled",
@@ -1193,6 +1195,10 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     {"key": "src-address-list"},
                     {"text": "-"},
                     {"key": "dst-address-list"},
+                    {"text": ","},
+                    {"key": "in-interface"},
+                    {"text": "-"},
+                    {"key": "out-interface"},
                 ],
                 [
                     {"name": "name"},
