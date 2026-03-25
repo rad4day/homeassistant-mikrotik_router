@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
+
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -11,76 +11,7 @@ from homeassistant.components.switch import (
 )
 
 from .const import DOMAIN
-
-DEVICE_ATTRIBUTES_IFACE = [
-    "running",
-    "enabled",
-    "comment",
-    "client-ip-address",
-    "client-mac-address",
-    "port-mac-address",
-    "last-link-down-time",
-    "last-link-up-time",
-    "link-downs",
-    "actual-mtu",
-    "type",
-    "name",
-]
-
-DEVICE_ATTRIBUTES_IFACE_ETHER = [
-    "status",
-    "auto-negotiation",
-    "rate",
-    "full-duplex",
-    "default-name",
-    "poe-out",
-]
-
-DEVICE_ATTRIBUTES_IFACE_SFP = [
-    "status",
-    "auto-negotiation",
-    "advertising",
-    "link-partner-advertising",
-    "sfp-temperature",
-    "sfp-supply-voltage",
-    "sfp-module-present",
-    "sfp-tx-bias-current",
-    "sfp-tx-power",
-    "sfp-rx-power",
-    "sfp-rx-loss",
-    "sfp-tx-fault",
-    "sfp-type",
-    "sfp-connector-type",
-    "sfp-vendor-name",
-    "sfp-vendor-part-number",
-    "sfp-vendor-revision",
-    "sfp-vendor-serial",
-    "sfp-manufacturing-date",
-    "eeprom-checksum",
-]
-
-DEVICE_ATTRIBUTES_IFACE_WIRELESS = [
-    "ssid",
-    "mode",
-    "radio-name",
-    "interface-type",
-    "country",
-    "installation",
-    "antenna-gain",
-    "frequency",
-    "band",
-    "channel-width",
-    "secondary-frequency",
-    "wireless-protocol",
-    "rate-set",
-    "distance",
-    "tx-power-mode",
-    "vlan-id",
-    "wds-mode",
-    "wds-default-bridge",
-    "bridge-mode",
-    "hide-ssid",
-]
+from .iface_attributes import DEVICE_ATTRIBUTES_IFACE
 
 DEVICE_ATTRIBUTES_NAT = [
     "protocol",
@@ -205,7 +136,7 @@ class MikrotikSwitchEntityDescription(SwitchEntityDescription):
     data_name_comment: bool = False
     data_uid: str | None = None
     data_reference: str | None = None
-    data_attributes_list: List = field(default_factory=lambda: [])
+    data_attributes_list: list = field(default_factory=lambda: [])
     func: str = "MikrotikSwitch"
 
 

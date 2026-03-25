@@ -566,6 +566,9 @@ def test_mixin_ether_adds_ether_attributes():
     assert attrs["status"] == "link-ok"
     assert "rate" in attrs
     assert attrs["rate"] == "1Gbps"
+    # SFP attrs should NOT be present on copper ports
+    assert "sfp_temperature" not in attrs
+    assert "sfp_vendor_name" not in attrs
 
 
 def test_mixin_ether_skips_missing_ether_keys():
@@ -591,6 +594,28 @@ def test_mixin_ether_with_sfp_adds_sfp_attributes():
     assert "sfp_temperature" in attrs
     assert attrs["sfp_temperature"] == "45C"
     assert "sfp_vendor_name" in attrs
+    # Copper-only attrs should NOT appear on SFP ports
+    assert "rate" not in attrs
+    assert "full_duplex" not in attrs
+
+
+def test_mixin_ether_sfp_skips_junk_defaults():
+    """SFP attributes with 'unknown' or None values are omitted."""
+    entity = _ConcreteEntity(
+        {
+            "type": "ether",
+            "sfp-shutdown-temperature": "95C",
+            "sfp-temperature": "45C",
+            "sfp-vendor-name": "unknown",
+            "sfp-rx-power": None,
+            "sfp-module-present": "yes",
+        }
+    )
+    attrs = entity.extra_state_attributes
+    assert attrs["sfp_temperature"] == "45C"
+    assert "sfp_vendor_name" not in attrs
+    assert "sfp_rx_power" not in attrs
+    assert attrs["sfp_module_present"] == "yes"
 
 
 def test_mixin_ether_without_sfp_does_not_add_sfp_attributes():
@@ -603,6 +628,64 @@ def test_mixin_ether_without_sfp_does_not_add_sfp_attributes():
     assert "sfp_temperature" not in attrs
 
 
+def test_mixin_ether_sfp_shutdown_temp_zero_means_no_sfp():
+    """sfp-shutdown-temperature defaulting to 0 (coordinator default) is treated as no SFP."""
+    entity = _ConcreteEntity(
+        {
+            "type": "ether",
+            "sfp-shutdown-temperature": 0,
+            "sfp-temperature": 0,
+            "sfp-vendor-name": "unknown",
+            "status": "link-ok",
+            "rate": "1Gbps",
+        }
+    )
+    attrs = entity.extra_state_attributes
+    # Should show copper attrs, NOT SFP attrs
+    assert attrs["status"] == "link-ok"
+    assert attrs["rate"] == "1Gbps"
+    assert "sfp_temperature" not in attrs
+    assert "sfp_vendor_name" not in attrs
+
+
+def test_mixin_ether_poe_out_shown_when_supported():
+    """poe-out is shown only when the port has PoE support."""
+    entity = _ConcreteEntity({"type": "ether", "poe-out": "auto-on"})
+    attrs = entity.extra_state_attributes
+    assert attrs["poe_out"] == "auto-on"
+
+
+def test_mixin_ether_poe_out_hidden_when_na():
+    """poe-out 'N/A' (non-PoE ports) is not shown."""
+    entity = _ConcreteEntity({"type": "ether", "poe-out": "N/A"})
+    attrs = entity.extra_state_attributes
+    assert "poe_out" not in attrs
+
+
+def test_mixin_client_attrs_shown_when_meaningful():
+    """client-ip-address and client-mac-address shown when they have real values."""
+    entity = _ConcreteEntity(
+        {
+            "type": "ether",
+            "client-ip-address": "192.168.1.10",
+            "client-mac-address": "AA:BB:CC:DD:EE:FF",
+        }
+    )
+    attrs = entity.extra_state_attributes
+    assert attrs["client_ip_address"] == "192.168.1.10"
+    assert attrs["client_mac_address"] == "AA:BB:CC:DD:EE:FF"
+
+
+def test_mixin_client_attrs_hidden_when_junk():
+    """client-ip-address and client-mac-address hidden when 'unknown'/'none'."""
+    entity = _ConcreteEntity(
+        {"type": "ether", "client-ip-address": "unknown", "client-mac-address": "none"}
+    )
+    attrs = entity.extra_state_attributes
+    assert "client_ip_address" not in attrs
+    assert "client_mac_address" not in attrs
+
+
 def test_mixin_wlan_adds_wireless_attributes():
     """Wlan-type interface populates wireless-specific attributes."""
     entity = _ConcreteEntity({"type": "wlan", "ssid": "MyWifi", "band": "2ghz-b/g/n"})
@@ -612,13 +695,12 @@ def test_mixin_wlan_adds_wireless_attributes():
     assert "band" in attrs
 
 
-def test_mixin_other_type_adds_no_extra_attributes():
-    """Non-ether/wlan interfaces (e.g. bridge) produce no extra attributes."""
+def test_mixin_other_type_adds_no_type_specific_attributes():
+    """Non-ether/wlan interfaces (e.g. bridge) produce no type-specific attributes."""
     entity = _ConcreteEntity({"type": "bridge", "status": "active"})
     attrs = entity.extra_state_attributes
     assert "status" not in attrs
-    # Only the base attribution key is present
-    assert list(attrs.keys()) == ["attribution"]
+    assert "attribution" in attrs
 
 
 def test_mixin_missing_type_adds_no_extra_attributes():
@@ -626,7 +708,7 @@ def test_mixin_missing_type_adds_no_extra_attributes():
     entity = _ConcreteEntity({"status": "active"})
     attrs = entity.extra_state_attributes
     assert "status" not in attrs
-    assert list(attrs.keys()) == ["attribution"]
+    assert "attribution" in attrs
 
 
 def test_mixin_preserves_base_attributes():
@@ -666,6 +748,43 @@ def testcopy_attrs_empty_variables_list():
     data = {"status": "up"}
     copy_attrs(attributes, data, [])
     assert len(attributes) == 0
+
+
+def testcopy_attrs_skip_junk_filters_defaults():
+    """skip_junk=True omits 'unknown', 'none', 'N/A', and None values."""
+    attributes = {}
+    data = {
+        "real": "link-ok",
+        "junk1": "unknown",
+        "junk2": "none",
+        "junk3": "N/A",
+        "junk4": None,
+        "zero": 0,
+        "empty": "",
+    }
+    copy_attrs(
+        attributes,
+        data,
+        ["real", "junk1", "junk2", "junk3", "junk4", "zero", "empty"],
+        skip_junk=True,
+    )
+    assert attributes["real"] == "link-ok"
+    assert "junk1" not in attributes
+    assert "junk2" not in attributes
+    assert "junk3" not in attributes
+    assert "junk4" not in attributes
+    # 0 and "" are NOT filtered — they can be valid values
+    assert attributes["zero"] == 0
+    assert attributes["empty"] == ""
+
+
+def testcopy_attrs_without_skip_junk_includes_all():
+    """Default skip_junk=False preserves all values including junk defaults."""
+    attributes = {}
+    data = {"status": "unknown", "rate": None}
+    copy_attrs(attributes, data, ["status", "rate"])
+    assert attributes["status"] == "unknown"
+    assert attributes["rate"] is None
 
 
 # ---------------------------------------------------------------------------

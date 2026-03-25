@@ -4,6 +4,71 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260325-attribute-cleanup — Remove junk attributes from interface and tracker entities
+
+**Date:** 2026-03-25
+**Branch:** `feature/attribute-cleanup`
+**Status:** Beta (v2.3.11-beta.1)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `entity.py` | `MikrotikInterfaceEntityMixin` now uses exclusive SFP/copper attribute selection based on `sfp-shutdown-temperature` value (not key existence); adds `client-ip/mac` and `poe-out` conditionally; `copy_attrs` gains `skip_junk` parameter to filter "unknown"/"none"/"N/A"/None values |
+| `switch.py` | `MikrotikPortSwitch` now inherits `MikrotikInterfaceEntityMixin` instead of duplicating attribute logic (-41 lines) |
+| `iface_attributes.py` | Moved `client-ip-address`/`client-mac-address` to new `DEVICE_ATTRIBUTES_IFACE_CLIENT` list; removed `poe-out` from `DEVICE_ATTRIBUTES_IFACE_ETHER` |
+| `switch_types.py` | Eliminated 4 duplicated attribute lists — now imports from `iface_attributes.py` (-66 lines) |
+| `device_tracker.py` | Wireless attrs (`signal-strength`, `tx-ccq`, `tx/rx-rate`) only added for wireless/capsman hosts |
+| `device_tracker_types.py` | Split `DEVICE_ATTRIBUTES_HOST_WIRELESS` from `DEVICE_ATTRIBUTES_HOST` |
+| `tests/` | 10 new tests (SFP/copper exclusivity, skip_junk, poe-out conditional, client filtering, wireless tracker attrs); 472 total |
+
+### Why
+
+Entity attributes were polluted with ~1,300 meaningless defaults across 3 tested devices (rb4011, hapax3, hapac2/csr310). Root cause: `parse_api` adds all declared fields with defaults, then `copy_attrs` unconditionally includes them. Key examples:
+- 16 SFP attributes (all "unknown") on every copper ethernet port
+- `poe_out: "N/A"` on every non-PoE port
+- `client_ip_address: "unknown"` on loopback, vlan, pppoe, wireguard, bonding interfaces
+- `signal_strength`, `tx_ccq` on wired device tracker hosts
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 472 passed, 5 skipped | ✅ |
+
+---
+
+## CR-260325-mangle-interface-dedup — Include interface fields in mangle rule unique ID
+
+**Date:** 2026-03-25
+**Branch:** `fix/mangle-duplicate-interface`
+**PR:** #40 (targeting dev)
+**Status:** In Review
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | Added `in-interface` and `out-interface` to mangle `uniq-id` formula and API query fields |
+| `switch_types.py` | Added `in-interface` and `out-interface` to `DEVICE_ATTRIBUTES_MANGLE` |
+| `tests/` | New test: `test_mangle_interface_differentiates_rules` |
+
+### Why
+
+Mangle rules differing only by `in-interface`/`out-interface` (e.g. MSS clamping for inbound vs outbound PPPoE) generated identical unique IDs, causing the duplicate detection to silently remove both rules.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 472 passed, 5 skipped | ✅ |
+
+---
+
 ## CR-260324-arp-incomplete-filtering — Treat ARP "incomplete" as unreachable
 
 **Date:** 2026-03-24

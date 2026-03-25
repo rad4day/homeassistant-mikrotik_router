@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
 
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.components.switch import (
@@ -16,6 +15,10 @@ DEVICE_ATTRIBUTES_HOST = [
     "authorized",
     "bypassed",
     "last-seen",
+]
+
+# Only shown for wireless/capsman hosts.
+DEVICE_ATTRIBUTES_HOST_WIRELESS = [
     "signal-strength",
     "tx-ccq",
     "tx-rate",
@@ -41,7 +44,7 @@ class MikrotikDeviceTrackerEntityDescription(SwitchEntityDescription):
     data_name_comment: bool = False
     data_uid: str | None = None
     data_reference: str | None = None
-    data_attributes_list: List = field(default_factory=lambda: [])
+    data_attributes_list: list = field(default_factory=lambda: [])
     func: str = "MikrotikDeviceTracker"
 
 

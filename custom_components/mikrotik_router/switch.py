@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from logging import getLogger
-from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
@@ -12,13 +11,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .entity import MikrotikEntity, copy_attrs, async_add_entities
+from .entity import MikrotikEntity, MikrotikInterfaceEntityMixin, async_add_entities
 from .switch_types import (
     SENSOR_TYPES,  # noqa: F401
     SENSOR_SERVICES,  # noqa: F401
-    DEVICE_ATTRIBUTES_IFACE_ETHER,
-    DEVICE_ATTRIBUTES_IFACE_SFP,
-    DEVICE_ATTRIBUTES_IFACE_WIRELESS,
 )
 
 _LOGGER = getLogger(__name__)
@@ -98,22 +94,8 @@ class MikrotikSwitch(MikrotikEntity, SwitchEntity, RestoreEntity):
 # ---------------------------
 #   MikrotikPortSwitch
 # ---------------------------
-class MikrotikPortSwitch(MikrotikSwitch):
+class MikrotikPortSwitch(MikrotikInterfaceEntityMixin, MikrotikSwitch):
     """Representation of a network port switch."""
-
-    @property
-    def extra_state_attributes(self) -> Mapping[str, Any]:
-        """Return the state attributes."""
-        attributes = super().extra_state_attributes
-
-        if self._data["type"] == "ether":
-            copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_ETHER)
-            if "sfp-shutdown-temperature" in self._data:
-                copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_SFP)
-        elif self._data["type"] == "wlan":
-            copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_IFACE_WIRELESS)
-
-        return attributes
 
     @property
     def icon(self) -> str:

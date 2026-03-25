@@ -246,3 +246,55 @@ class TestMikrotikHostDeviceTracker:
         )
         attrs = entity.extra_state_attributes
         assert attrs["last_seen"] == "Unknown"
+
+    def test_extra_state_attributes_wireless_host_shows_signal_attrs(self):
+        coord = make_mock_coordinator(options={CONF_TRACK_HOSTS: True})
+        coord.data["host"] = {
+            "mac1": _host_data(
+                source="wireless",
+                available=True,
+                **{
+                    "signal-strength": -55,
+                    "tx-ccq": 90,
+                    "tx-rate": "54Mbps",
+                    "rx-rate": "72Mbps",
+                },
+            )
+        }
+        entity = _make_tracker(
+            cls=MikrotikHostDeviceTracker,
+            coordinator=coord,
+            desc_overrides={**_HOST_DESC},
+            uid="mac1",
+        )
+        attrs = entity.extra_state_attributes
+        assert attrs["signal_strength"] == -55
+        assert attrs["tx_ccq"] == 90
+        assert attrs["tx_rate"] == "54Mbps"
+        assert attrs["rx_rate"] == "72Mbps"
+
+    def test_extra_state_attributes_wired_host_no_wireless_attrs(self):
+        coord = make_mock_coordinator(options={CONF_TRACK_HOSTS: True})
+        coord.data["host"] = {
+            "mac1": _host_data(
+                source="arp",
+                available=True,
+                **{
+                    "signal-strength": 0,
+                    "tx-ccq": 0,
+                    "tx-rate": "",
+                    "rx-rate": "",
+                },
+            )
+        }
+        entity = _make_tracker(
+            cls=MikrotikHostDeviceTracker,
+            coordinator=coord,
+            desc_overrides={**_HOST_DESC},
+            uid="mac1",
+        )
+        attrs = entity.extra_state_attributes
+        assert "signal_strength" not in attrs
+        assert "tx_ccq" not in attrs
+        assert "tx_rate" not in attrs
+        assert "rx_rate" not in attrs
