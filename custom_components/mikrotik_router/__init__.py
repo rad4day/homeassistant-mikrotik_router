@@ -80,10 +80,10 @@ def _build_valid_unique_ids(inst: str, coordinator_data: dict) -> set[str]:
     return valid_ids
 
 
-async def async_cleanup_entities(
-    hass: HomeAssistant, call: ServiceCall
+async def async_cleanup_entities(call: ServiceCall
 ) -> ServiceResponse:
     """Remove orphaned entities that no longer have backing data."""
+    hass = call.hass
     entry_id = call.data["entry_id"]
 
     if entry_id not in hass.data.get(DOMAIN, {}):
@@ -138,10 +138,10 @@ CLEANUP_STALE_HOSTS_SCHEMA = vol.Schema(
 )
 
 
-async def async_cleanup_stale_hosts(
-    hass: HomeAssistant, call: ServiceCall
+async def async_cleanup_stale_hosts(call: ServiceCall
 ) -> ServiceResponse:
     """Report or remove device tracker entities for away/stale hosts."""
+    hass = call.hass
     entry_id = call.data["entry_id"]
     dry_run = call.data.get("dry_run", True)
 
