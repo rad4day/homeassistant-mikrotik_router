@@ -217,10 +217,13 @@ async def async_cleanup_stale_hosts(
 
 
 # ---------------------------
-#   async_setup
+#   _async_register_services
 # ---------------------------
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the Mikrotik Router integration (register services)."""
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Register integration services (idempotent — safe to call per entry)."""
+    if hass.services.has_service(DOMAIN, SERVICE_CLEANUP_ENTITIES):
+        return
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_CLEANUP_ENTITIES,
@@ -235,7 +238,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         schema=CLEANUP_STALE_HOSTS_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    return True
 
 
 # ---------------------------
@@ -243,6 +245,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 # ---------------------------
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up a config entry."""
+    _async_register_services(hass)
     coordinator = MikrotikCoordinator(hass, config_entry)
     await coordinator.async_config_entry_first_refresh()
     coordinator_tracker = MikrotikTrackerCoordinator(hass, config_entry, coordinator)
