@@ -611,11 +611,11 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self.ds["host_hass"][tmp[2].upper()] = entity.original_name
 
     # ---------------------------
-    #   _async_run_if_connected
+    #   _run_if_enabled
     # ---------------------------
-    async def _async_run_if_connected(self, func) -> None:
-        """Run a blocking function in the executor if the API is connected."""
-        if self.api.connected():
+    async def _run_if_enabled(self, func, *, requires: bool = True) -> None:
+        """Run a blocking API call in the executor if connected and enabled."""
+        if self.api.connected() and requires:
             await self.hass.async_add_executor_job(func)
 
     # ---------------------------
@@ -638,13 +638,14 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self.get_capabilities,
             self.get_system_routerboard,
         ]:
-            await self._async_run_if_connected(func)
+            await self._run_if_enabled(func)
 
-        if self.api.connected() and self.option_sensor_scripts:
-            await self.hass.async_add_executor_job(self.get_script)
+        await self._run_if_enabled(
+            self.get_script, requires=self.option_sensor_scripts
+        )
 
         for func in [self.get_dhcp_network, self.get_dns]:
-            await self._async_run_if_connected(func)
+            await self._run_if_enabled(func)
 
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")
@@ -664,72 +665,74 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         if not hwinfo_ran:
             await self.hass.async_add_executor_job(self.get_system_resource)
 
+        # Core data — always fetched
         for func in [self.get_system_health, self.get_dhcp_client, self.get_interface]:
-            await self._async_run_if_connected(func)
+            await self._run_if_enabled(func)
 
         if self.api.connected() and not self.ds["host_hass"]:
             await self.async_get_host_hass()
 
-        if self.api.connected() and self.support_capsman:
-            await self.hass.async_add_executor_job(self.get_capsman_hosts)
+        # Wireless / CAPsMAN host discovery
+        await self._run_if_enabled(
+            self.get_capsman_hosts, requires=self.support_capsman
+        )
+        await self._run_if_enabled(self.get_wireless, requires=self.support_wireless)
+        await self._run_if_enabled(
+            self.get_wireless_hosts, requires=self.support_wireless
+        )
 
-        if self.api.connected() and self.support_wireless:
-            await self.hass.async_add_executor_job(self.get_wireless)
-
-        if self.api.connected() and self.support_wireless:
-            await self.hass.async_add_executor_job(self.get_wireless_hosts)
-
+        # Host processing pipeline
         for func in [self.get_bridge, self.get_arp, self.get_dhcp]:
-            await self._async_run_if_connected(func)
+            await self._run_if_enabled(func)
 
         if self.api.connected():
             await self.async_process_host()
 
-        await self._async_run_if_connected(self.process_interface_client)
+        await self._run_if_enabled(self.process_interface_client)
 
-        # Optional sensors — each guarded by its config option
-        optional_sensors = [
-            (self.option_sensor_nat, self.get_nat),
-            (self.option_sensor_kidcontrol, self.get_kidcontrol),
-            (self.option_sensor_mangle, self.get_mangle),
-            (self.option_sensor_filter, self.get_filter),
-            (self.option_sensor_raw, self.get_raw),
-            (self.option_sensor_netwatch, self.get_netwatch),
-        ]
-        for enabled, func in optional_sensors:
-            if self.api.connected() and enabled:
-                await self.hass.async_add_executor_job(func)
+        # Optional sensors
+        await self._run_if_enabled(self.get_nat, requires=self.option_sensor_nat)
+        await self._run_if_enabled(
+            self.get_kidcontrol, requires=self.option_sensor_kidcontrol
+        )
+        await self._run_if_enabled(
+            self.get_mangle, requires=self.option_sensor_mangle
+        )
+        await self._run_if_enabled(
+            self.get_filter, requires=self.option_sensor_filter
+        )
+        await self._run_if_enabled(self.get_raw, requires=self.option_sensor_raw)
+        await self._run_if_enabled(
+            self.get_netwatch, requires=self.option_sensor_netwatch
+        )
+        await self._run_if_enabled(
+            self.get_ppp, requires=self.support_ppp and self.option_sensor_ppp
+        )
 
-        if self.api.connected() and self.support_ppp and self.option_sensor_ppp:
-            await self.hass.async_add_executor_job(self.get_ppp)
-
+        # Client traffic — version-dependent
         if self.api.connected() and self.option_sensor_client_traffic:
             if 0 < self.major_fw_version < 7:
                 await self.hass.async_add_executor_job(self.process_accounting)
-            elif 0 < self.major_fw_version >= 7:
-                await self.hass.async_add_executor_job(self.process_kid_control_devices)
+            elif self.major_fw_version >= 7:
+                await self.hass.async_add_executor_job(
+                    self.process_kid_control_devices
+                )
 
-        optional_sensors_post = [
-            (self.option_sensor_client_captive, self.get_captive),
-            (self.option_sensor_simple_queues, self.get_queue),
-            (self.option_sensor_environment, self.get_environment),
-        ]
-        for enabled, func in optional_sensors_post:
-            if self.api.connected() and enabled:
-                await self.hass.async_add_executor_job(func)
-
-        if self.api.connected() and self.support_ups:
-            await self.hass.async_add_executor_job(self.get_ups)
-
-        if self.api.connected() and self.support_gps:
-            await self.hass.async_add_executor_job(self.get_gps)
-
-        if (
-            self.api.connected()
-            and self.support_container
-            and self.option_sensor_container
-        ):
-            await self.hass.async_add_executor_job(self.get_container)
+        await self._run_if_enabled(
+            self.get_captive, requires=self.option_sensor_client_captive
+        )
+        await self._run_if_enabled(
+            self.get_queue, requires=self.option_sensor_simple_queues
+        )
+        await self._run_if_enabled(
+            self.get_environment, requires=self.option_sensor_environment
+        )
+        await self._run_if_enabled(self.get_ups, requires=self.support_ups)
+        await self._run_if_enabled(self.get_gps, requires=self.support_gps)
+        await self._run_if_enabled(
+            self.get_container,
+            requires=self.support_container and self.option_sensor_container,
+        )
 
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")

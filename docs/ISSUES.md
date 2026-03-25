@@ -68,7 +68,7 @@ SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. 
 
 **Done (PR #30 — feature/complexity-reduction):**
 - ✅ `async_process_host()` (136→~10 per helper): extracted `_merge_capsman_hosts`, `_merge_wireless_hosts`, `_merge_dhcp_hosts`, `_merge_arp_hosts`, `_recover_hass_hosts`, `_ensure_host_defaults`, `_update_host_availability`, `_update_host_address`, `_resolve_hostname`, `_dhcp_comment_for_host`, `_update_captive_portal`
-- ✅ `_async_update_data()` (65→~15): extracted `_async_update_hwinfo`, `_async_run_if_connected`, optional sensor loop tables
+- ✅ `_async_update_data()` (65→~15): extracted `_async_update_hwinfo`, `_run_if_enabled`, optional sensor loop tables
 - ✅ `process_accounting()` (48→~10 per helper): extracted `_init_accounting_hosts`, `_classify_accounting_traffic`, `_check_accounting_threshold`, `_apply_accounting_throughput`
 - ✅ `get_interface()` (27→~10): extracted `_monitor_ethernet_port` with `_SFP_MONITOR_VALS`, `_COPPER_MONITOR_VALS`, `_POE_MONITOR_VALS` class constants
 - ✅ `_skip_sensor()` (23→~5 per helper): extracted `_skip_interface_traffic`, `_skip_binary_sensor`, `_skip_device_tracker`, `_skip_poe_sensor`
