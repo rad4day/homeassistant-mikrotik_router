@@ -329,7 +329,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         self.async_mac_lookup = AsyncMacLookup()
         self.accessrights_reported = False
 
-        self.last_hwinfo_update = datetime(1970, 1, 1)
+        self.last_hwinfo_update = datetime(1970, 1, 1, tzinfo=timezone.utc)
         self.rebootcheck = 0
 
     # ---------------------------
