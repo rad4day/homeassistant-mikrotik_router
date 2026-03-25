@@ -29,7 +29,10 @@ DEVICE_ATTRIBUTES_IFACE_ETHER = [
 
 DEVICE_ATTRIBUTES_IFACE_SFP = [
     "status",
+    "rate",
+    "full-duplex",
     "auto-negotiation",
+    "default-name",
     "advertising",
     "link-partner-advertising",
     "sfp-temperature",

@@ -786,10 +786,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     # ---------------------------
     _SFP_MONITOR_VALS = [
         {"name": "status", "default": "unknown"},
+        {"name": "rate", "default": "unknown"},
+        {"name": "full-duplex", "default": "unknown"},
         {"name": "auto-negotiation", "default": "unknown"},
         {"name": "advertising", "default": "unknown"},
         {"name": "link-partner-advertising", "default": "unknown"},
-        {"name": "sfp-temperature", "default": 0},
+        {"name": "sfp-temperature", "default": None},
         {"name": "sfp-supply-voltage", "default": "unknown"},
         {"name": "sfp-module-present", "default": "unknown"},
         {"name": "sfp-tx-bias-current", "default": "unknown"},
