@@ -4,7 +4,7 @@
 
 1. ISS-260320-test-coverage — Increase test coverage to ≥80%
 2. ISS-260320-new-device-discovery — New devices require HA restart to appear
-3. ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
+3. ISS-260321-cognitive-complexity — Reduce cognitive complexity to ≤15 per function
 
 ---
 
@@ -29,7 +29,7 @@
 - Full HA integration tests: async_setup_entry, async_unload_entry (requires full HA platform machinery)
 - Full coverage measurement and gap analysis
 
-**Reference:** 473 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port, 12 attribute cleanup), target ≥80% for SonarCloud Grade A
+**Reference:** 461 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port), target ≥80% for SonarCloud Grade A
 
 ---
 
@@ -103,19 +103,6 @@ The `update_sensors` dispatcher was re-enabled in v2.3.6 to fix new devices not 
 
 ---
 
-### ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
-**Type:** Bug
-**Priority:** Medium
-**Created:** 2026-03-20
-**Status:** 🟡 Backlog
-**Source:** coordinator.py lines 577, 606, 1547
-
-**Remaining:**
-- Replace `datetime.now()` with `homeassistant.util.dt.now()`
-- Audit all datetime usage in coordinator.py
-
----
-
 ### ISS-260320-refactor-dedup — Refactor duplicated patterns
 **Type:** Refactoring
 **Priority:** Medium
@@ -159,6 +146,14 @@ Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. 
 ---
 
 ## Completed
+
+### ISS-260326-slow-load — Startup bottlenecks blocking HA loading
+**Type:** Bug/Performance | **Priority:** High | **Created:** 2026-03-26
+**Status:** 🔴 Closed — fixed in v2.3.12 (claude/fix-homeassistant-slow-load)
+
+### ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
+**Type:** Bug | **Priority:** Medium | **Created:** 2026-03-20
+**Status:** 🔴 Closed — fixed in v2.3.12 (claude/fix-homeassistant-slow-load)
 
 ### ISS-260325-attribute-bloat — ~1300 junk attributes on interface and tracker entities
 **Type:** Bug/Quality | **Priority:** High | **Created:** 2026-03-25

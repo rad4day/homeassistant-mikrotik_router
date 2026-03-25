@@ -4,6 +4,45 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260326-fix-slow-load — Eliminate startup bottlenecks that block HA loading
+
+**Date:** 2026-03-26
+**Branch:** `claude/fix-homeassistant-slow-load-EzXf3`
+**Status:** Pre-release (v2.3.12-beta.1)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | First-run host tracking uses ARP table instead of sequential pings — eliminates O(n) blocking startup delay |
+| `coordinator.py` | MAC vendor lookups parallelised via `asyncio.gather` + `_resolve_manufacturer` helper |
+| `coordinator.py` | `_async_update_hwinfo` returns `bool` to skip duplicate `get_system_resource` call on hwinfo cycles |
+| `coordinator.py` | `_async_run_if_connected` → `_run_if_enabled` with `requires` kwarg, reducing boilerplate |
+| `coordinator.py` | All `datetime.now()` replaced with HA's `dt_now()` (timezone-aware); `last_hwinfo_update` initialised with `tzinfo=timezone.utc` |
+| `coordinator.py` | Fixed chained comparison bug: `elif 0 < self.major_fw_version >= 7` → `elif self.major_fw_version >= 7` |
+| `coordinator.py` | `get_system_resource` now uses `_run_if_enabled` guard (caught by silent-failure audit) |
+| `apiparser.py` | Fixed `voluptuous.Optional(str)` misused as type hint → `str \| None` (PEP 604) |
+| `*.py` (6 files) | Added `from __future__ import annotations` per HA coding standards |
+| `tests/` | `mac_lookup.lookup` mock changed from `MagicMock` to `AsyncMock` to match async gather usage |
+
+### Why
+
+ISS-260326-slow-load: The integration was blocking HA startup by sequentially pinging every tracked host on first load. With many hosts, this added 10+ seconds to HA boot time. ARP-based first-run detection provides immediate availability data, with pings starting on the next 10s tracker cycle.
+
+ISS-260320-deprecated-datetime: All remaining naive `datetime.now()` calls replaced with timezone-aware equivalents per HA coding standards.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 461 passed, 5 skipped | ✅ |
+| Code review | No bugs found | ✅ |
+| Silent-failure audit | 2 fixes applied (resource guard, ARP logging) | ✅ |
+
+---
+
 ## CR-260325-attribute-cleanup — Remove junk attributes from interface and tracker entities
 
 **Date:** 2026-03-25

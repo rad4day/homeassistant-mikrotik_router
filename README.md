@@ -15,7 +15,18 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.11
+## What's New — v2.3.12
+
+**Faster startup** — The integration no longer blocks Home Assistant startup by sequentially pinging every tracked host. First-run host availability now uses the ARP table for instant results, with pings starting on the next 10-second tracker cycle. MAC vendor lookups are also parallelised instead of running one-by-one.
+
+**Bug fixes:**
+- Fixed chained comparison bug that could skip firmware v7+ client traffic processing
+- Fixed `voluptuous.Optional` incorrectly used as a type hint in API parser
+- All `datetime.now()` calls replaced with timezone-aware equivalents (HA coding standards)
+- `get_system_resource` now properly guarded against disconnected API
+
+<details>
+<summary>Previous: v2.3.11 — Attribute cleanup</summary>
 
 **Attribute cleanup** — Entity attributes now only show information relevant to each port type. Previously, all ethernet ports displayed SFP diagnostics, PoE status, and client tracking fields regardless of hardware capability. Now:
 
@@ -28,6 +39,8 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 | Wireless metrics | Shown on all tracked devices | Only wireless/CAPsMAN clients |
 
 **Mangle fix** — Rules differing only by `in-interface`/`out-interface` (e.g. MSS clamping for inbound vs outbound PPPoE) were silently removed as duplicates. Interface fields are now included in the rule unique ID.
+
+</details>
 
 <details>
 <summary>Previous: v2.3.10 — Device tracker fix</summary>

@@ -192,9 +192,13 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
             # On first run, use ARP data instead of pinging every host
             # sequentially.  Pings will run on subsequent 10s updates.
             if first_run:
-                self.coordinator.ds["host"][uid]["available"] = (
-                    uid in self.coordinator.ds["arp"]
-                )
+                in_arp = uid in self.coordinator.ds["arp"]
+                self.coordinator.ds["host"][uid]["available"] = in_arp
+                if not in_arp:
+                    _LOGGER.debug(
+                        "Host %s not in ARP on first run; will ping next cycle",
+                        uid,
+                    )
             elif (
                 self.coordinator.ds["host"][uid]["source"]
                 not in ["capsman", "wireless"]
@@ -661,7 +665,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         # get_system_resource already ran inside _async_update_hwinfo;
         # only call it again on normal polling cycles where hwinfo was skipped.
         if not hwinfo_ran:
-            await self.hass.async_add_executor_job(self.get_system_resource)
+            await self._run_if_enabled(self.get_system_resource)
 
         for func in [self.get_system_health, self.get_dhcp_client, self.get_interface]:
             await self._run_if_enabled(func)
@@ -2594,7 +2598,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             del self.ds["host"][uid]["bypassed"]
 
     # ---------------------------
-    #   async_process_host
+    #   _resolve_manufacturer
     # ---------------------------
     async def _resolve_manufacturer(self, uid: str, mac: str) -> None:
         """Resolve a single MAC address to a manufacturer name."""
@@ -2602,12 +2606,13 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self.ds["host"][uid]["manufacturer"] = await self.async_mac_lookup.lookup(
                 mac
             )
-        except asyncio.CancelledError:
-            raise
         except Exception as err:
             _LOGGER.debug("MAC vendor lookup failed for %s: %s", mac, err)
             self.ds["host"][uid]["manufacturer"] = ""
 
+    # ---------------------------
+    #   async_process_host
+    # ---------------------------
     async def async_process_host(self) -> None:
         """Get host tracking data"""
         capsman_detected = self._merge_capsman_hosts()
