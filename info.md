@@ -4,9 +4,9 @@ Monitor and control your MikroTik router from Home Assistant.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-### What's new in v2.3.11-beta.1
-- **Attribute cleanup** — Removed ~1,300 meaningless default attributes (SFP fields on copper ports, PoE on non-PoE, client IP on loopback/VLAN, wireless metrics on wired hosts)
-- **Mangle fix** — Rules differing only by interface were silently dropped as duplicates ([PR #40](https://github.com/jnctech/homeassistant-mikrotik_router/pull/40))
+### What's new in v2.3.11
+- **Attribute cleanup** — Entity attributes now only show information relevant to each port type (SFP diagnostics on SFP ports only, PoE on PoE-capable ports only, wireless metrics on wireless clients only)
+- **Mangle fix** — Rules differing only by interface were silently dropped as duplicates
 
 ### v2.3.10
 - **Device tracker fix** — ARP `"incomplete"` status no longer falsely shows devices as "home" ([PR #38](https://github.com/jnctech/homeassistant-mikrotik_router/pull/38))

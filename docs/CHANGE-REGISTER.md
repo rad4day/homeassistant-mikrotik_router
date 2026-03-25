@@ -8,7 +8,7 @@ Changes listed in reverse chronological order.
 
 **Date:** 2026-03-25
 **Branch:** `feature/attribute-cleanup`
-**Status:** Beta (v2.3.11-beta.1)
+**Status:** Released (v2.3.11)
 
 ### What Changed
 

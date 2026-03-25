@@ -15,19 +15,19 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.11-beta.1
+## What's New — v2.3.11
 
-**Attribute cleanup** — Removed ~1,300 meaningless default attributes from interface and device tracker entities across all devices:
+**Attribute cleanup** — Entity attributes now only show information relevant to each port type. Previously, all ethernet ports displayed SFP diagnostics, PoE status, and client tracking fields regardless of hardware capability. Now:
 
-| Fix | Before | After |
-|-----|--------|-------|
-| SFP attributes on copper ports | 16 "unknown" SFP attrs per copper port | Only shown on actual SFP ports |
-| Copper attributes on SFP ports | `rate`, `full-duplex` on SFP | Only shown on copper ports |
-| PoE on non-PoE ports | `poe_out: "N/A"` everywhere | Only shown on PoE-capable ports |
-| Client IP/MAC on non-client interfaces | `"unknown"`/`"none"` on loopback, VLAN, PPPoE, WireGuard | Only shown when values are real |
-| Wireless metrics on wired hosts | `signal_strength`, `tx_ccq` on ARP-tracked devices | Only shown for wireless/CAPsMAN hosts |
+| Attribute type | Before | After |
+|----------------|--------|-------|
+| SFP diagnostics | Shown on all ethernet ports | Only SFP ports |
+| Link rate & duplex | Only copper ports | Both copper and SFP ports |
+| PoE status | Shown as "N/A" on non-PoE ports | Only PoE-capable ports |
+| Client IP/MAC | Shown as "unknown" on all interfaces | Only when a client is connected |
+| Wireless metrics | Shown on all tracked devices | Only wireless/CAPsMAN clients |
 
-**Mangle fix** — Rules differing only by `in-interface`/`out-interface` (e.g. MSS clamping for inbound vs outbound PPPoE) were silently removed as duplicates. Interface fields now included in rule unique ID. ([PR #40](https://github.com/jnctech/homeassistant-mikrotik_router/pull/40))
+**Mangle fix** — Rules differing only by `in-interface`/`out-interface` (e.g. MSS clamping for inbound vs outbound PPPoE) were silently removed as duplicates. Interface fields are now included in the rule unique ID.
 
 <details>
 <summary>Previous: v2.3.10 — Device tracker fix</summary>
