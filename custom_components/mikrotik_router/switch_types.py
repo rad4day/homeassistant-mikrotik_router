@@ -31,6 +31,8 @@ DEVICE_ATTRIBUTES_MANGLE = [
     "src-port",
     "dst-address",
     "dst-port",
+    "in-interface",
+    "out-interface",
     "comment",
 ]
 
