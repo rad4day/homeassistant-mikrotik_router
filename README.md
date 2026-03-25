@@ -154,7 +154,7 @@ Your existing configuration and entities are preserved — no reconfiguration ne
 ## Feature Highlights
 
 - **Interfaces** — enable/disable, SFP info, RX/TX traffic, connected device IP/MAC, interface presence
-- **PoE monitoring** *(new in v2.3.x)* — per-port status, voltage, current and power for PoE-capable switches
+- **PoE monitoring** *(v2.3.3+)* — per-port status, voltage, current and power for PoE-capable switches
 - **NAT rules** — enable/disable individual rules
 - **Mangle rules** — enable/disable individual rules
 - **Filter rules** — enable/disable individual rules
@@ -185,7 +185,7 @@ Monitor and control status on each MikroTik interface — LAN, WLAN, physical an
 ![Interface Switch](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface_switch.png)
 ![Interface Sensor](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/interface_sensor.png)
 
-## PoE Monitoring *(new — v2.3.x pre-release)*
+## PoE Monitoring *(v2.3.3+)*
 Monitor Power over Ethernet (PoE) status and power metrics for each PoE-capable port on your MikroTik switch or router directly in Home Assistant.
 
 More information about PoE-Out can be found on the [MikroTik support page](https://help.mikrotik.com/docs/display/ROS/PoE-Out).
@@ -366,7 +366,7 @@ This integration is distributed using [HACS](https://hacs.xyz/).
 
 **Minimum requirements:**
 - RouterOS v6.43 or v7.1+
-- Home Assistant 0.114.0+
+- Home Assistant 2024.3.0+
 
 ## Setup
 
@@ -421,13 +421,13 @@ This provides device presence detection and per-client traffic stats regardless 
 
 **Affected devices:** RB4011, RB5009, CCR1009, CCR1016, CCR1036, CCR2004, CCR2116, and any MikroTik router where the wireless package is absent.
 
-**Status:** Fixed in the [v2.3.x pre-release](#whats-new--v23x-pre-release). The fix checks which WiFi packages are installed before querying wireless endpoints. ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
+**Status:** Fixed in v2.3.3. The fix checks which WiFi packages are installed before querying wireless endpoints. ([upstream #433](https://github.com/tomaae/homeassistant-mikrotik_router/issues/433))
 
 ## Temperature sensors always show Celsius, ignore Fahrenheit preference
 
 **Affected users:** Home Assistant instances configured for imperial/Fahrenheit units.
 
-**Status:** Fixed in the [v2.3.x pre-release](#whats-new--v23x-pre-release). Temperature sensors now respect HA unit preferences and auto-convert. ([upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
+**Status:** Fixed in v2.3.3. Temperature sensors now respect HA unit preferences and auto-convert. ([upstream #230](https://github.com/tomaae/homeassistant-mikrotik_router/issues/230))
 
 ---
 
