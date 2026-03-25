@@ -87,34 +87,48 @@ async def async_cleanup_entities(
     entry_id = call.data["entry_id"]
 
     if entry_id not in hass.data.get(DOMAIN, {}):
-        raise vol.Invalid(f"Config entry '{entry_id}' not found for {DOMAIN}")
+        _LOGGER.error(
+            "Config entry '%s' not found. Available: %s",
+            entry_id,
+            list(hass.data.get(DOMAIN, {}).keys()),
+        )
+        return {"error": f"Config entry '{entry_id}' not found"}
 
-    mikrotik_data: MikrotikData = hass.data[DOMAIN][entry_id]
-    coordinator = mikrotik_data.data_coordinator
-    config_entry = coordinator.config_entry
-    inst = config_entry.data[CONF_NAME]
+    try:
+        mikrotik_data: MikrotikData = hass.data[DOMAIN][entry_id]
+        coordinator = mikrotik_data.data_coordinator
+        config_entry = coordinator.config_entry
+        inst = config_entry.data[CONF_NAME]
 
-    valid_ids = _build_valid_unique_ids(inst, coordinator.ds)
+        valid_ids = _build_valid_unique_ids(inst, coordinator.ds)
+        _LOGGER.debug("Built %d valid unique IDs for %s", len(valid_ids), inst)
 
-    entity_registry = er.async_get(hass)
-    removed: list[dict[str, str]] = []
+        entity_registry = er.async_get(hass)
+        removed: list[dict[str, str]] = []
 
-    for entity in list(entity_registry.entities.values()):
-        if entity.config_entry_id != entry_id:
-            continue
-        if entity.unique_id in valid_ids:
-            continue
+        for entity in list(entity_registry.entities.values()):
+            if entity.config_entry_id != entry_id:
+                continue
+            if entity.unique_id in valid_ids:
+                continue
+
+            _LOGGER.info(
+                "Removing orphaned entity %s (unique_id=%s)",
+                entity.entity_id,
+                entity.unique_id,
+            )
+            removed.append(
+                {"entity_id": entity.entity_id, "unique_id": entity.unique_id}
+            )
+            entity_registry.async_remove(entity.entity_id)
 
         _LOGGER.info(
-            "Removing orphaned entity %s (unique_id=%s)",
-            entity.entity_id,
-            entity.unique_id,
+            "Cleanup complete: removed %d orphaned entities", len(removed)
         )
-        removed.append({"entity_id": entity.entity_id, "unique_id": entity.unique_id})
-        entity_registry.async_remove(entity.entity_id)
-
-    _LOGGER.info("Cleanup complete: removed %d orphaned entities", len(removed))
-    return {"removed_count": len(removed), "removed_entities": removed}
+        return {"removed_count": len(removed), "removed_entities": removed}
+    except Exception as err:
+        _LOGGER.exception("cleanup_entities failed: %s", err)
+        return {"error": str(err)}
 
 
 SERVICE_CLEANUP_STALE_HOSTS = "cleanup_stale_hosts"
@@ -134,86 +148,98 @@ async def async_cleanup_stale_hosts(
     dry_run = call.data.get("dry_run", True)
 
     if entry_id not in hass.data.get(DOMAIN, {}):
-        raise vol.Invalid(f"Config entry '{entry_id}' not found for {DOMAIN}")
+        _LOGGER.error(
+            "Config entry '%s' not found. Available: %s",
+            entry_id,
+            list(hass.data.get(DOMAIN, {}).keys()),
+        )
+        return {"error": f"Config entry '{entry_id}' not found"}
 
-    mikrotik_data: MikrotikData = hass.data[DOMAIN][entry_id]
-    coordinator = mikrotik_data.data_coordinator
-    config_entry = coordinator.config_entry
-    inst = config_entry.data[CONF_NAME].lower()
+    try:
+        mikrotik_data: MikrotikData = hass.data[DOMAIN][entry_id]
+        coordinator = mikrotik_data.data_coordinator
+        config_entry = coordinator.config_entry
+        inst = config_entry.data[CONF_NAME].lower()
 
-    host_data = coordinator.ds.get("host", {})
-    entity_registry = er.async_get(hass)
+        host_data = coordinator.ds.get("host", {})
+        entity_registry = er.async_get(hass)
 
-    stale: list[dict[str, str]] = []
-    removed: list[dict[str, str]] = []
+        stale: list[dict[str, str]] = []
+        removed: list[dict[str, str]] = []
 
-    for entity in list(entity_registry.entities.values()):
-        if entity.config_entry_id != entry_id:
-            continue
-        if not entity.entity_id.startswith("device_tracker."):
-            continue
+        for entity in list(entity_registry.entities.values()):
+            if entity.config_entry_id != entry_id:
+                continue
+            if not entity.entity_id.startswith("device_tracker."):
+                continue
 
-        # Parse unique_id: {inst}-host-{mac_slug}
-        unique_id = entity.unique_id
-        prefix = f"{inst}-host-"
-        if not unique_id.startswith(prefix):
-            continue
+            # Parse unique_id: {inst}-host-{mac_slug}
+            unique_id = entity.unique_id
+            prefix = f"{inst}-host-"
+            if not unique_id.startswith(prefix):
+                continue
 
-        mac_slug = unique_id[len(prefix) :]
-        # Find matching host by slugified mac-address
-        host_entry = None
-        for uid, hdata in host_data.items():
-            mac = hdata.get("mac-address", "")
-            if slugify(str(mac).lower()) == mac_slug:
-                host_entry = hdata
-                break
+            mac_slug = unique_id[len(prefix) :]
+            # Find matching host by slugified mac-address
+            host_entry = None
+            for uid, hdata in host_data.items():
+                mac = hdata.get("mac-address", "")
+                if slugify(str(mac).lower()) == mac_slug:
+                    host_entry = hdata
+                    break
 
-        if host_entry is None:
-            # Host no longer in coordinator data at all
-            entry_info = {
-                "entity_id": entity.entity_id,
-                "unique_id": unique_id,
-                "source": "unknown",
-                "available": False,
-                "last_seen": "never",
-                "reason": "not_in_coordinator_data",
-            }
-            stale.append(entry_info)
-            if not dry_run:
-                entity_registry.async_remove(entity.entity_id)
-                removed.append(entry_info)
-            continue
+            if host_entry is None:
+                entry_info = {
+                    "entity_id": entity.entity_id,
+                    "unique_id": unique_id,
+                    "source": "unknown",
+                    "available": False,
+                    "last_seen": "never",
+                    "reason": "not_in_coordinator_data",
+                }
+                stale.append(entry_info)
+                if not dry_run:
+                    entity_registry.async_remove(entity.entity_id)
+                    removed.append(entry_info)
+                continue
 
-        is_available = host_entry.get("available", False)
-        source = host_entry.get("source", "unknown")
-        last_seen = host_entry.get("last-seen", "unknown")
+            is_available = host_entry.get("available", False)
+            source = host_entry.get("source", "unknown")
+            last_seen = host_entry.get("last-seen", "unknown")
 
-        if not is_available:
-            entry_info = {
-                "entity_id": entity.entity_id,
-                "unique_id": unique_id,
-                "source": source,
-                "available": False,
-                "last_seen": str(last_seen),
-                "host_name": host_entry.get("host-name", "unknown"),
-                "mac_address": host_entry.get("mac-address", "unknown"),
-                "reason": "host_unavailable",
-            }
-            stale.append(entry_info)
-            if not dry_run:
-                entity_registry.async_remove(entity.entity_id)
-                removed.append(entry_info)
+            if not is_available:
+                entry_info = {
+                    "entity_id": entity.entity_id,
+                    "unique_id": unique_id,
+                    "source": source,
+                    "available": False,
+                    "last_seen": str(last_seen),
+                    "host_name": host_entry.get("host-name", "unknown"),
+                    "mac_address": host_entry.get("mac-address", "unknown"),
+                    "reason": "host_unavailable",
+                }
+                stale.append(entry_info)
+                if not dry_run:
+                    entity_registry.async_remove(entity.entity_id)
+                    removed.append(entry_info)
 
-    if dry_run:
-        _LOGGER.info("Stale hosts dry run: found %d stale host entities", len(stale))
-        return {"stale_count": len(stale), "stale_hosts": stale}
+        if dry_run:
+            _LOGGER.info(
+                "Stale hosts dry run: found %d stale host entities", len(stale)
+            )
+            return {"stale_count": len(stale), "stale_hosts": stale}
 
-    _LOGGER.info("Stale hosts cleanup: removed %d host entities", len(removed))
-    return {
-        "stale_count": len(stale),
-        "removed_count": len(removed),
-        "removed_hosts": removed,
-    }
+        _LOGGER.info(
+            "Stale hosts cleanup: removed %d host entities", len(removed)
+        )
+        return {
+            "stale_count": len(stale),
+            "removed_count": len(removed),
+            "removed_hosts": removed,
+        }
+    except Exception as err:
+        _LOGGER.exception("cleanup_stale_hosts failed: %s", err)
+        return {"error": str(err)}
 
 
 # ---------------------------
