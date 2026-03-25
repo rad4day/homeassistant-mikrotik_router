@@ -160,6 +160,14 @@ Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. 
 
 ## Completed
 
+### ISS-260325-attribute-bloat — ~1300 junk attributes on interface and tracker entities
+**Type:** Bug/Quality | **Priority:** High | **Created:** 2026-03-25
+**Status:** 🔴 Closed — fixed in v2.3.11-beta.1 (feature/attribute-cleanup)
+
+### ISS-260325-mangle-dedup — Mangle rules with different interfaces removed as duplicates
+**Type:** Bug | **Priority:** High | **Created:** 2026-03-25
+**Status:** 🔴 Closed — fixed in PR #40 (fix/mangle-duplicate-interface)
+
 ### ISS-260324-arp-incomplete — ARP "incomplete" status incorrectly shows device as home
 **Type:** Bug | **Priority:** High | **Created:** 2026-03-24
 **Status:** 🔴 Closed — fixed in v2.3.10 (PR #38)

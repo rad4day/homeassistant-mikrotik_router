@@ -15,9 +15,26 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.10
+## What's New — v2.3.11-beta.1
+
+**Attribute cleanup** — Removed ~1,300 meaningless default attributes from interface and device tracker entities across all devices:
+
+| Fix | Before | After |
+|-----|--------|-------|
+| SFP attributes on copper ports | 16 "unknown" SFP attrs per copper port | Only shown on actual SFP ports |
+| Copper attributes on SFP ports | `rate`, `full-duplex` on SFP | Only shown on copper ports |
+| PoE on non-PoE ports | `poe_out: "N/A"` everywhere | Only shown on PoE-capable ports |
+| Client IP/MAC on non-client interfaces | `"unknown"`/`"none"` on loopback, VLAN, PPPoE, WireGuard | Only shown when values are real |
+| Wireless metrics on wired hosts | `signal_strength`, `tx_ccq` on ARP-tracked devices | Only shown for wireless/CAPsMAN hosts |
+
+**Mangle fix** — Rules differing only by `in-interface`/`out-interface` (e.g. MSS clamping for inbound vs outbound PPPoE) were silently removed as duplicates. Interface fields now included in rule unique ID. ([PR #40](https://github.com/jnctech/homeassistant-mikrotik_router/pull/40))
+
+<details>
+<summary>Previous: v2.3.10 — Device tracker fix</summary>
 
 **Device tracker fix** — ARP entries with `"incomplete"` status were incorrectly treated as reachable, causing devices to show as "home" when they were actually unreachable. Both `"failed"` and `"incomplete"` ARP statuses are now filtered. See [ADR-001](docs/decisions/ADR-001-arp-failed-filtering.md).
+
+</details>
 
 <details>
 <summary>Previous: v2.3.9 — Upstream feature ports</summary>
