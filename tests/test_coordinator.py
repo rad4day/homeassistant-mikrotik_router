@@ -793,7 +793,9 @@ async def test_resolve_manufacturer_error_sets_empty_string():
     """When mac_lookup.lookup raises, manufacturer is set to '' not left as 'detect'."""
     mac = "AA:BB:CC:DD:EE:FF"
     coordinator = make_coordinator_for_host(
-        arp_entries={mac: {"mac-address": mac, "address": "192.168.1.10", "interface": "ether1"}},
+        arp_entries={
+            mac: {"mac-address": mac, "address": "192.168.1.10", "interface": "ether1"}
+        },
         host_entries={mac: _host_entry(mac)},
     )
 
@@ -812,8 +814,16 @@ async def test_resolve_manufacturer_concurrent_partial_failure():
     mac1, mac2 = "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02"
     coordinator = make_coordinator_for_host(
         arp_entries={
-            mac1: {"mac-address": mac1, "address": "192.168.1.10", "interface": "ether1"},
-            mac2: {"mac-address": mac2, "address": "192.168.1.11", "interface": "ether1"},
+            mac1: {
+                "mac-address": mac1,
+                "address": "192.168.1.10",
+                "interface": "ether1",
+            },
+            mac2: {
+                "mac-address": mac2,
+                "address": "192.168.1.11",
+                "interface": "ether1",
+            },
         },
         host_entries={
             mac1: _host_entry(mac1, "192.168.1.10"),
@@ -840,8 +850,16 @@ async def test_resolve_manufacturer_parallel_success():
     mac1, mac2 = "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02"
     coordinator = make_coordinator_for_host(
         arp_entries={
-            mac1: {"mac-address": mac1, "address": "192.168.1.10", "interface": "ether1"},
-            mac2: {"mac-address": mac2, "address": "192.168.1.11", "interface": "ether1"},
+            mac1: {
+                "mac-address": mac1,
+                "address": "192.168.1.10",
+                "interface": "ether1",
+            },
+            mac2: {
+                "mac-address": mac2,
+                "address": "192.168.1.11",
+                "interface": "ether1",
+            },
         },
         host_entries={
             mac1: _host_entry(mac1, "192.168.1.10"),
