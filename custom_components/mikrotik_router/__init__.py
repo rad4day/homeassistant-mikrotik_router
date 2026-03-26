@@ -81,9 +81,7 @@ def _build_valid_unique_ids(inst: str, coordinator_data: dict) -> set[str]:
     return valid_ids
 
 
-def _get_mikrotik_data(
-    hass: HomeAssistant, entry_id: str
-) -> MikrotikData | None:
+def _get_mikrotik_data(hass: HomeAssistant, entry_id: str) -> MikrotikData | None:
     """Look up MikrotikData for a config entry, logging an error if missing."""
     domain_data = hass.data.get(DOMAIN, {})
     if entry_id in domain_data:
@@ -132,9 +130,7 @@ async def async_cleanup_entities(call: ServiceCall) -> ServiceResponse:
             entity.entity_id,
             entity.unique_id,
         )
-        removed.append(
-            {"entity_id": entity.entity_id, "unique_id": entity.unique_id}
-        )
+        removed.append({"entity_id": entity.entity_id, "unique_id": entity.unique_id})
         entity_registry.async_remove(entity.entity_id)
 
     _LOGGER.info("Cleanup complete: removed %d orphaned entities", len(removed))
@@ -159,9 +155,7 @@ def _find_host_by_mac_slug(host_data: dict, mac_slug: str) -> dict | None:
     return None
 
 
-def _classify_host_entity(
-    entity, host_data: dict, prefix: str
-) -> dict | None:
+def _classify_host_entity(entity, host_data: dict, prefix: str) -> dict | None:
     """Return a stale-host info dict if the entity is stale, else None."""
     unique_id = entity.unique_id
     if not unique_id.startswith(prefix):
@@ -230,9 +224,7 @@ async def async_cleanup_stale_hosts(call: ServiceCall) -> ServiceResponse:
             removed.append(entry_info)
 
     if dry_run:
-        _LOGGER.info(
-            "Stale hosts dry run: found %d stale host entities", len(stale)
-        )
+        _LOGGER.info("Stale hosts dry run: found %d stale host entities", len(stale))
         return {"stale_count": len(stale), "stale_hosts": stale}
 
     _LOGGER.info("Stale hosts cleanup: removed %d host entities", len(removed))
