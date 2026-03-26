@@ -2156,6 +2156,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                         "active-mac-address"
                     ]
 
+            # Safety net: re-query if a server appeared after the upfront call
             if (
                 not dhcpserver_query
                 and self.ds["dhcp"][uid]["server"] not in self.ds["dhcp-server"]
@@ -2177,7 +2178,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         for server_name in self.ds["dhcp-server"]:
             self.ds["dhcp-server"][server_name]["lease-count"] = 0
         for uid in self.ds["dhcp"]:
-            server = self.ds["dhcp"][uid]["server"]
+            server = self.ds["dhcp"][uid].get("server", "unknown")
             if server in self.ds["dhcp-server"]:
                 self.ds["dhcp-server"][server]["lease-count"] += 1
 
