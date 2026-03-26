@@ -2696,7 +2696,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             return True
 
         if wireless_interfaces is None:
-            wireless_interfaces = set(self.ds.get("wireless", {}))
+            wireless_interfaces = self._build_wireless_interface_set()
         if not wireless_interfaces:
             return False
 
@@ -2708,6 +2708,24 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             return True
 
         return False
+
+    # ---------------------------
+    #   _build_wireless_interface_set
+    # ---------------------------
+    def _build_wireless_interface_set(self) -> set:
+        """Build set of wireless interface names from all available sources.
+
+        Combines the wireless data store (populated by get_wireless) with
+        interfaces whose type is 'wlan' from the interface data store.
+        This handles routers where get_wireless queries the wrong wifi module
+        (e.g. hAP ac2 using the old wireless module while the integration
+        queries /interface/wifi).
+        """
+        ifaces = set(self.ds.get("wireless", {}))
+        for name, vals in self.ds.get("interface", {}).items():
+            if vals.get("type") == "wlan":
+                ifaces.add(name)
+        return ifaces
 
     # ---------------------------
     #   async_process_host
@@ -2723,7 +2741,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         self._ensure_host_defaults()
 
         # Build wireless interface set once for the entire loop
-        wireless_ifaces = set(self.ds.get("wireless", {}))
+        wireless_ifaces = self._build_wireless_interface_set()
 
         # Process hosts
         self.ds["resource"]["clients_wired"] = 0
