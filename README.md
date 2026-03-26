@@ -19,7 +19,7 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.13-beta.1
+## What's New — v2.3.13
 
 **Wireless client detection fix** — Wireless clients on routers with empty WiFi registration tables (e.g. hAP ac2 with the new WiFi package) are now correctly detected via bridge host table lookup. The `clients_wireless` and `clients_wired` counters are accurate for these devices.
 
