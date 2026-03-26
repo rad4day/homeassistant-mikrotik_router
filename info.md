@@ -4,7 +4,12 @@ Monitor and control your MikroTik router from Home Assistant.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-### What's new in v2.3.12
+### What's new in v2.3.13-beta.1
+- **Wireless client detection fix** — Clients on routers with empty WiFi registration tables (e.g. hAP ac2) now correctly detected as wireless via bridge host table lookup
+- **DHCP server sensors** — New status and lease count sensors per DHCP server instance
+- **Documentation** — Comprehensive data store schema, sensor gap analysis, and community feature poll
+
+### v2.3.12
 - **Faster startup** — No longer blocks HA startup by pinging every tracked host sequentially; uses ARP table for instant first-run availability
 - **Parallel MAC lookups** — Vendor resolution now runs concurrently instead of one-by-one
 - **Entity cleanup services** — `cleanup_entities` removes orphaned entities; `cleanup_stale_hosts` reports/removes stale device trackers

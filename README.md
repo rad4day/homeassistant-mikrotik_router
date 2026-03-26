@@ -15,7 +15,19 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 ---
 
-## What's New — v2.3.12
+## What's New — v2.3.13-beta.1
+
+**Wireless client detection fix** — Wireless clients on routers with empty WiFi registration tables (e.g. hAP ac2 with the new WiFi package) are now correctly detected via bridge host table lookup. The `clients_wireless` and `clients_wired` counters are accurate for these devices.
+
+**DHCP server sensors** — Two new sensors per DHCP server:
+- `dhcp_server_status` — shows "running" or "disabled"
+- `dhcp_server_lease_count` — real-time count of active DHCP leases
+- Both include attributes: interface, address-pool, enabled, comment
+
+**Documentation** — Added comprehensive data store schema (`docs/data-schema.md`), sensor gap analysis, and community feature poll.
+
+<details>
+<summary>Previous: v2.3.12 — Faster startup, cleanup services</summary>
 
 **Faster startup** — The integration no longer blocks Home Assistant startup by sequentially pinging every tracked host. First-run host availability now uses the ARP table for instant results, with pings starting on the next 10-second tracker cycle. MAC vendor lookups are also parallelised instead of running one-by-one.
 
@@ -28,6 +40,7 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 - Fixed `voluptuous.Optional` incorrectly used as a type hint in API parser
 - All `datetime.now()` calls replaced with timezone-aware equivalents (HA coding standards)
 - `get_system_resource` now properly guarded against disconnected API
+</details>
 
 <details>
 <summary>Previous: v2.3.11 — Attribute cleanup</summary>
