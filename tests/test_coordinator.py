@@ -2862,9 +2862,10 @@ def test_dhcp_server_enriched_defaults():
     assert entry["address-pool"] == "unknown"
     assert entry["comment"] == ""
     assert entry["lease-count"] == 0
-    # When "disabled" is absent, from_entry_bool returns default=False
-    # (reverse is NOT applied to defaults), so enabled=False → status="disabled"
-    assert entry["status"] == "disabled"
+    # When "disabled" is absent, from_entry_bool now correctly applies reverse
+    # to the default (bug fix), so enabled=True → status="enabled"
+    assert entry["enabled"] is True
+    assert entry["status"] == "enabled"
 
 
 def test_dhcp_server_status_enabled():

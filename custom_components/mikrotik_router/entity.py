@@ -300,11 +300,17 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        self._data = self.coordinator.data[self.entity_description.data_path]
-        if self._uid:
-            self._data = self.coordinator.data[self.entity_description.data_path][
-                self._uid
-            ]
+        try:
+            self._data = self.coordinator.data[self.entity_description.data_path]
+            if self._uid:
+                self._data = self._data[self._uid]
+        except KeyError:
+            _LOGGER.debug(
+                "Data path %s uid=%s not found, skipping update",
+                self.entity_description.data_path,
+                self._uid,
+            )
+            return
         super()._handle_coordinator_update()
 
     @property
@@ -335,8 +341,7 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
         """Return a unique id for this entity"""
         if self._uid:
             return f"{self._inst.lower()}-{self.entity_description.key}-{slugify(str(self._data[self.entity_description.data_reference]).lower())}"
-        else:
-            return f"{self._inst.lower()}-{self.entity_description.key}"
+        return f"{self._inst.lower()}-{self.entity_description.key}"
 
     @property
     def device_info(self) -> DeviceInfo:

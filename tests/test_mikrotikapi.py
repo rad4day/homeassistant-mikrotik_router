@@ -41,7 +41,7 @@ class TestInit:
         api = make_api()
         assert api._connected is False
         assert api._reconnected is True
-        assert api.error is None
+        assert api.error == ""
         assert api.connection_error_reported is False
         assert api.disable_health is False
 
@@ -286,10 +286,10 @@ class TestSetValue:
             is False
         )
 
-    def test_entry_not_found_returns_true(self):
+    def test_entry_not_found_returns_false(self):
         api, _ = self._connected_api_with_query([{"name": "other", ".id": "*1"}])
         result = api.set_value("/interface", "name", "nonexistent", "disabled", True)
-        assert result is True
+        assert result is False
 
     def test_lock_released_after_set(self):
         api, mock_resp = self._connected_api_with_query(
@@ -312,7 +312,7 @@ class TestRunScript:
         api._connection_epoch = time()
         assert api.run_script("test_script") is False
 
-    def test_script_not_found_returns_true_no_deadlock(self):
+    def test_script_not_found_returns_false_no_deadlock(self):
         """Regression test: run_script must release lock when script not found."""
         api = make_api()
         api._connected = True
@@ -324,7 +324,7 @@ class TestRunScript:
         mock_response.__bool__ = MagicMock(return_value=True)
         api._connection.path.return_value = mock_response
         result = api.run_script("missing_script")
-        assert result is True
+        assert result is False
         # Critical: lock must be released
         assert api.lock.acquire(timeout=1) is True
         api.lock.release()
@@ -391,3 +391,104 @@ class TestCurrentMilliseconds:
         result = MikrotikAPI._current_milliseconds()
         assert isinstance(result, int)
         assert result > 0
+
+
+# --- _find_entry ---
+
+
+class TestFindEntry:
+    def test_finds_matching_entry(self):
+        response = [
+            {"name": "ether1", ".id": "*1"},
+            {"name": "ether2", ".id": "*2"},
+        ]
+        assert MikrotikAPI._find_entry(response, "name", "ether2") == "*2"
+
+    def test_returns_none_when_not_found(self):
+        response = [{"name": "ether1", ".id": "*1"}]
+        assert MikrotikAPI._find_entry(response, "name", "missing") is None
+
+    def test_returns_none_for_empty_response(self):
+        assert MikrotikAPI._find_entry([], "name", "any") is None
+
+    def test_missing_param_key_skipped(self):
+        response = [{"other": "val", ".id": "*1"}]
+        assert MikrotikAPI._find_entry(response, "name", "val") is None
+
+
+# --- set_value returns False on not-found ---
+
+
+class TestSetValueReturnsFalseOnNotFound:
+    def test_set_value_returns_false_when_entry_not_found(self):
+        api = make_api()
+        api._connected = True
+        api._connection = MagicMock()
+        mock_path = MagicMock()
+        mock_path.__iter__ = MagicMock(
+            return_value=iter([{"name": "other", ".id": "*1"}])
+        )
+        mock_path.__bool__ = MagicMock(return_value=True)
+        api._connection.path.return_value = mock_path
+
+        result = api.set_value("/interface", "name", "nonexistent", "disabled", True)
+        assert result is False
+
+    def test_execute_returns_false_when_entry_not_found(self):
+        api = make_api()
+        api._connected = True
+        api._connection = MagicMock()
+        mock_path = MagicMock()
+        mock_path.__iter__ = MagicMock(
+            return_value=iter([{"name": "other", ".id": "*1"}])
+        )
+        mock_path.__bool__ = MagicMock(return_value=True)
+        api._connection.path.return_value = mock_path
+
+        result = api.execute("/interface", "set", "name", "nonexistent")
+        assert result is False
+
+    def test_run_script_returns_false_when_not_found(self):
+        api = make_api()
+        api._connected = True
+        api._connection = MagicMock()
+        mock_path = MagicMock()
+        mock_path.__iter__ = MagicMock(
+            return_value=iter([{"name": "other_script", ".id": "*1"}])
+        )
+        mock_path.__bool__ = MagicMock(return_value=True)
+        api._connection.path.return_value = mock_path
+
+        result = api.run_script("missing_script")
+        assert result is False
+
+
+# --- _query_list / _query_command extracted ---
+
+
+class TestQueryExtracted:
+    def test_query_returns_list(self):
+        api = make_api()
+        api._connected = True
+        api._connection = MagicMock()
+        mock_path = MagicMock()
+        mock_path.__iter__ = MagicMock(return_value=iter([{"name": "ether1"}]))
+        mock_path.__bool__ = MagicMock(return_value=True)
+        api._connection.path.return_value = mock_path
+
+        result = api.query("/interface")
+        assert result == [{"name": "ether1"}]
+
+    def test_query_command(self):
+        api = make_api()
+        api._connected = True
+        api._connection = MagicMock()
+        mock_path = MagicMock()
+        mock_path.__bool__ = MagicMock(return_value=True)
+        mock_path.return_value = iter([{"status": "running"}])
+        api._connection.path.return_value = mock_path
+
+        result = api.query(
+            "/interface/ethernet", command="monitor", args={".id": "*1", "once": True}
+        )
+        assert result == [{"status": "running"}]

@@ -17,23 +17,20 @@ import librouteros
 _LOGGER = logging.getLogger(__name__)
 
 
-# ---------------------------
-#   MikrotikAPI
-# ---------------------------
 class MikrotikAPI:
     """Handle all communication with the Mikrotik API."""
 
     def __init__(
         self,
-        host,
-        username,
-        password,
-        port=0,
-        use_ssl=True,
-        ssl_verify=True,
-        login_method=DEFAULT_LOGIN_METHOD,
-        encoding=DEFAULT_ENCODING,
-    ):
+        host: str,
+        username: str,
+        password: str,
+        port: int = 0,
+        use_ssl: bool = True,
+        ssl_verify: bool = True,
+        login_method: str = DEFAULT_LOGIN_METHOD,
+        encoding: str = DEFAULT_ENCODING,
+    ) -> None:
         """Initialize the Mikrotik Client."""
         self._host = host
         self._use_ssl = use_ssl
@@ -49,46 +46,33 @@ class MikrotikAPI:
         self._connection = None
         self._connected = False
         self._reconnected = True
-        self._connection_epoch = 0
+        self._connection_epoch: float = 0
         self._connection_retry_sec = 58
-        self.error = None
+        self.error: str = ""
         self.connection_error_reported = False
-        self.client_traffic_last_run = None
+        self.client_traffic_last_run: int | None = None
         self.disable_health = False
 
-        # Default ports
         if not self._port:
             self._port = 8729 if self._use_ssl else 8728
 
-    # ---------------------------
-    #   has_reconnected
-    # ---------------------------
     def has_reconnected(self) -> bool:
-        """Check if mikrotik has reconnected"""
+        """Check if mikrotik has reconnected."""
         if self._reconnected:
             self._reconnected = False
             return True
-
         return False
 
-    # ---------------------------
-    #   connection_check
-    # ---------------------------
     def connection_check(self) -> bool:
-        """Check if mikrotik is connected"""
+        """Check if mikrotik is connected."""
         if not self._connected or not self._connection:
             if self._connection_epoch > time() - self._connection_retry_sec:
                 return False
-
             if not self.connect():
                 return False
-
         return True
 
-    # ---------------------------
-    #   disconnect
-    # ---------------------------
-    def disconnect(self, location="unknown", error=None):
+    def disconnect(self, location: str = "unknown", error: object = None) -> None:
         """Disconnect from Mikrotik device."""
         if not error:
             error = "unknown"
@@ -100,7 +84,6 @@ class MikrotikAPI:
                 _LOGGER.error(
                     "Mikrotik %s error while %s : %s", self._host, location, error
                 )
-
             self.connection_error_reported = True
 
         self._reconnected = False
@@ -108,9 +91,6 @@ class MikrotikAPI:
         self._connection = None
         self._connection_epoch = 0
 
-    # ---------------------------
-    #   connect
-    # ---------------------------
     def connect(self) -> bool:
         """Connect to Mikrotik device."""
         self.error = ""
@@ -126,15 +106,7 @@ class MikrotikAPI:
         with self.lock:
             try:
                 if self._use_ssl:
-                    if self._ssl_wrapper is None:
-                        ssl_context = ssl.create_default_context()
-                        ssl_context.check_hostname = False
-                        if self._ssl_verify:
-                            ssl_context.verify_mode = ssl.CERT_REQUIRED
-                            ssl_context.verify_flags &= ~ssl.VERIFY_X509_STRICT
-                        else:
-                            ssl_context.verify_mode = ssl.CERT_NONE
-                        self._ssl_wrapper = ssl_context.wrap_socket
+                    self._ensure_ssl_wrapper()
                     kwargs["ssl_wrapper"] = self._ssl_wrapper
                 self._connection = librouteros.connect(
                     self._host, self._username, self._password, **kwargs
@@ -145,7 +117,6 @@ class MikrotikAPI:
                         "Mikrotik %s error while connecting: %s", self._host, e
                     )
                     self.connection_error_reported = True
-
                 self.error_to_strings(f"{e}")
                 self._connection = None
                 return False
@@ -155,42 +126,46 @@ class MikrotikAPI:
                     self.connection_error_reported = False
                 else:
                     _LOGGER.debug("Mikrotik Connected to %s", self._host)
-
                 self._connected = True
                 self._reconnected = True
 
         return self._connected
 
-    # ---------------------------
-    #   error_to_strings
-    # ---------------------------
-    def error_to_strings(self, error):
+    def _ensure_ssl_wrapper(self) -> None:
+        """Create SSL wrapper if not already initialised."""
+        if self._ssl_wrapper is not None:
+            return
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        if self._ssl_verify:
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+            ssl_context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+        else:
+            ssl_context.verify_mode = ssl.CERT_NONE
+        self._ssl_wrapper = ssl_context.wrap_socket
+
+    def error_to_strings(self, error: str) -> None:
         """Translate error output to error string."""
         self.error = "cannot_connect"
         if error == "invalid user name or password (6)":
             self.error = "wrong_login"
-
         if "ALERT_HANDSHAKE_FAILURE" in error:
             self.error = "ssl_handshake_failure"
-
         if "CERTIFICATE_VERIFY_FAILED" in error:
             self.error = "ssl_verify_failure"
 
-    # ---------------------------
-    #   connected
-    # ---------------------------
     def connected(self) -> bool:
         """Return connected boolean."""
         return self._connected
 
-    # ---------------------------
-    #   query
-    # ---------------------------
-    def query(self, path, command=None, args=None, return_list=True) -> list | None:
-        """Retrieve data from Mikrotik API.
-
-        Returns list, unless return_list passed as False (returns generator).
-        """
+    def query(
+        self,
+        path: str,
+        command: str | None = None,
+        args: dict | None = None,
+        return_list: bool = True,
+    ) -> list | None:
+        """Retrieve data from Mikrotik API."""
         if path == "/system/health" and self.disable_health:
             return None
 
@@ -208,34 +183,52 @@ class MikrotikAPI:
                 self.disconnect("path", e)
                 return None
 
-            if response and return_list and not command:
-                try:
-                    response = list(response)
-                except Exception as e:
-                    if path == "/system/health" and "no such command prefix" in str(e):
-                        self.disable_health = True
-                        return None
-
-                    self.disconnect(f"building list for path {path}", e)
-                    return None
-
-            elif response and command:
-                _LOGGER.debug("API query: %s, %s, %s", path, command, args)
-                try:
-                    response = list(response(command, **args))
-                except Exception as e:
-                    self.disconnect("path", e)
-                    return None
+            if command:
+                return self._query_command(response, path, command, args)
+            if return_list:
+                return self._query_list(response, path)
 
         return response or None
 
-    # ---------------------------
-    #   set_value
-    # ---------------------------
-    def set_value(self, path, param, value, mod_param, mod_value) -> bool:
-        """Modify a parameter"""
-        entry_found = None
+    def _query_list(self, response, path: str) -> list | None:
+        """Build list from API response. Must be called inside self.lock."""
+        try:
+            return list(response) or None
+        except Exception as e:
+            if path == "/system/health" and "no such command prefix" in str(e):
+                self.disable_health = True
+                return None
+            self.disconnect(f"building list for path {path}", e)
+            return None
 
+    def _query_command(
+        self, response, path: str, command: str, args: dict
+    ) -> list | None:
+        """Execute command on API path. Must be called inside self.lock."""
+        _LOGGER.debug("API query: %s, %s, %s", path, command, args)
+        try:
+            return list(response(command, **args)) or None
+        except Exception as e:
+            self.disconnect("path", e)
+            return None
+
+    @staticmethod
+    def _find_entry(response, param: str, value: str) -> str | None:
+        """Find .id of entry matching param=value in an API response."""
+        for item in response:
+            if item.get(param) == value:
+                return item.get(".id")
+        return None
+
+    def set_value(
+        self,
+        path: str,
+        param: str,
+        value: str,
+        mod_param: str,
+        mod_value: object,
+    ) -> bool:
+        """Modify a parameter."""
         if not self.connection_check():
             return False
 
@@ -243,15 +236,7 @@ class MikrotikAPI:
         if response is None:
             return False
 
-        for tmp in response:
-            if param not in tmp:
-                continue
-
-            if tmp[param] != value:
-                continue
-
-            entry_found = tmp[".id"]
-
+        entry_found = self._find_entry(response, param, value)
         if not entry_found:
             _LOGGER.error(
                 "Mikrotik %s set_value parameter %s with value %s not found",
@@ -259,7 +244,7 @@ class MikrotikAPI:
                 param,
                 value,
             )
-            return True
+            return False
 
         params = {".id": entry_found, mod_param: mod_value}
         with self.lock:
@@ -271,14 +256,15 @@ class MikrotikAPI:
 
         return True
 
-    # ---------------------------
-    #   execute
-    # ---------------------------
-    def execute(self, path, command, param, value, attributes=None) -> bool:
-        """Execute a command"""
-        entry_found = None
-        params = {}
-
+    def execute(
+        self,
+        path: str,
+        command: str,
+        param: str,
+        value: str,
+        attributes: dict | None = None,
+    ) -> bool:
+        """Execute a command."""
         if not self.connection_check():
             return False
 
@@ -286,16 +272,9 @@ class MikrotikAPI:
         if response is None:
             return False
 
+        params: dict = {}
         if param:
-            for tmp in response:
-                if param not in tmp:
-                    continue
-
-                if tmp[param] != value:
-                    continue
-
-                entry_found = tmp[".id"]
-
+            entry_found = self._find_entry(response, param, value)
             if not entry_found:
                 _LOGGER.error(
                     "Mikrotik %s Execute %s parameter %s with value %s not found",
@@ -304,9 +283,8 @@ class MikrotikAPI:
                     param,
                     value,
                 )
-                return True
-
-            params = {".id": entry_found}
+                return False
+            params[".id"] = entry_found
 
         if attributes:
             params.update(attributes)
@@ -320,12 +298,8 @@ class MikrotikAPI:
 
         return True
 
-    # ---------------------------
-    #   run_script
-    # ---------------------------
-    def run_script(self, name) -> bool:
-        """Run script"""
-        entry_found = None
+    def run_script(self, name: str) -> bool:
+        """Run script."""
         if not self.connection_check():
             return False
 
@@ -334,18 +308,10 @@ class MikrotikAPI:
             return False
 
         with self.lock:
-            for tmp in response:
-                if "name" not in tmp:
-                    continue
-
-                if tmp["name"] != name:
-                    continue
-
-                entry_found = tmp[".id"]
-
+            entry_found = self._find_entry(response, "name", name)
             if not entry_found:
                 _LOGGER.error("Mikrotik %s Script %s not found", self._host, name)
-                return True
+                return False
 
             try:
                 run = response("run", **{".id": entry_found})
@@ -356,11 +322,8 @@ class MikrotikAPI:
 
         return True
 
-    # ---------------------------
-    #   arp_ping
-    # ---------------------------
-    def arp_ping(self, address, interface) -> bool:
-        """Check arp ping response traffic stats"""
+    def arp_ping(self, address: str, interface: str) -> bool:
+        """Check arp ping response traffic stats."""
         if not self.connection_check():
             return False
 
@@ -397,7 +360,7 @@ class MikrotikAPI:
         return False
 
     @staticmethod
-    def _current_milliseconds():
+    def _current_milliseconds() -> int:
         return int(round(time() * 1000))
 
     def is_accounting_and_local_traffic_enabled(self) -> tuple[bool, bool]:
@@ -423,12 +386,8 @@ class MikrotikAPI:
 
         return True, True
 
-    # ---------------------------
-    #   take_client_traffic_snapshot
-    #   Returns float -> period in seconds between last and current run
-    # ---------------------------
-    def take_client_traffic_snapshot(self, use_accounting) -> float:
-        """Take accounting snapshot and return time diff"""
+    def take_client_traffic_snapshot(self, use_accounting: bool) -> float:
+        """Take accounting snapshot and return time diff."""
         if not self.connection_check():
             return 0
 
@@ -448,13 +407,10 @@ class MikrotikAPI:
                     self.disconnect("accounting_snapshot", e)
                     return 0
 
-        # First request will be discarded because we cannot know when the last data was retrieved
-        # prevents spikes in data
         if not self.client_traffic_last_run:
             self.client_traffic_last_run = self._current_milliseconds()
             return 0
 
-        # Calculate time difference in seconds and return
         time_diff = self._current_milliseconds() - self.client_traffic_last_run
         self.client_traffic_last_run = self._current_milliseconds()
         return time_diff / 1000

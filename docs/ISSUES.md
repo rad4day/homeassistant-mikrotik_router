@@ -2,9 +2,9 @@
 
 ## Current Priorities
 
-1. ISS-260320-test-coverage — Increase test coverage to ≥80%
+1. ISS-260320-test-coverage — Increase test coverage to ≥80% (Phase 5 pending)
 2. ISS-260320-new-device-discovery — New devices require HA restart to appear
-3. ISS-260321-cognitive-complexity — Reduce cognitive complexity to ≤15 per function
+3. ISS-260320-refactor-dedup — Refactor duplicated patterns
 
 ---
 
@@ -39,7 +39,7 @@
 **Type:** Quality
 **Priority:** High
 **Created:** 2026-03-21
-**Status:** 🟢 Active — PR #30 (feature/complexity-reduction → dev)
+**Status:** 🔴 Closed — fixed in refactor/legacy-cleanup (PR #30 + round 2)
 
 **Context:**
 SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. Total project cognitive complexity is 1058. Worst offenders are upstream inherited code.
@@ -123,7 +123,7 @@ The `update_sensors` dispatcher was re-enabled in v2.3.6 to fix new devices not 
 **Type:** Bug/Quality
 **Priority:** Medium
 **Created:** 2026-03-21
-**Status:** 🟡 Backlog (partially addressed in PR #30)
+**Status:** 🔴 Closed — fixed in refactor/legacy-cleanup
 
 **Context:**
 Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. Three critical/high items fixed in PR #30. Remaining items are pre-existing patterns.
