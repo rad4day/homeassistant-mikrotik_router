@@ -4,6 +4,53 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260327-legacy-cleanup — SonarCloud remediation, complexity reduction, modernisation
+
+**Date:** 2026-03-27
+**Branch:** `refactor/legacy-cleanup`
+**Status:** In Review (targeting dev)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `apiparser.py` | **Bug fix:** `from_entry_bool` now applies `reverse` to default when field absent — fixes DHCP leases/servers incorrectly showing disabled |
+| `apiparser.py` | Removed identity type coercions (`str(str)`, `int(int)`) in `from_entry()` |
+| `apiparser.py` | Extracted 8 helpers to reduce complexity: `_fill_val_str`, `_fill_val_bool`, `_convert_timestamp`, `_resolve_str_default`, `_process_source_entry`, `_get_uid_from_keys`, `_process_val_sub`, `_apply_combine` |
+| `mikrotikapi.py` | Extracted `_query_list`, `_query_command` from `query()` (18→≤15 complexity) |
+| `mikrotikapi.py` | Extracted `_find_entry` dedup helper, used by `set_value`, `execute`, `run_script` |
+| `mikrotikapi.py` | **Bug fix:** `set_value`/`execute`/`run_script` now return `False` (not `True`) when entry not found |
+| `mikrotikapi.py` | Added type hints to all public methods, extracted `_ensure_ssl_wrapper`, removed banner comments |
+| `coordinator.py` | Extracted 15+ helpers for complexity reduction: `_detect_capabilities_v6/v7`, `_has_wifi_package`, `_async_update_client_traffic`, `_calculate_interface_traffic`, `_process_interface_metadata`, `_process_bonding`, `_arp_matches_interface`, `_match_arp_clients`, `_fallback_client_ip`, `_normalize_dhcp_lease`, `_resolve_dhcp_interface`, `_count_leases_per_server`, `_parse_queue_values`, `_parse_queue_pair` |
+| `coordinator.py` | Tracker: extracted `_ensure_host_defaults`, `_first_run_availability`, `_should_ping_host`, `_ping_host` |
+| `coordinator.py` | Fixed f-string in logging (S3457), removed unnecessary `list()` |
+| `coordinator.py` | Queue parsing now catches `ValueError`/`IndexError` per entry |
+| `coordinator.py` | Firmware version parse failure logged as warning with consequence message |
+| `coordinator.py` | Fixed `default: True` + `reverse: True` in filter/raw rules (was relying on buggy from_entry_bool) |
+| `switch.py` | **Silent failure fix:** `_require_write_access()` raises `HomeAssistantError` instead of silent return |
+| `switch.py` | **Silent failure fix:** NAT/Mangle/Filter/Raw/Queue switches log error when rule not found (value=None) |
+| `switch.py` | `MikrotikPortSwitch` uses `.get()` for `about` and `port-mac-address` |
+| `switch.py` | Extracted `_CAPSMAN_MANAGED`, `_RULE_NOT_FOUND_ENABLE/DISABLE` constants |
+| `entity.py` | `_handle_coordinator_update` guards against `KeyError` when entity UID disappears |
+| `sensor_types.py` | Extracted 5 icon constants (S1192) |
+| `config_flow.py` | Set comprehension (S7494) |
+| `__init__.py` | Extracted `_collect_ids_for_desc` helper, prefixed unused params, NOSONAR on intentional `list()` |
+| `tests/` | 41 new tests (apiparser helpers, mikrotikapi _find_entry/return-false, from_entry_bool reverse regression) |
+
+### Why
+
+SonarCloud v2.3.13 report: 29 code smells (13 CRITICAL complexity, 6 string duplication, 4 MAJOR, 8 MINOR). All pre-existing upstream patterns. Also fixes tracked issues: ISS-260321-cognitive-complexity (13 functions), ISS-260321-silent-failures (8 items), from_entry_bool reverse quirk.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 525 passed, 5 skipped | ✅ |
+
+---
+
 ## CR-260326-wireless-client-count — Fix wireless client detection via bridge table
 
 **Date:** 2026-03-26

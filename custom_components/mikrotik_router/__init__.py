@@ -59,26 +59,26 @@ def _build_valid_unique_ids(inst: str, coordinator_data: dict) -> set[str]:
     inst_lower = inst.lower()
 
     for desc in descriptions:
-        data_path = desc.data_path
-        if data_path not in coordinator_data:
+        if desc.data_path not in coordinator_data:
             continue
-
-        data = coordinator_data[data_path]
-
-        if not desc.data_reference:
-            # System-level entity (no per-device reference)
-            if data.get(desc.data_attribute) is not None:
-                valid_ids.add(f"{inst_lower}-{desc.key}")
-        else:
-            # Per-device/per-item entity
-            for uid in data:
-                ref_value = data[uid].get(desc.data_reference)
-                if ref_value is not None:
-                    valid_ids.add(
-                        f"{inst_lower}-{desc.key}-{slugify(str(ref_value).lower())}"
-                    )
+        _collect_ids_for_desc(
+            desc, coordinator_data[desc.data_path], inst_lower, valid_ids
+        )
 
     return valid_ids
+
+
+def _collect_ids_for_desc(desc, data: dict, inst_lower: str, valid_ids: set) -> None:
+    """Add unique IDs for a single entity description."""
+    if not desc.data_reference:
+        if data.get(desc.data_attribute) is not None:
+            valid_ids.add(f"{inst_lower}-{desc.key}")
+        return
+
+    for uid in data:
+        ref_value = data[uid].get(desc.data_reference)
+        if ref_value is not None:
+            valid_ids.add(f"{inst_lower}-{desc.key}-{slugify(str(ref_value).lower())}")
 
 
 def _get_mikrotik_data(hass: HomeAssistant, entry_id: str) -> MikrotikData | None:
@@ -119,7 +119,9 @@ async def async_cleanup_entities(call: ServiceCall) -> ServiceResponse:
     entity_registry = er.async_get(hass)
     removed: list[dict[str, str]] = []
 
-    for entity in list(entity_registry.entities.values()):
+    for entity in list(
+        entity_registry.entities.values()
+    ):  # NOSONAR S7504 - list() needed: registry mutated in loop
         if entity.config_entry_id != entry_id:
             continue
         if entity.unique_id in valid_ids:
@@ -208,7 +210,9 @@ async def async_cleanup_stale_hosts(call: ServiceCall) -> ServiceResponse:
     stale: list[dict[str, str]] = []
     removed: list[dict[str, str]] = []
 
-    for entity in list(entity_registry.entities.values()):
+    for entity in list(
+        entity_registry.entities.values()
+    ):  # NOSONAR S7504 - list() needed: registry mutated in loop
         if entity.config_entry_id != entry_id:
             continue
         if not entity.entity_id.startswith("device_tracker."):
@@ -311,7 +315,9 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 #   async_remove_config_entry_device
 # ---------------------------
 async def async_remove_config_entry_device(
-    hass, config_entry: ConfigEntry, device_entry: device_registry.DeviceEntry
+    _hass: HomeAssistant,
+    _config_entry: ConfigEntry,
+    _device_entry: device_registry.DeviceEntry,
 ) -> bool:
     """Remove a config entry from a device."""
     return True

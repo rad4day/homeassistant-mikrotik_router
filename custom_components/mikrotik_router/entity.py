@@ -300,11 +300,12 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        self._data = self.coordinator.data[self.entity_description.data_path]
-        if self._uid:
-            self._data = self.coordinator.data[self.entity_description.data_path][
-                self._uid
-            ]
+        try:
+            self._data = self.coordinator.data[self.entity_description.data_path]
+            if self._uid:
+                self._data = self._data[self._uid]
+        except KeyError:
+            return
         super()._handle_coordinator_update()
 
     @property

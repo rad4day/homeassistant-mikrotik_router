@@ -255,11 +255,11 @@ class TestFillDefaults:
         assert result["enabled"] is True
 
     def test_bool_reverse_default(self):
-        """When source is absent, default is returned without applying reverse."""
+        """When source is absent, reverse is applied to default (bug fix)."""
         data = {}
         vals = [{"name": "enabled", "type": "bool", "default": True, "reverse": True}]
         result = fill_defaults(data, vals)
-        assert result["enabled"] is True
+        assert result["enabled"] is False
 
 
 # --- fill_vals ---
@@ -482,3 +482,200 @@ class TestFromEntryNoneHandling:
         """None bypasses the type coercion since it's not str/int/float."""
         result = from_entry({"comment": None}, "comment", default="fallback")
         assert result is None
+
+
+# --- from_entry_bool reverse bug fix ---
+
+
+class TestFromEntryBoolReverseBugFix:
+    """Regression tests for the from_entry_bool reverse quirk.
+
+    When 'disabled' field is absent from API response (common for dynamic DHCP
+    leases), from_entry_bool must apply reverse to the default value.
+    """
+
+    def test_missing_disabled_with_reverse_returns_true(self):
+        """DHCP lease without 'disabled' field should be enabled=True."""
+        result = from_entry_bool({}, "disabled", default=False, reverse=True)
+        assert result is True
+
+    def test_missing_disabled_without_reverse_returns_false(self):
+        result = from_entry_bool({}, "disabled", default=False, reverse=False)
+        assert result is False
+
+    def test_missing_with_reverse_and_default_true(self):
+        result = from_entry_bool({}, "disabled", default=True, reverse=True)
+        assert result is False
+
+    def test_present_disabled_false_with_reverse(self):
+        """When disabled=False present, enabled should be True (reverse)."""
+        result = from_entry_bool(
+            {"disabled": False}, "disabled", default=False, reverse=True
+        )
+        assert result is True
+
+    def test_present_disabled_true_with_reverse(self):
+        """When disabled=True present, enabled should be False (reverse)."""
+        result = from_entry_bool(
+            {"disabled": True}, "disabled", default=False, reverse=True
+        )
+        assert result is False
+
+
+# --- from_entry identity coercion removal ---
+
+
+class TestFromEntryIdentityCoercionRemoved:
+    """Verify that str/int values are not unnecessarily re-wrapped."""
+
+    def test_str_returned_directly(self):
+        result = from_entry({"name": "ether1"}, "name", default="x")
+        assert result == "ether1"
+        assert type(result) is str
+
+    def test_int_returned_directly(self):
+        result = from_entry({"port": 8728}, "port", default=0)
+        assert result == 8728
+        assert type(result) is int
+
+
+# --- _set_data / _get_data helpers ---
+
+
+class TestDataHelpers:
+    def test_set_data_with_uid(self):
+        from custom_components.mikrotik_router.apiparser import _set_data, _get_data
+
+        data = {"u1": {}}
+        _set_data(data, "u1", "name", "ether1")
+        assert data["u1"]["name"] == "ether1"
+        assert _get_data(data, "u1", "name") == "ether1"
+
+    def test_set_data_without_uid(self):
+        from custom_components.mikrotik_router.apiparser import _set_data, _get_data
+
+        data = {}
+        _set_data(data, None, "name", "ether1")
+        assert data["name"] == "ether1"
+        assert _get_data(data, None, "name") == "ether1"
+
+
+# --- _resolve_str_default ---
+
+
+class TestResolveStrDefault:
+    def test_explicit_default(self):
+        from custom_components.mikrotik_router.apiparser import _resolve_str_default
+
+        assert _resolve_str_default({"name": "x", "default": "fallback"}) == "fallback"
+
+    def test_no_default(self):
+        from custom_components.mikrotik_router.apiparser import _resolve_str_default
+
+        assert _resolve_str_default({"name": "x"}) == ""
+
+    def test_default_val_reference(self):
+        from custom_components.mikrotik_router.apiparser import _resolve_str_default
+
+        val = {"name": "name", "default_val": "default-name", "default-name": "ether1"}
+        assert _resolve_str_default(val) == "ether1"
+
+
+# --- _convert_timestamp ---
+
+
+class TestConvertTimestamp:
+    def test_converts_seconds_timestamp(self):
+        from custom_components.mikrotik_router.apiparser import (
+            _convert_timestamp,
+            _get_data,
+        )
+
+        data = {"u1": {"ts": 1700000000}}
+        _convert_timestamp(data, "u1", "ts")
+        result = _get_data(data, "u1", "ts")
+        assert hasattr(result, "tzinfo")
+
+    def test_converts_milliseconds_timestamp(self):
+        from custom_components.mikrotik_router.apiparser import (
+            _convert_timestamp,
+            _get_data,
+        )
+
+        data = {"u1": {"ts": 1700000000000}}
+        _convert_timestamp(data, "u1", "ts")
+        result = _get_data(data, "u1", "ts")
+        assert hasattr(result, "tzinfo")
+
+    def test_skips_non_int(self):
+        from custom_components.mikrotik_router.apiparser import (
+            _convert_timestamp,
+            _get_data,
+        )
+
+        data = {"u1": {"ts": "not-a-number"}}
+        _convert_timestamp(data, "u1", "ts")
+        assert _get_data(data, "u1", "ts") == "not-a-number"
+
+    def test_skips_zero(self):
+        from custom_components.mikrotik_router.apiparser import (
+            _convert_timestamp,
+            _get_data,
+        )
+
+        data = {"u1": {"ts": 0}}
+        _convert_timestamp(data, "u1", "ts")
+        assert _get_data(data, "u1", "ts") == 0
+
+
+# --- get_uid refactored ---
+
+
+class TestGetUidRefactored:
+    def test_primary_key_empty_value_returns_none(self):
+        """Entry with key present but empty value should return None."""
+        assert get_uid({"name": ""}, "name", None, None, None) is None
+
+    def test_secondary_key_used_when_primary_missing(self):
+        result = get_uid({"alt": "eth0"}, "name", "alt", None, None)
+        assert result == "eth0"
+
+    def test_secondary_key_empty_returns_none(self):
+        assert get_uid({"alt": ""}, "name", "alt", None, None) is None
+
+
+# --- _process_val_sub / _apply_combine ---
+
+
+class TestFillValsProcExtracted:
+    def test_combine_keys(self):
+        from custom_components.mikrotik_router.apiparser import _process_val_sub
+
+        val_sub = [
+            {"name": "result"},
+            {"action": "combine"},
+            {"key": "a"},
+            {"text": "-"},
+            {"key": "b"},
+        ]
+        name, value = _process_val_sub(val_sub, {"a": "hello", "b": "world"})
+        assert name == "result"
+        assert value == "hello-world"
+
+    def test_combine_missing_key_uses_unknown(self):
+        from custom_components.mikrotik_router.apiparser import _process_val_sub
+
+        val_sub = [
+            {"name": "result"},
+            {"action": "combine"},
+            {"key": "missing"},
+        ]
+        _name, value = _process_val_sub(val_sub, {})
+        assert value == "unknown"
+
+    def test_no_name_returns_none(self):
+        from custom_components.mikrotik_router.apiparser import _process_val_sub
+
+        val_sub = [{"action": "combine"}, {"key": "a"}]
+        name, _value = _process_val_sub(val_sub, {"a": "x"})
+        assert name is None
