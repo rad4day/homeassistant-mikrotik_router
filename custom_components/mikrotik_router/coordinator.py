@@ -2172,7 +2172,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 else:
                     self.ds["dhcp"][uid]["interface"] = self.ds["arp"][uid]["interface"]
 
-        # Count active leases per DHCP server
+        # Count leases per DHCP server
         for server_name in self.ds["dhcp-server"]:
             self.ds["dhcp-server"][server_name]["lease-count"] = 0
         for uid in self.ds["dhcp"]:
