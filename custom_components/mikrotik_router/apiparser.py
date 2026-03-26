@@ -303,7 +303,7 @@ def _process_val_sub(val_sub, _data) -> tuple[str | None, str | None]:
         if "action" in val:
             action = val["action"]
             continue
-        if not name or not action:
+        if not name or not action:  # need both before processing value entries
             break
 
         if action == "combine":

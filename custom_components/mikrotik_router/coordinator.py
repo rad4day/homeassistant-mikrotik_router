@@ -178,7 +178,7 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
 
         first_run = not self.coordinator.host_tracking_initialized
 
-        for uid in self.coordinator.ds["host"]:
+        for uid in list(self.coordinator.ds["host"]):
             host = self.coordinator.ds["host"][uid]
             if first_run:
                 self._ensure_host_defaults(host)
@@ -1067,6 +1067,38 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         else:
             iface["client-ip-address"] = "none"
 
+    def _dedup_firewall_rules(self, ds_key: str, removed_log: dict) -> None:
+        """Remove duplicate firewall rules (by uniq-id) and coerce comments to str.
+
+        Shared by get_nat, get_mangle, get_filter, and get_raw.  When two
+        entries share the same uniq-id both are removed to prevent entity
+        registration crashes.  The first occurrence is logged as an error.
+        """
+        data = self.ds[ds_key]
+        seen: dict[str, str] = {}
+        duplicates: dict[str, int] = {}
+
+        for uid in data:
+            data[uid]["comment"] = str(data[uid]["comment"])
+            uniq = data[uid]["uniq-id"]
+            if uniq not in seen:
+                seen[uniq] = uid
+            else:
+                duplicates[uid] = 1
+                duplicates[seen[uniq]] = 1
+
+        for uid in duplicates:
+            uniq = data[uid]["uniq-id"]
+            if uniq not in removed_log:
+                removed_log[uniq] = 1
+                _LOGGER.error(
+                    "Mikrotik %s duplicate %s rule %s, entity will be unavailable.",
+                    self.host,
+                    ds_key,
+                    data[uid]["name"],
+                )
+            del data[uid]
+
     # ---------------------------
     #   get_nat
     # ---------------------------
@@ -1125,29 +1157,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             only=[{"key": "action", "value": "dst-nat"}],
         )
 
-        # Remove duplicate NAT entries to prevent crash
-        nat_uniq = {}
-        nat_del = {}
-        for uid in self.ds["nat"]:
-            self.ds["nat"][uid]["comment"] = str(self.ds["nat"][uid]["comment"])
-
-            tmp_name = self.ds["nat"][uid]["uniq-id"]
-            if tmp_name not in nat_uniq:
-                nat_uniq[tmp_name] = uid
-            else:
-                nat_del[uid] = 1
-                nat_del[nat_uniq[tmp_name]] = 1
-
-        for uid in nat_del:
-            if self.ds["nat"][uid]["uniq-id"] not in self.nat_removed:
-                self.nat_removed[self.ds["nat"][uid]["uniq-id"]] = 1
-                _LOGGER.error(
-                    "Mikrotik %s duplicate NAT rule %s, entity will be unavailable.",
-                    self.host,
-                    self.ds["nat"][uid]["name"],
-                )
-
-            del self.ds["nat"][uid]
+        self._dedup_firewall_rules("nat", self.nat_removed)
 
     # ---------------------------
     #   get_mangle
@@ -1223,29 +1233,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             ],
         )
 
-        # Remove duplicate Mangle entries to prevent crash
-        mangle_uniq = {}
-        mangle_del = {}
-        for uid in self.ds["mangle"]:
-            self.ds["mangle"][uid]["comment"] = str(self.ds["mangle"][uid]["comment"])
-
-            tmp_name = self.ds["mangle"][uid]["uniq-id"]
-            if tmp_name not in mangle_uniq:
-                mangle_uniq[tmp_name] = uid
-            else:
-                mangle_del[uid] = 1
-                mangle_del[mangle_uniq[tmp_name]] = 1
-
-        for uid in mangle_del:
-            if self.ds["mangle"][uid]["uniq-id"] not in self.mangle_removed:
-                self.mangle_removed[self.ds["mangle"][uid]["uniq-id"]] = 1
-                _LOGGER.error(
-                    "Mikrotik %s duplicate Mangle rule %s, entity will be unavailable.",
-                    self.host,
-                    self.ds["mangle"][uid]["name"],
-                )
-
-            del self.ds["mangle"][uid]
+        self._dedup_firewall_rules("mangle", self.mangle_removed)
 
     # ---------------------------
     #   get_filter
@@ -1331,30 +1319,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             ],
         )
 
-        # Remove duplicate filter entries to prevent crash
-        filter_uniq = {}
-        filter_del = {}
-        for uid in self.ds["filter"]:
-            self.ds["filter"][uid]["comment"] = str(self.ds["filter"][uid]["comment"])
-
-            tmp_name = self.ds["filter"][uid]["uniq-id"]
-            if tmp_name not in filter_uniq:
-                filter_uniq[tmp_name] = uid
-            else:
-                filter_del[uid] = 1
-                filter_del[filter_uniq[tmp_name]] = 1
-
-        for uid in filter_del:
-            if self.ds["filter"][uid]["uniq-id"] not in self.filter_removed:
-                self.filter_removed[self.ds["filter"][uid]["uniq-id"]] = 1
-                _LOGGER.error(
-                    "Mikrotik %s duplicate Filter rule %s (ID %s), entity will be unavailable.",
-                    self.host,
-                    self.ds["filter"][uid]["name"],
-                    self.ds["filter"][uid][".id"],
-                )
-
-            del self.ds["filter"][uid]
+        self._dedup_firewall_rules("filter", self.filter_removed)
 
     # ---------------------------
     #   get_raw
@@ -1434,30 +1399,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             ],
         )
 
-        # Remove duplicate raw entries to prevent crash
-        raw_uniq = {}
-        raw_del = {}
-        for uid in self.ds["raw"]:
-            self.ds["raw"][uid]["comment"] = str(self.ds["raw"][uid]["comment"])
-
-            tmp_name = self.ds["raw"][uid]["uniq-id"]
-            if tmp_name not in raw_uniq:
-                raw_uniq[tmp_name] = uid
-            else:
-                raw_del[uid] = 1
-                raw_del[raw_uniq[tmp_name]] = 1
-
-        for uid in raw_del:
-            if self.ds["raw"][uid]["uniq-id"] not in self.raw_removed:
-                self.raw_removed[self.ds["raw"][uid]["uniq-id"]] = 1
-                _LOGGER.error(
-                    "Mikrotik %s duplicate RAW rule %s (ID %s), entity will be unavailable.",
-                    self.host,
-                    self.ds["raw"][uid]["name"],
-                    self.ds["raw"][uid][".id"],
-                )
-
-            del self.ds["raw"][uid]
+        self._dedup_firewall_rules("raw", self.raw_removed)
 
     # ---------------------------
     #   get_container
