@@ -305,6 +305,11 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
             if self._uid:
                 self._data = self._data[self._uid]
         except KeyError:
+            _LOGGER.debug(
+                "Data path %s uid=%s not found, skipping update",
+                self.entity_description.data_path,
+                self._uid,
+            )
             return
         super()._handle_coordinator_update()
 

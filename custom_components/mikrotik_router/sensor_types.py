@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
 
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.entity import EntityCategory
@@ -97,7 +96,7 @@ class MikrotikSensorEntityDescription(SensorEntityDescription):
     data_name_comment: bool = False
     data_uid: str | None = None
     data_reference: str | None = None
-    data_attributes_list: List = field(default_factory=lambda: [])
+    data_attributes_list: list = field(default_factory=list)
     func: str = "MikrotikSensor"
 
 

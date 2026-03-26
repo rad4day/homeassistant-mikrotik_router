@@ -214,9 +214,9 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
     def _should_ping_host(host: dict) -> bool:
         """Check if a host should be pinged (non-wireless with valid address/interface)."""
         return (
-            host["source"] not in ("capsman", "wireless")
-            and host["address"] not in ("unknown", "")
-            and host["interface"] not in ("unknown", "")
+            host.get("source", "") not in ("capsman", "wireless")
+            and host.get("address", "unknown") not in ("unknown", "")
+            and host.get("interface", "unknown") not in ("unknown", "")
         )
 
     async def _ping_host(self, uid: str, host: dict) -> None:
@@ -224,7 +224,7 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
         interface = host["interface"]
         if (
             uid in self.coordinator.ds["arp"]
-            and self.coordinator.ds["arp"][uid]["bridge"] != ""
+            and self.coordinator.ds["arp"][uid].get("bridge", "") != ""
         ):
             interface = self.coordinator.ds["arp"][uid]["bridge"]
 
@@ -1827,12 +1827,13 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     self.minor_fw_version,
                     full_version,
                 )
-            except Exception:
+            except (ValueError, IndexError) as e:
                 _LOGGER.warning(
-                    "Mikrotik %s unable to determine FW version from '%s';"
+                    "Mikrotik %s unable to determine FW version from '%s' (%s);"
                     " some features may be disabled until next successful parse",
                     self.host,
                     full_version,
+                    e,
                 )
 
     # ---------------------------
@@ -2004,8 +2005,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self.ds["queue"][uid]["comment"] = str(self.ds["queue"][uid]["comment"])
             try:
                 self._parse_queue_values(uid, vals)
-            except (ValueError, IndexError):
-                _LOGGER.warning("Queue %s has unexpected value format, skipping", uid)
+            except (ValueError, IndexError) as e:
+                _LOGGER.warning(
+                    "Queue %s has unexpected value format (%s), skipping",
+                    uid,
+                    e,
+                )
 
     @staticmethod
     def _parse_queue_pair(raw: str) -> tuple[str, str]:
