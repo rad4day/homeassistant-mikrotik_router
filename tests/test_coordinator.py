@@ -4313,7 +4313,10 @@ async def test_hapac2_wireless_count_via_bridge():
     # WiFi interfaces exist but registration table is empty (hAP ac2 issue)
     coordinator.support_wireless = True
     coordinator.ds["wireless_hosts"] = {}
-    coordinator.ds["wireless"] = {"wlan1": {"name": "wlan1"}, "wlan2": {"name": "wlan2"}}
+    coordinator.ds["wireless"] = {
+        "wlan1": {"name": "wlan1"},
+        "wlan2": {"name": "wlan2"},
+    }
     coordinator.ds["bridge_host"] = {
         mac_wifi: {"interface": "wlan1", "bridge": "bridge1", "enabled": True},
         mac_wired: {"interface": "ether2", "bridge": "bridge1", "enabled": True},
