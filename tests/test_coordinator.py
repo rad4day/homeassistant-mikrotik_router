@@ -2867,8 +2867,8 @@ def test_dhcp_server_enriched_defaults():
     assert entry["status"] == "disabled"
 
 
-def test_dhcp_server_status_running():
-    """Enabled DHCP server has status 'running'."""
+def test_dhcp_server_status_enabled():
+    """Enabled DHCP server has status 'enabled'."""
     coordinator = make_coordinator(
         api_responses={
             "/ip/dhcp-server": [
@@ -2877,7 +2877,7 @@ def test_dhcp_server_status_running():
         }
     )
     coordinator.get_dhcp_server()
-    assert coordinator.ds["dhcp-server"]["defconf"]["status"] == "running"
+    assert coordinator.ds["dhcp-server"]["defconf"]["status"] == "enabled"
 
 
 def test_dhcp_server_status_disabled():

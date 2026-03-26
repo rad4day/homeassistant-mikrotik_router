@@ -58,6 +58,8 @@ DEVICE_ATTRIBUTES_DHCP_SERVER = [
     "interface",
     "address-pool",
     "enabled",
+    "status",
+    "lease-count",
     "comment",
 ]
 DEVICE_ATTRIBUTES_GPS = [

@@ -681,6 +681,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self.get_wireless_hosts, requires=self.support_wireless
         )
 
+        # Order matters: get_dhcp_server must run before get_dhcp (lease counting)
         for func in [
             self.get_bridge,
             self.get_arp,
@@ -2209,7 +2210,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
 
         for uid in self.ds["dhcp-server"]:
             self.ds["dhcp-server"][uid]["status"] = (
-                "running" if self.ds["dhcp-server"][uid]["enabled"] else "disabled"
+                "enabled" if self.ds["dhcp-server"][uid]["enabled"] else "disabled"
             )
 
     # ---------------------------
