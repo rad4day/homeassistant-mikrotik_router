@@ -2826,6 +2826,135 @@ def test_dhcp_server_parsing():
     assert coordinator.ds["dhcp-server"]["defconf"]["interface"] == "bridge1"
 
 
+def test_dhcp_server_enriched_fields():
+    """DHCP server entries include address-pool, enabled, comment."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {
+                    "name": "defconf",
+                    "interface": "bridge1",
+                    "address-pool": "dhcp_pool0",
+                    "disabled": False,
+                    "comment": "LAN DHCP",
+                },
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    entry = coordinator.ds["dhcp-server"]["defconf"]
+    assert entry["address-pool"] == "dhcp_pool0"
+    assert entry["enabled"] is True
+    assert entry["comment"] == "LAN DHCP"
+
+
+def test_dhcp_server_enriched_defaults():
+    """DHCP server enriched fields default when absent from API response."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1"},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    entry = coordinator.ds["dhcp-server"]["defconf"]
+    assert entry["address-pool"] == "unknown"
+    assert entry["comment"] == ""
+    assert entry["lease-count"] == 0
+    # When "disabled" is absent, from_entry_bool returns default=False
+    # (reverse is NOT applied to defaults), so enabled=False → status="disabled"
+    assert entry["status"] == "disabled"
+
+
+def test_dhcp_server_status_enabled():
+    """Enabled DHCP server has status 'enabled'."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1", "disabled": False},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    assert coordinator.ds["dhcp-server"]["defconf"]["status"] == "enabled"
+
+
+def test_dhcp_server_status_disabled():
+    """Disabled DHCP server has status 'disabled'."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1", "disabled": True},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    assert coordinator.ds["dhcp-server"]["defconf"]["status"] == "disabled"
+
+
+def test_dhcp_server_lease_count():
+    """Lease count is calculated from DHCP entries."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.10",
+                    "host-name": "pc1",
+                    "server": "defconf",
+                    "status": "bound",
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                    "address": "192.168.1.11",
+                    "host-name": "pc2",
+                    "server": "defconf",
+                    "status": "bound",
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:03",
+                    "address": "192.168.2.10",
+                    "host-name": "pc3",
+                    "server": "guest",
+                    "status": "bound",
+                },
+            ],
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1", "disabled": False},
+                {"name": "guest", "interface": "bridge-guest", "disabled": False},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp-server"]["defconf"]["lease-count"] == 2
+    assert coordinator.ds["dhcp-server"]["guest"]["lease-count"] == 1
+
+
+def test_dhcp_server_lease_count_unknown_server_ignored():
+    """Leases with unknown server don't crash the count."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.10",
+                    "host-name": "pc1",
+                    "server": "nonexistent",
+                    "status": "bound",
+                },
+            ],
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1", "disabled": False},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp-server"]["defconf"]["lease-count"] == 0
+
+
 def test_dhcp_client_parsing():
     """DHCP client entries are parsed with interface as key."""
     coordinator = make_coordinator(
@@ -3600,6 +3729,7 @@ def test_update_host_availability_capsman_not_detected():
         capsman_detected={},
         wireless_detected={},
         arp_detected={},
+        bridge_detected={},
     )
 
     assert coordinator.ds["host"]["AA:BB:CC:DD:EE:10"]["available"] is False
@@ -3618,6 +3748,7 @@ def test_update_host_availability_wired_arp_detected():
         capsman_detected={},
         wireless_detected={},
         arp_detected={"AA:BB:CC:DD:EE:11": True},
+        bridge_detected={},
     )
 
     assert coordinator.ds["host"]["AA:BB:CC:DD:EE:11"]["available"] is True
@@ -4228,3 +4359,202 @@ def test_container_defaults():
     assert c["status"] == "stopped"
     assert c["running"] is False
     assert c["comment"] == ""
+
+
+# =====================================================================
+# _is_wireless_host — bridge/interface-based wireless detection
+# =====================================================================
+
+
+def test_is_wireless_host_source_wireless():
+    """Host with source 'wireless' is always wireless."""
+    coordinator = make_coordinator_for_host()
+    vals = {"source": "wireless", "interface": "ether1"}
+    assert coordinator._is_wireless_host("AA:BB:CC:DD:EE:01", vals) is True
+
+
+def test_is_wireless_host_source_capsman():
+    """Host with source 'capsman' is always wireless."""
+    coordinator = make_coordinator_for_host()
+    vals = {"source": "capsman", "interface": "ether1"}
+    assert coordinator._is_wireless_host("AA:BB:CC:DD:EE:01", vals) is True
+
+
+def test_is_wireless_host_direct_interface():
+    """ARP host on a wireless interface is detected as wireless."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["wireless"] = {"wlan1": {"name": "wlan1"}}
+    vals = {"source": "arp", "interface": "wlan1"}
+    assert coordinator._is_wireless_host("AA:BB:CC:DD:EE:01", vals) is True
+
+
+def test_is_wireless_host_bridge_lookup():
+    """ARP host on a bridge is detected as wireless via bridge host table."""
+    mac = "AA:BB:CC:DD:EE:01"
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["wireless"] = {"wlan1": {"name": "wlan1"}}
+    coordinator.ds["bridge_host"] = {
+        mac: {"interface": "wlan1", "bridge": "bridge1", "enabled": True}
+    }
+    vals = {"source": "arp", "interface": "bridge1"}
+    assert coordinator._is_wireless_host(mac, vals) is True
+
+
+def test_is_wireless_host_wired():
+    """ARP host on a wired interface is not wireless."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["wireless"] = {"wlan1": {"name": "wlan1"}}
+    coordinator.ds["bridge_host"] = {}
+    vals = {"source": "arp", "interface": "ether1"}
+    assert coordinator._is_wireless_host("AA:BB:CC:DD:EE:01", vals) is False
+
+
+def test_is_wireless_host_no_wireless_interfaces():
+    """Host is not wireless when no wireless interfaces exist."""
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["wireless"] = {}
+    vals = {"source": "arp", "interface": "ether1"}
+    assert coordinator._is_wireless_host("AA:BB:CC:DD:EE:01", vals) is False
+
+
+@pytest.mark.asyncio
+async def test_hapac2_wireless_count_via_bridge():
+    """hAP ac2 scenario: empty registration table, clients detected via bridge.
+
+    When the WiFi package registration table returns no entries (hAP ac2),
+    clients discovered via ARP/DHCP should still be counted as wireless
+    if the bridge host table shows them on a wireless interface.
+    """
+    mac_wifi = "AA:BB:CC:DD:EE:W1"
+    mac_wired = "AA:BB:CC:DD:EE:E1"
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            mac_wifi: {
+                "mac-address": mac_wifi,
+                "address": "192.168.1.10",
+                "interface": "bridge1",
+            },
+            mac_wired: {
+                "mac-address": mac_wired,
+                "address": "192.168.1.11",
+                "interface": "bridge1",
+            },
+        }
+    )
+    # WiFi interfaces exist but registration table is empty (hAP ac2 issue)
+    coordinator.support_wireless = True
+    coordinator.ds["wireless_hosts"] = {}
+    coordinator.ds["wireless"] = {
+        "wlan1": {"name": "wlan1"},
+        "wlan2": {"name": "wlan2"},
+    }
+    coordinator.ds["bridge_host"] = {
+        mac_wifi: {"interface": "wlan1", "bridge": "bridge1", "enabled": True},
+        mac_wired: {"interface": "ether2", "bridge": "bridge1", "enabled": True},
+    }
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["resource"]["clients_wireless"] == 1
+    assert coordinator.ds["resource"]["clients_wired"] == 1
+
+
+# =====================================================================
+# _merge_bridge_hosts — bridged AP host detection
+# =====================================================================
+
+
+@pytest.mark.asyncio
+async def test_bridge_host_creates_host_entry():
+    """Bridge host table entry creates a host when no other source exists."""
+    mac = "AA:BB:CC:DD:EE:B1"
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["bridge_host"] = {
+        mac: {"interface": "wlan1", "bridge": "bridge1", "enabled": True},
+    }
+
+    await coordinator.async_process_host()
+
+    assert mac in coordinator.ds["host"]
+    host = coordinator.ds["host"][mac]
+    assert host["source"] == "bridge"
+    assert host["available"] is True
+    assert host["interface"] == "wlan1"
+
+
+@pytest.mark.asyncio
+async def test_bridge_host_does_not_overwrite_arp_source():
+    """Bridge merge does not overwrite hosts already discovered via ARP."""
+    mac = "AA:BB:CC:DD:EE:B2"
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            mac: {
+                "mac-address": mac,
+                "address": "192.168.1.50",
+                "interface": "bridge1",
+            }
+        }
+    )
+    coordinator.ds["bridge_host"] = {
+        mac: {"interface": "wlan1", "bridge": "bridge1", "enabled": True},
+    }
+
+    await coordinator.async_process_host()
+
+    host = coordinator.ds["host"][mac]
+    assert host["source"] == "arp"
+    assert host["address"] == "192.168.1.50"
+
+
+@pytest.mark.asyncio
+async def test_bridge_host_unavailable_when_removed():
+    """Bridge host becomes unavailable when it disappears from the bridge table."""
+    mac = "AA:BB:CC:DD:EE:B3"
+    coordinator = make_coordinator_for_host(
+        host_entries={
+            mac: {
+                "source": "bridge",
+                "mac-address": mac,
+                "address": "unknown",
+                "interface": "wlan1",
+                "available": True,
+                "last-seen": False,
+                "host-name": "unknown",
+                "manufacturer": "",
+            }
+        }
+    )
+    # Bridge host table is now empty — device disconnected
+    coordinator.ds["bridge_host"] = {}
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["host"][mac]["available"] is False
+
+
+@pytest.mark.asyncio
+async def test_bridged_ap_wireless_count():
+    """Bridged AP scenario: all clients from bridge table, counted correctly.
+
+    Simulates a hAP ac2 with no ARP, no DHCP, no registration table.
+    All clients discovered solely via bridge host table.
+    """
+    mac_wifi1 = "AA:BB:CC:DD:EE:W1"
+    mac_wifi2 = "AA:BB:CC:DD:EE:W2"
+    mac_wired = "AA:BB:CC:DD:EE:E1"
+    coordinator = make_coordinator_for_host()
+    coordinator.support_wireless = True
+    coordinator.ds["wireless"] = {
+        "wlan1": {"name": "wlan1"},
+        "wlan2": {"name": "wlan2"},
+    }
+    coordinator.ds["bridge_host"] = {
+        mac_wifi1: {"interface": "wlan1", "bridge": "bridge1", "enabled": True},
+        mac_wifi2: {"interface": "wlan2", "bridge": "bridge1", "enabled": True},
+        mac_wired: {"interface": "ether2", "bridge": "bridge1", "enabled": True},
+    }
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["resource"]["clients_wireless"] == 2
+    assert coordinator.ds["resource"]["clients_wired"] == 1

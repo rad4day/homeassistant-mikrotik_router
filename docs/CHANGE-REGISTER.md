@@ -4,6 +4,65 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260326-wireless-client-count — Fix wireless client detection via bridge table
+
+**Date:** 2026-03-26
+**Branch:** `fix/wireless-client-count`
+**Status:** Merged to dev (v2.3.13-beta.1)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | New `_is_wireless_host()` method: detects wireless clients via source, direct interface match, or bridge host table lookup |
+| `coordinator.py` | `async_process_host` uses `_is_wireless_host()` instead of inline source check for client counting |
+| `tests/test_coordinator.py` | 8 new tests: source wireless/capsman, direct interface, bridge lookup, wired, no wireless interfaces, hAP ac2 integration scenario |
+
+### Why
+
+On routers with empty WiFi registration tables (e.g. hAP ac2 with new WiFi package), all clients were counted as wired because the old check only looked at `source in ["capsman", "wireless"]`. ARP-discovered clients on wireless interfaces were missed. The new method checks the bridge host table to correctly identify wireless clients.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 484 passed, 5 skipped | ✅ |
+
+---
+
+## CR-260326-dhcp-server-sensors — DHCP server status and lease count sensors
+
+**Date:** 2026-03-26
+**Branch:** `feature/dhcp-server-sensors`
+**Status:** Merged to dev (v2.3.13-beta.1)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `coordinator.py` | Extended `get_dhcp_server()` with address-pool, enabled (from reversed `disabled`), comment, status, lease-count fields |
+| `coordinator.py` | Added lease counting loop in `get_dhcp()` — tallies active leases per DHCP server |
+| `coordinator.py` | Added `get_dhcp_server` to update loop before `get_dhcp` (correct order for lease counting) |
+| `sensor_types.py` | New `DEVICE_ATTRIBUTES_DHCP_SERVER` attribute list |
+| `sensor_types.py` | Two new sensor entity descriptions: `dhcp_server_status`, `dhcp_server_lease_count` |
+| `tests/test_coordinator.py` | 7 new tests: enriched fields, defaults, status running/disabled, lease count, unknown server ignored |
+
+### Why
+
+DHCP server monitoring was limited to internal use (interface lookup for DHCP leases). Users want to see per-server status and lease counts for network utilization monitoring and pool exhaustion detection. Implements gap analysis item A5.
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | 0 errors | ✅ |
+| Ruff format | 0 reformats needed | ✅ |
+| Tests | 483 passed, 5 skipped | ✅ |
+
+---
+
 ## CR-260326-fix-slow-load — Eliminate startup bottlenecks that block HA loading
 
 **Date:** 2026-03-26
