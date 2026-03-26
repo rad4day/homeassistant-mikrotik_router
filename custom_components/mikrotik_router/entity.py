@@ -341,8 +341,7 @@ class MikrotikEntity(CoordinatorEntity[_MikrotikCoordinatorT], Entity):
         """Return a unique id for this entity"""
         if self._uid:
             return f"{self._inst.lower()}-{self.entity_description.key}-{slugify(str(self._data[self.entity_description.data_reference]).lower())}"
-        else:
-            return f"{self._inst.lower()}-{self.entity_description.key}"
+        return f"{self._inst.lower()}-{self.entity_description.key}"
 
     @property
     def device_info(self) -> DeviceInfo:

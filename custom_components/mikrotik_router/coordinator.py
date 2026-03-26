@@ -1531,11 +1531,10 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                     "encoding"
                 ]
             else:
-                _PPP_NOT_CONNECTED = "not connected"
                 self.ds["ppp_secret"][uid]["connected"] = False
-                self.ds["ppp_secret"][uid]["caller-id"] = _PPP_NOT_CONNECTED
-                self.ds["ppp_secret"][uid]["address"] = _PPP_NOT_CONNECTED
-                self.ds["ppp_secret"][uid]["encoding"] = _PPP_NOT_CONNECTED
+                self.ds["ppp_secret"][uid]["caller-id"] = "not connected"
+                self.ds["ppp_secret"][uid]["address"] = "not connected"
+                self.ds["ppp_secret"][uid]["encoding"] = "not connected"
 
     # ---------------------------
     #   get_netwatch
