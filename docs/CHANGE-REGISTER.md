@@ -8,7 +8,7 @@ Changes listed in reverse chronological order.
 
 **Date:** 2026-03-26
 **Branch:** `claude/fix-homeassistant-slow-load-EzXf3`
-**Status:** Pre-release (v2.3.12-beta.1)
+**Status:** Released (v2.3.12)
 
 ### What Changed
 
