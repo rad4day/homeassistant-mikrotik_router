@@ -3729,6 +3729,7 @@ def test_update_host_availability_capsman_not_detected():
         capsman_detected={},
         wireless_detected={},
         arp_detected={},
+        bridge_detected={},
     )
 
     assert coordinator.ds["host"]["AA:BB:CC:DD:EE:10"]["available"] is False
@@ -3747,6 +3748,7 @@ def test_update_host_availability_wired_arp_detected():
         capsman_detected={},
         wireless_detected={},
         arp_detected={"AA:BB:CC:DD:EE:11": True},
+        bridge_detected={},
     )
 
     assert coordinator.ds["host"]["AA:BB:CC:DD:EE:11"]["available"] is True
@@ -4454,4 +4456,105 @@ async def test_hapac2_wireless_count_via_bridge():
     await coordinator.async_process_host()
 
     assert coordinator.ds["resource"]["clients_wireless"] == 1
+    assert coordinator.ds["resource"]["clients_wired"] == 1
+
+
+# =====================================================================
+# _merge_bridge_hosts — bridged AP host detection
+# =====================================================================
+
+
+@pytest.mark.asyncio
+async def test_bridge_host_creates_host_entry():
+    """Bridge host table entry creates a host when no other source exists."""
+    mac = "AA:BB:CC:DD:EE:B1"
+    coordinator = make_coordinator_for_host()
+    coordinator.ds["bridge_host"] = {
+        mac: {"interface": "wlan1", "bridge": "bridge1", "enabled": True},
+    }
+
+    await coordinator.async_process_host()
+
+    assert mac in coordinator.ds["host"]
+    host = coordinator.ds["host"][mac]
+    assert host["source"] == "bridge"
+    assert host["available"] is True
+    assert host["interface"] == "wlan1"
+
+
+@pytest.mark.asyncio
+async def test_bridge_host_does_not_overwrite_arp_source():
+    """Bridge merge does not overwrite hosts already discovered via ARP."""
+    mac = "AA:BB:CC:DD:EE:B2"
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            mac: {
+                "mac-address": mac,
+                "address": "192.168.1.50",
+                "interface": "bridge1",
+            }
+        }
+    )
+    coordinator.ds["bridge_host"] = {
+        mac: {"interface": "wlan1", "bridge": "bridge1", "enabled": True},
+    }
+
+    await coordinator.async_process_host()
+
+    host = coordinator.ds["host"][mac]
+    assert host["source"] == "arp"
+    assert host["address"] == "192.168.1.50"
+
+
+@pytest.mark.asyncio
+async def test_bridge_host_unavailable_when_removed():
+    """Bridge host becomes unavailable when it disappears from the bridge table."""
+    mac = "AA:BB:CC:DD:EE:B3"
+    coordinator = make_coordinator_for_host(
+        host_entries={
+            mac: {
+                "source": "bridge",
+                "mac-address": mac,
+                "address": "unknown",
+                "interface": "wlan1",
+                "available": True,
+                "last-seen": False,
+                "host-name": "unknown",
+                "manufacturer": "",
+            }
+        }
+    )
+    # Bridge host table is now empty — device disconnected
+    coordinator.ds["bridge_host"] = {}
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["host"][mac]["available"] is False
+
+
+@pytest.mark.asyncio
+async def test_bridged_ap_wireless_count():
+    """Bridged AP scenario: all clients from bridge table, counted correctly.
+
+    Simulates a hAP ac2 with no ARP, no DHCP, no registration table.
+    All clients discovered solely via bridge host table.
+    """
+    mac_wifi1 = "AA:BB:CC:DD:EE:W1"
+    mac_wifi2 = "AA:BB:CC:DD:EE:W2"
+    mac_wired = "AA:BB:CC:DD:EE:E1"
+    coordinator = make_coordinator_for_host()
+    coordinator.support_wireless = True
+    coordinator.ds["wireless"] = {
+        "wlan1": {"name": "wlan1"},
+        "wlan2": {"name": "wlan2"},
+    }
+    coordinator.ds["bridge_host"] = {
+        mac_wifi1: {"interface": "wlan1", "bridge": "bridge1", "enabled": True},
+        mac_wifi2: {"interface": "wlan2", "bridge": "bridge1", "enabled": True},
+        mac_wired: {"interface": "ether2", "bridge": "bridge1", "enabled": True},
+    }
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["resource"]["clients_wireless"] == 2
     assert coordinator.ds["resource"]["clients_wired"] == 1

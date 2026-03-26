@@ -2466,6 +2466,32 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         return detected
 
     # ---------------------------
+    #   _merge_bridge_hosts
+    # ---------------------------
+    def _merge_bridge_hosts(self) -> dict:
+        """Merge bridge host table entries into ds['host'] and return detected set.
+
+        On bridged APs (e.g. hAP ac2), the ARP table is on the gateway router,
+        not the AP. The bridge host table is the only source of connected client
+        MACs. This creates host entries for MACs not already discovered by
+        wireless registration, DHCP, or ARP merges.
+        """
+        detected = {}
+        for uid, vals in self.ds["bridge_host"].items():
+            detected[uid] = True
+            if uid not in self.ds["host"]:
+                self.ds["host"][uid] = {
+                    "source": "bridge",
+                    "mac-address": uid,
+                    "address": "unknown",
+                    "interface": vals.get("interface", "unknown"),
+                }
+            elif self.ds["host"][uid]["source"] == "bridge":
+                self.ds["host"][uid]["interface"] = vals.get("interface", "unknown")
+
+        return detected
+
+    # ---------------------------
     #   _recover_hass_hosts
     # ---------------------------
     def _recover_hass_hosts(self) -> None:
@@ -2504,7 +2530,13 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
     #   _update_host_availability
     # ---------------------------
     def _update_host_availability(
-        self, uid, vals, capsman_detected, wireless_detected, arp_detected
+        self,
+        uid,
+        vals,
+        capsman_detected,
+        wireless_detected,
+        arp_detected,
+        bridge_detected,
     ) -> None:
         """Set availability based on source and detection state."""
         source = vals["source"]
@@ -2512,6 +2544,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self.ds["host"][uid]["available"] = False
         elif source == "wireless" and uid not in wireless_detected:
             self.ds["host"][uid]["available"] = False
+        elif source == "bridge":
+            if uid in bridge_detected:
+                self.ds["host"][uid]["available"] = True
+                self.ds["host"][uid]["last-seen"] = utcnow()
+            else:
+                self.ds["host"][uid]["available"] = False
         elif source in ["arp", "dhcp"]:
             if uid in arp_detected:
                 self.ds["host"][uid]["available"] = True
@@ -2680,6 +2718,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         wireless_detected = self._merge_wireless_hosts()
         self._merge_dhcp_hosts()
         arp_detected = self._merge_arp_hosts()
+        bridge_detected = self._merge_bridge_hosts()
         self._recover_hass_hosts()
         self._ensure_host_defaults()
 
@@ -2693,7 +2732,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         for uid, vals in self.ds["host"].items():
             self._update_captive_portal(uid)
             self._update_host_availability(
-                uid, vals, capsman_detected, wireless_detected, arp_detected
+                uid,
+                vals,
+                capsman_detected,
+                wireless_detected,
+                arp_detected,
+                bridge_detected,
             )
             self._update_host_address(uid, vals)
             self._resolve_hostname(uid, vals)
