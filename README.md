@@ -9,7 +9,11 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/jnctech/homeassistant-mikrotik_router?style=plastic)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/jnctech/homeassistant-mikrotik_router/ci.yml?style=plastic)
 
-Monitor and control your entire MikroTik network from Home Assistant. This HACS integration connects to MikroTik routers, switches and access points running RouterOS v6 or v7, surfacing interface status, PoE monitoring, traffic sensors, wireless client counts, network device tracking, system health, firmware updates and more — all as native Home Assistant entities on a configurable polling interval.
+Monitor and control your entire MikroTik network from Home Assistant. This HACS custom integration connects to MikroTik routers, switches and access points running RouterOS v6 or v7 via the RouterOS API — surfacing system health, interface status, PoE monitoring, traffic sensors, wireless client counts, DHCP server monitoring, firewall rule control, network device tracking, firmware updates and more as native Home Assistant entities.
+
+**Works with:** RB4011, RB5009, hAP ac2, hAP ax3, CRS switches, CCR routers, hEX, and any MikroTik device with the RouterOS API enabled. Tested on RouterOS 7.13 through 7.22.
+
+> **[Vote on upcoming features](https://github.com/jnctech/homeassistant-mikrotik_router/discussions/48)** — WireGuard VPN monitoring, firewall address lists, LTE modem stats, certificate expiry alerts, and more. Tell us what you need.
 
 > **This is a community-maintained fork of [tomaae/homeassistant-mikrotik_router](https://github.com/tomaae/homeassistant-mikrotik_router).** The original author built an incredible integration that many of us rely on daily. This fork exists to keep things running and ship bug fixes while the upstream repo is quiet. We're happy to contribute fixes back anytime.
 
@@ -183,29 +187,38 @@ Your existing configuration and entities are preserved — no reconfiguration ne
 
 ## Feature Highlights
 
-- **Interfaces** — enable/disable, SFP info, RX/TX traffic, connected device IP/MAC, interface presence
-- **PoE monitoring** *(v2.3.3+)* — per-port status, voltage, current and power for PoE-capable switches
-- **NAT rules** — enable/disable individual rules
-- **Mangle rules** — enable/disable individual rules
-- **Filter rules** — enable/disable individual rules
-- **Firewall RAW rules** *(new)* — enable/disable individual RAW rules
-- **Containers** *(new)* — monitor status and start/stop MikroTik containers
-- **DHCP client** *(new)* — WAN IP, gateway, DNS server, lease expiry per DHCP client interface
-- **Simple Queues** — control bandwidth queues
-- **PPP users** — monitor and control PPP connections
-- **Host tracking** — presence detection for all LAN, wireless and CAPsMAN devices
-- **Netwatch** — track netwatch probe status
-- **Client traffic** — per-client RX/TX via Accounting (RouterOS v6) or Kid Control Devices (RouterOS v7)
-- **System sensors** — CPU, memory, HDD, temperature (Celsius/Fahrenheit)
-- **System health** — PoE-in voltage/current on supported hardware, UPS, environment sensors
-- **Firmware updates** — check and update RouterOS and RouterBOARD firmware from HA
-- **Scripts** — execute RouterOS scripts from HA (now refreshes environment variables immediately)
-- **GPS** — monitor GPS coordinates
-- **Kid Control** — monitor and control internet schedules
-- **Multiple devices** — monitor several MikroTik devices simultaneously
+- **System health** — CPU, memory, HDD, temperatures, voltages, fan speeds, PoE-in, UPS, GPS
+- **Interface monitoring** — enable/disable, SFP diagnostics, RX/TX traffic, link status, connected client IP/MAC
+- **PoE monitoring** — per-port status, voltage, current and power for PoE-capable switches and routers
+- **Firewall control** — enable/disable individual NAT, filter, mangle, and RAW rules
+- **Device tracking** — presence detection for wired, wireless, CAPsMAN, and bridged AP clients (hAP ac2, etc.)
+- **DHCP server monitoring** — per-server status and active lease count
+- **DHCP client sensors** — WAN IP, gateway, DNS server, lease expiry per DHCP client interface
+- **Container management** — monitor status and start/stop MikroTik containers (RouterOS 7.4+)
+- **Client traffic** — per-client RX/TX bandwidth via Accounting (v6) or Kid Control (v7)
+- **Queue management** — enable/disable simple queues with bandwidth monitoring
+- **PPP management** — monitor and control PPP secrets and connections
+- **Kid Control** — enable/disable/pause internet schedules
+- **Firmware updates** — check and install RouterOS and RouterBOARD updates from HA
+- **Scripts** — execute RouterOS scripts with immediate environment variable refresh
+- **Netwatch** — probe status tracking
+- **Entity cleanup** — services to remove orphaned entities and stale device trackers
+- **Multiple devices** — monitor several MikroTik routers, switches and APs simultaneously
 
-### Roadmap
-For a full analysis of potential new sensors and capabilities, including WireGuard VPN monitoring, address list management, LTE modem stats, certificate expiry alerts, and more, see the [Sensor Gap Analysis](docs/sensor-gap-analysis.md).
+### Coming Soon — [Vote Here](https://github.com/jnctech/homeassistant-mikrotik_router/discussions/48)
+
+| Feature | Status |
+|---------|--------|
+| WireGuard VPN tunnel and peer monitoring | Planned — high demand |
+| Firewall address list management (toggle entries from HA) | Planned — high demand |
+| Interface IP address tracking (WAN IP change detection) | Planned |
+| Certificate expiry alerts | Planned |
+| LTE modem signal stats (RSSI, RSRP, SINR) | Planned — hardware-specific |
+| Wireless client signal strength as standalone sensors | Planned |
+| Firewall rule byte/packet counters | Planned |
+| Connection tracking stats | Planned |
+
+For the full analysis, see the [Sensor Gap Analysis](docs/sensor-gap-analysis.md).
 
 ---
 
