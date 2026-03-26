@@ -111,6 +111,11 @@ async def async_cleanup_entities(call: ServiceCall) -> ServiceResponse:
     inst = config_entry.data[CONF_NAME]
 
     valid_ids = _build_valid_unique_ids(inst, coordinator.ds)
+    if not valid_ids:
+        raise HomeAssistantError(
+            "No valid entity IDs generated — aborting to prevent removing all "
+            "entities. This may indicate empty coordinator data or a bug."
+        )
     _LOGGER.debug("Built %d valid unique IDs for %s", len(valid_ids), inst)
 
     entity_registry = er.async_get(hass)
