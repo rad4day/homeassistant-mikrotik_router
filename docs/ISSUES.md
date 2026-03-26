@@ -29,7 +29,7 @@
 - Full HA integration tests: async_setup_entry, async_unload_entry (requires full HA platform machinery)
 - Full coverage measurement and gap analysis
 
-**Reference:** 461 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port), target ≥80% for SonarCloud Grade A
+**Reference:** ~490 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port, 8 wireless detection, 7 DHCP server sensors), target ≥80% for SonarCloud Grade A
 
 ---
 
@@ -142,6 +142,27 @@ Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. 
 - switch.py `MikrotikPortSwitch`: unguarded bracket access on `self._data["about"]` and `self._data["port-mac-address"]`
 - apiparser.py `from_entry()`: type coercion is identity operations (pre-existing)
 - apiparser.py `get_uid()`: dead code on line 157 masks empty-key entries (pre-existing)
+
+---
+
+### ISS-260326-tracker-wireless-detection — Device tracker uses old wireless detection logic
+**Type:** Bug
+**Priority:** Medium
+**Created:** 2026-03-26
+**Status:** 🟡 Backlog
+
+**Context:**
+`device_tracker.py` lines 157, 169, 199 check `source in ["capsman", "wireless"]` to determine wireless behavior (connection state, icon, attributes). The new `_is_wireless_host()` method in coordinator.py correctly detects wireless clients via bridge host table (fixing hAP ac2), but device_tracker still uses the old check.
+
+**Impact:**
+On routers with empty registration tables (hAP ac2 with new WiFi package), wireless clients discovered via bridge table have `source="arp"`, so the device tracker:
+- Uses timeout-based `is_connected` instead of registration-based
+- Shows wired icon instead of wireless
+- Does not show wireless signal/rate attributes
+
+**Fix:**
+- Add `is_wireless` bool field to host data in coordinator (set by `_is_wireless_host`)
+- Update device_tracker.py to check `self._data.get("is_wireless")` instead of source
 
 ---
 
