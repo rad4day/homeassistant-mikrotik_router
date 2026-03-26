@@ -41,7 +41,7 @@ Large coordinator methods have been decomposed into focused helpers. Each helper
 
 **Update cycle** (`_async_update_data` orchestrates):
 - `_async_update_hwinfo()` — 4-hourly hardware info refresh
-- `_async_run_if_connected()` — guarded executor dispatch
+- `_run_if_enabled()` — guarded executor dispatch
 
 **Accounting** (`process_accounting` orchestrates):
 - `_init_accounting_hosts()`, `_classify_accounting_traffic()`, `_check_accounting_threshold()`, `_apply_accounting_throughput()`

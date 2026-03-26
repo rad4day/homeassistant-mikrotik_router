@@ -1,7 +1,7 @@
 """Unit tests for Mikrotik Router coordinator and apiparser logic."""
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -404,7 +404,7 @@ def make_coordinator_for_host(arp_entries=None, dhcp_entries=None, host_entries=
     coordinator.host_hass_recovered = True  # skip HA registry recovery
 
     mac_lookup = MagicMock()
-    mac_lookup.lookup = MagicMock(return_value="Vendor")
+    mac_lookup.lookup = AsyncMock(return_value="Vendor")
     coordinator.async_mac_lookup = mac_lookup
 
     coordinator.ds["arp"] = arp_entries or {}
@@ -772,6 +772,125 @@ async def test_mac_lookup_cancelled_error_propagates():
 
     with pytest.raises(asyncio.CancelledError):
         await coordinator.async_process_host()
+
+
+def _host_entry(mac, address="192.168.1.10", manufacturer="detect"):
+    """Build a minimal host entry for manufacturer resolution tests."""
+    return {
+        "mac-address": mac,
+        "address": address,
+        "interface": "ether1",
+        "host-name": "test",
+        "source": "arp",
+        "manufacturer": manufacturer,
+        "last-seen": False,
+        "available": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_resolve_manufacturer_error_sets_empty_string():
+    """When mac_lookup.lookup raises, manufacturer is set to '' not left as 'detect'."""
+    mac = "AA:BB:CC:DD:EE:FF"
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            mac: {"mac-address": mac, "address": "192.168.1.10", "interface": "ether1"}
+        },
+        host_entries={mac: _host_entry(mac)},
+    )
+
+    coordinator.async_mac_lookup.lookup = AsyncMock(
+        side_effect=OSError("lookup DB unavailable")
+    )
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["host"][mac]["manufacturer"] == ""
+
+
+@pytest.mark.asyncio
+async def test_resolve_manufacturer_concurrent_partial_failure():
+    """One MAC lookup failure does not affect other concurrent lookups."""
+    mac1, mac2 = "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02"
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            mac1: {
+                "mac-address": mac1,
+                "address": "192.168.1.10",
+                "interface": "ether1",
+            },
+            mac2: {
+                "mac-address": mac2,
+                "address": "192.168.1.11",
+                "interface": "ether1",
+            },
+        },
+        host_entries={
+            mac1: _host_entry(mac1, "192.168.1.10"),
+            mac2: _host_entry(mac2, "192.168.1.11"),
+        },
+    )
+
+    async def selective_lookup(mac):
+        if mac == mac1:
+            raise OSError("lookup failed")
+        return "GoodVendor"
+
+    coordinator.async_mac_lookup.lookup = selective_lookup
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["host"][mac1]["manufacturer"] == ""
+    assert coordinator.ds["host"][mac2]["manufacturer"] == "GoodVendor"
+
+
+@pytest.mark.asyncio
+async def test_resolve_manufacturer_parallel_success():
+    """Multiple MAC lookups resolve concurrently via asyncio.gather."""
+    mac1, mac2 = "AA:BB:CC:DD:EE:01", "AA:BB:CC:DD:EE:02"
+    coordinator = make_coordinator_for_host(
+        arp_entries={
+            mac1: {
+                "mac-address": mac1,
+                "address": "192.168.1.10",
+                "interface": "ether1",
+            },
+            mac2: {
+                "mac-address": mac2,
+                "address": "192.168.1.11",
+                "interface": "ether1",
+            },
+        },
+        host_entries={
+            mac1: _host_entry(mac1, "192.168.1.10"),
+            mac2: _host_entry(mac2, "192.168.1.11"),
+        },
+    )
+
+    async def vendor_by_mac(mac):
+        return {mac1: "VendorA", mac2: "VendorB"}[mac]
+
+    coordinator.async_mac_lookup.lookup = vendor_by_mac
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["host"][mac1]["manufacturer"] == "VendorA"
+    assert coordinator.ds["host"][mac2]["manufacturer"] == "VendorB"
+
+
+@pytest.mark.asyncio
+async def test_resolve_manufacturer_unknown_mac_skips_lookup():
+    """Hosts with mac-address='unknown' skip lookup and get manufacturer=''."""
+    coordinator = make_coordinator_for_host(
+        host_entries={
+            "AA:BB:CC:DD:EE:FF": _host_entry("unknown"),
+        },
+    )
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:FF"]["manufacturer"] == ""
+    coordinator.async_mac_lookup.lookup.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

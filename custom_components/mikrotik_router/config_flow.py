@@ -1,5 +1,7 @@
 """Config flow to configure Mikrotik Router."""
 
+from __future__ import annotations
+
 import logging
 
 import voluptuous as vol

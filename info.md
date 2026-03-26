@@ -4,7 +4,13 @@ Monitor and control your MikroTik router from Home Assistant.
 
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
-### What's new in v2.3.11
+### What's new in v2.3.12
+- **Faster startup** — No longer blocks HA startup by pinging every tracked host sequentially; uses ARP table for instant first-run availability
+- **Parallel MAC lookups** — Vendor resolution now runs concurrently instead of one-by-one
+- **Entity cleanup services** — `cleanup_entities` removes orphaned entities; `cleanup_stale_hosts` reports/removes stale device trackers
+- **Bug fixes** — Firmware v7+ client traffic comparison fix, timezone-aware datetimes, API parser type hint fix
+
+### v2.3.11
 - **Attribute cleanup** — Entity attributes now only show information relevant to each port type (SFP diagnostics on SFP ports only, PoE on PoE-capable ports only, wireless metrics on wireless clients only)
 - **Mangle fix** — Rules differing only by interface were silently dropped as duplicates
 

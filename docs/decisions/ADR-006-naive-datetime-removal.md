@@ -1,7 +1,7 @@
 # ADR-006: Replace naive datetime.now() with HA utility
 
 **Date:** 2026-03-21
-**Status:** Proposed
+**Status:** Accepted — implemented in v2.3.12
 
 ## Context
 

@@ -4,7 +4,7 @@
 
 1. ISS-260320-test-coverage — Increase test coverage to ≥80%
 2. ISS-260320-new-device-discovery — New devices require HA restart to appear
-3. ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
+3. ISS-260321-cognitive-complexity — Reduce cognitive complexity to ≤15 per function
 
 ---
 
@@ -29,7 +29,7 @@
 - Full HA integration tests: async_setup_entry, async_unload_entry (requires full HA platform machinery)
 - Full coverage measurement and gap analysis
 
-**Reference:** 473 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port, 12 attribute cleanup), target ≥80% for SonarCloud Grade A
+**Reference:** 461 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port), target ≥80% for SonarCloud Grade A
 
 ---
 
@@ -68,7 +68,7 @@ SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. 
 
 **Done (PR #30 — feature/complexity-reduction):**
 - ✅ `async_process_host()` (136→~10 per helper): extracted `_merge_capsman_hosts`, `_merge_wireless_hosts`, `_merge_dhcp_hosts`, `_merge_arp_hosts`, `_recover_hass_hosts`, `_ensure_host_defaults`, `_update_host_availability`, `_update_host_address`, `_resolve_hostname`, `_dhcp_comment_for_host`, `_update_captive_portal`
-- ✅ `_async_update_data()` (65→~15): extracted `_async_update_hwinfo`, `_async_run_if_connected`, optional sensor loop tables
+- ✅ `_async_update_data()` (65→~15): extracted `_async_update_hwinfo`, `_run_if_enabled`, optional sensor loop tables
 - ✅ `process_accounting()` (48→~10 per helper): extracted `_init_accounting_hosts`, `_classify_accounting_traffic`, `_check_accounting_threshold`, `_apply_accounting_throughput`
 - ✅ `get_interface()` (27→~10): extracted `_monitor_ethernet_port` with `_SFP_MONITOR_VALS`, `_COPPER_MONITOR_VALS`, `_POE_MONITOR_VALS` class constants
 - ✅ `_skip_sensor()` (23→~5 per helper): extracted `_skip_interface_traffic`, `_skip_binary_sensor`, `_skip_device_tracker`, `_skip_poe_sensor`
@@ -100,19 +100,6 @@ The `update_sensors` dispatcher was re-enabled in v2.3.6 to fix new devices not 
 - Only fire `async_dispatcher_send("update_sensors", self)` when new UIDs appear that weren't in the previous set
 - Alternatively, fix `_check_entity_exists()` to skip entities already in `platform.entities`
 - Test: add a new host to `ds["host"]` mid-run and verify entity is created without log errors
-
----
-
-### ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
-**Type:** Bug
-**Priority:** Medium
-**Created:** 2026-03-20
-**Status:** 🟡 Backlog
-**Source:** coordinator.py lines 577, 606, 1547
-
-**Remaining:**
-- Replace `datetime.now()` with `homeassistant.util.dt.now()`
-- Audit all datetime usage in coordinator.py
 
 ---
 
@@ -159,6 +146,14 @@ Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. 
 ---
 
 ## Completed
+
+### ISS-260326-slow-load — Startup bottlenecks blocking HA loading
+**Type:** Bug/Performance | **Priority:** High | **Created:** 2026-03-26
+**Status:** 🔴 Closed — fixed in v2.3.12 (claude/fix-homeassistant-slow-load)
+
+### ISS-260320-deprecated-datetime — Remaining naive datetime.now() calls
+**Type:** Bug | **Priority:** Medium | **Created:** 2026-03-20
+**Status:** 🔴 Closed — fixed in v2.3.12 (claude/fix-homeassistant-slow-load)
 
 ### ISS-260325-attribute-bloat — ~1300 junk attributes on interface and tracker entities
 **Type:** Bug/Quality | **Priority:** High | **Created:** 2026-03-25

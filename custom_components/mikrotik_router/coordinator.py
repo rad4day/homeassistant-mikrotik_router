@@ -15,7 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.util.dt import utcnow
+from homeassistant.util.dt import now as dt_now, utcnow
 
 
 from homeassistant.const import (
@@ -170,8 +170,10 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
         if "test" not in self.coordinator.ds["access"]:
             return
 
+        first_run = not self.coordinator.host_tracking_initialized
+
         for uid in list(self.coordinator.ds["host"]):
-            if not self.coordinator.host_tracking_initialized:
+            if first_run:
                 # Add missing default values
                 for key, default in zip(
                     [
@@ -187,8 +189,17 @@ class MikrotikTrackerCoordinator(DataUpdateCoordinator[None]):
                     if key not in self.coordinator.ds["host"][uid]:
                         self.coordinator.ds["host"][uid][key] = default
 
-            # Check host availability
-            if (
+            # On first run, use ARP data instead of pinging every host
+            # sequentially.  Pings will run on subsequent 10s updates.
+            if first_run:
+                in_arp = uid in self.coordinator.ds["arp"]
+                self.coordinator.ds["host"][uid]["available"] = in_arp
+                if not in_arp:
+                    _LOGGER.debug(
+                        "Host %s not in ARP on first run; will ping next cycle",
+                        uid,
+                    )
+            elif (
                 self.coordinator.ds["host"][uid]["source"]
                 not in ["capsman", "wireless"]
                 and self.coordinator.ds["host"][uid]["address"] not in ["unknown", ""]
@@ -322,7 +333,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         self.async_mac_lookup = AsyncMacLookup()
         self.accessrights_reported = False
 
-        self.last_hwinfo_update = datetime(1970, 1, 1)
+        self.last_hwinfo_update = datetime(1970, 1, 1, tzinfo=timezone.utc)
         self.rebootcheck = 0
 
     # ---------------------------
@@ -604,21 +615,24 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
                 self.ds["host_hass"][tmp[2].upper()] = entity.original_name
 
     # ---------------------------
-    #   _async_run_if_connected
+    #   _run_if_enabled
     # ---------------------------
-    async def _async_run_if_connected(self, func) -> None:
-        """Run a blocking function in the executor if the API is connected."""
-        if self.api.connected():
+    async def _run_if_enabled(self, func, *, requires: bool = True) -> None:
+        """Run a blocking API call in the executor if connected and enabled."""
+        if self.api.connected() and requires:
             await self.hass.async_add_executor_job(func)
 
     # ---------------------------
     #   _async_update_hwinfo
     # ---------------------------
-    async def _async_update_hwinfo(self) -> None:
-        """Refresh hardware info (runs every 4 hours or on reconnect)."""
-        delta = datetime.now().replace(microsecond=0) - self.last_hwinfo_update
+    async def _async_update_hwinfo(self) -> bool:
+        """Refresh hardware info (runs every 4 hours or on reconnect).
+
+        Returns True if the refresh ran (so callers can skip duplicate work).
+        """
+        delta = dt_now().replace(microsecond=0) - self.last_hwinfo_update
         if not self.api.has_reconnected() and delta.total_seconds() <= 60 * 60 * 4:
-            return
+            return False
 
         await self.hass.async_add_executor_job(self.get_access)
 
@@ -628,94 +642,82 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self.get_capabilities,
             self.get_system_routerboard,
         ]:
-            await self._async_run_if_connected(func)
+            await self._run_if_enabled(func)
 
-        if self.api.connected() and self.option_sensor_scripts:
-            await self.hass.async_add_executor_job(self.get_script)
+        await self._run_if_enabled(self.get_script, requires=self.option_sensor_scripts)
 
         for func in [self.get_dhcp_network, self.get_dns]:
-            await self._async_run_if_connected(func)
+            await self._run_if_enabled(func)
 
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")
 
-        self.last_hwinfo_update = datetime.now().replace(microsecond=0)
+        self.last_hwinfo_update = dt_now().replace(microsecond=0)
+        return True
 
     # ---------------------------
     #   _async_update_data
     # ---------------------------
     async def _async_update_data(self):
         """Update Mikrotik data"""
-        await self._async_update_hwinfo()
+        hwinfo_ran = await self._async_update_hwinfo()
 
-        await self.hass.async_add_executor_job(self.get_system_resource)
+        # get_system_resource already ran inside _async_update_hwinfo;
+        # only call it again on normal polling cycles where hwinfo was skipped.
+        if not hwinfo_ran:
+            await self._run_if_enabled(self.get_system_resource)
 
         for func in [self.get_system_health, self.get_dhcp_client, self.get_interface]:
-            await self._async_run_if_connected(func)
+            await self._run_if_enabled(func)
 
         if self.api.connected() and not self.ds["host_hass"]:
             await self.async_get_host_hass()
 
-        if self.api.connected() and self.support_capsman:
-            await self.hass.async_add_executor_job(self.get_capsman_hosts)
-
-        if self.api.connected() and self.support_wireless:
-            await self.hass.async_add_executor_job(self.get_wireless)
-
-        if self.api.connected() and self.support_wireless:
-            await self.hass.async_add_executor_job(self.get_wireless_hosts)
+        await self._run_if_enabled(
+            self.get_capsman_hosts, requires=self.support_capsman
+        )
+        await self._run_if_enabled(self.get_wireless, requires=self.support_wireless)
+        await self._run_if_enabled(
+            self.get_wireless_hosts, requires=self.support_wireless
+        )
 
         for func in [self.get_bridge, self.get_arp, self.get_dhcp]:
-            await self._async_run_if_connected(func)
+            await self._run_if_enabled(func)
 
         if self.api.connected():
             await self.async_process_host()
 
-        await self._async_run_if_connected(self.process_interface_client)
+        await self._run_if_enabled(self.process_interface_client)
 
-        # Optional sensors — each guarded by its config option
-        optional_sensors = [
-            (self.option_sensor_nat, self.get_nat),
-            (self.option_sensor_kidcontrol, self.get_kidcontrol),
-            (self.option_sensor_mangle, self.get_mangle),
-            (self.option_sensor_filter, self.get_filter),
-            (self.option_sensor_raw, self.get_raw),
-            (self.option_sensor_netwatch, self.get_netwatch),
-        ]
-        for enabled, func in optional_sensors:
-            if self.api.connected() and enabled:
-                await self.hass.async_add_executor_job(func)
-
-        if self.api.connected() and self.support_ppp and self.option_sensor_ppp:
-            await self.hass.async_add_executor_job(self.get_ppp)
+        for func, enabled in [
+            (self.get_nat, self.option_sensor_nat),
+            (self.get_kidcontrol, self.option_sensor_kidcontrol),
+            (self.get_mangle, self.option_sensor_mangle),
+            (self.get_filter, self.option_sensor_filter),
+            (self.get_raw, self.option_sensor_raw),
+            (self.get_netwatch, self.option_sensor_netwatch),
+            (self.get_ppp, self.support_ppp and self.option_sensor_ppp),
+        ]:
+            await self._run_if_enabled(func, requires=enabled)
 
         if self.api.connected() and self.option_sensor_client_traffic:
             if 0 < self.major_fw_version < 7:
                 await self.hass.async_add_executor_job(self.process_accounting)
-            elif 0 < self.major_fw_version >= 7:
+            elif self.major_fw_version >= 7:
                 await self.hass.async_add_executor_job(self.process_kid_control_devices)
 
-        optional_sensors_post = [
-            (self.option_sensor_client_captive, self.get_captive),
-            (self.option_sensor_simple_queues, self.get_queue),
-            (self.option_sensor_environment, self.get_environment),
-        ]
-        for enabled, func in optional_sensors_post:
-            if self.api.connected() and enabled:
-                await self.hass.async_add_executor_job(func)
-
-        if self.api.connected() and self.support_ups:
-            await self.hass.async_add_executor_job(self.get_ups)
-
-        if self.api.connected() and self.support_gps:
-            await self.hass.async_add_executor_job(self.get_gps)
-
-        if (
-            self.api.connected()
-            and self.support_container
-            and self.option_sensor_container
-        ):
-            await self.hass.async_add_executor_job(self.get_container)
+        for func, enabled in [
+            (self.get_captive, self.option_sensor_client_captive),
+            (self.get_queue, self.option_sensor_simple_queues),
+            (self.get_environment, self.option_sensor_environment),
+            (self.get_ups, self.support_ups),
+            (self.get_gps, self.support_gps),
+            (
+                self.get_container,
+                self.support_container and self.option_sensor_container,
+            ),
+        ]:
+            await self._run_if_enabled(func, requires=enabled)
 
         if not self.api.connected():
             raise UpdateFailed("Mikrotik Disconnected")
@@ -1723,7 +1725,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         tmp_uptime = _parse_uptime_to_seconds(self.ds["resource"]["uptime_str"])
 
         self.ds["resource"]["uptime_epoch"] = tmp_uptime
-        now = datetime.now().replace(microsecond=0)
+        now = dt_now().replace(microsecond=0)
         uptime_tm = datetime.timestamp(now - timedelta(seconds=tmp_uptime))
         update_uptime = False
         if not self.ds["resource"]["uptime"]:
@@ -2596,6 +2598,19 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             del self.ds["host"][uid]["bypassed"]
 
     # ---------------------------
+    #   _resolve_manufacturer
+    # ---------------------------
+    async def _resolve_manufacturer(self, uid: str, mac: str) -> None:
+        """Resolve a single MAC address to a manufacturer name."""
+        try:
+            self.ds["host"][uid]["manufacturer"] = await self.async_mac_lookup.lookup(
+                mac
+            )
+        except Exception as err:
+            _LOGGER.debug("MAC vendor lookup failed for %s: %s", mac, err)
+            self.ds["host"][uid]["manufacturer"] = ""
+
+    # ---------------------------
     #   async_process_host
     # ---------------------------
     async def async_process_host(self) -> None:
@@ -2610,6 +2625,7 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
         # Process hosts
         self.ds["resource"]["clients_wired"] = 0
         self.ds["resource"]["clients_wireless"] = 0
+        mac_tasks: list[asyncio.Task] = []
         for uid, vals in self.ds["host"].items():
             self._update_captive_portal(uid)
             self._update_host_availability(
@@ -2618,31 +2634,23 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self._update_host_address(uid, vals)
             self._resolve_hostname(uid, vals)
 
-            # Resolve manufacturer
             if vals["manufacturer"] == "detect" and vals["mac-address"] != "unknown":
-                try:
-                    self.ds["host"][uid][
-                        "manufacturer"
-                    ] = await self.async_mac_lookup.lookup(vals["mac-address"])
-                except asyncio.CancelledError:
-                    raise
-                except Exception as err:
-                    _LOGGER.debug(
-                        "MAC vendor lookup failed for %s: %s",
-                        vals["mac-address"],
-                        err,
+                mac_tasks.append(
+                    asyncio.create_task(
+                        self._resolve_manufacturer(uid, vals["mac-address"])
                     )
-                    self.ds["host"][uid]["manufacturer"] = ""
-
-            if vals["manufacturer"] == "detect":
+                )
+            elif vals["manufacturer"] == "detect":
                 self.ds["host"][uid]["manufacturer"] = ""
 
-            # Count hosts
             if self.ds["host"][uid]["available"]:
                 if vals["source"] in ["capsman", "wireless"]:
                     self.ds["resource"]["clients_wireless"] += 1
                 else:
                     self.ds["resource"]["clients_wired"] += 1
+
+        if mac_tasks:
+            await asyncio.gather(*mac_tasks)
 
     # ---------------------------
     #   process_accounting
