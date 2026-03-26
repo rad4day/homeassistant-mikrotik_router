@@ -681,7 +681,12 @@ class MikrotikCoordinator(DataUpdateCoordinator[None]):
             self.get_wireless_hosts, requires=self.support_wireless
         )
 
-        for func in [self.get_bridge, self.get_arp, self.get_dhcp_server, self.get_dhcp]:
+        for func in [
+            self.get_bridge,
+            self.get_arp,
+            self.get_dhcp_server,
+            self.get_dhcp,
+        ]:
             await self._run_if_enabled(func)
 
         if self.api.connected():
