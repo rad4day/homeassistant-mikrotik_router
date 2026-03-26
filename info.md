@@ -7,6 +7,7 @@ Monitor and control your MikroTik router from Home Assistant.
 ### What's new in v2.3.12
 - **Faster startup** — No longer blocks HA startup by pinging every tracked host sequentially; uses ARP table for instant first-run availability
 - **Parallel MAC lookups** — Vendor resolution now runs concurrently instead of one-by-one
+- **Entity cleanup services** — `cleanup_entities` removes orphaned entities; `cleanup_stale_hosts` reports/removes stale device trackers
 - **Bug fixes** — Firmware v7+ client traffic comparison fix, timezone-aware datetimes, API parser type hint fix
 
 ### v2.3.11

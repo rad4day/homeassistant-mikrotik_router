@@ -22,8 +22,13 @@ Changes listed in reverse chronological order.
 | `coordinator.py` | Fixed chained comparison bug: `elif 0 < self.major_fw_version >= 7` → `elif self.major_fw_version >= 7` |
 | `coordinator.py` | `get_system_resource` now uses `_run_if_enabled` guard (caught by silent-failure audit) |
 | `apiparser.py` | Fixed `voluptuous.Optional(str)` misused as type hint → `str \| None` (PEP 604) |
+| `__init__.py` | New `cleanup_entities` service: removes orphaned entities with no backing router data |
+| `__init__.py` | New `cleanup_stale_hosts` service: reports/removes stale device tracker entities (dry_run default) |
+| `__init__.py` | Services registered in `async_setup_entry` (not `async_setup` which is skipped for config-flow integrations) |
+| `services.yaml` | Service descriptions for cleanup_entities and cleanup_stale_hosts |
+| `strings.json`, `translations/en.json` | Service translation strings |
 | `*.py` (6 files) | Added `from __future__ import annotations` per HA coding standards |
-| `tests/` | `mac_lookup.lookup` mock changed from `MagicMock` to `AsyncMock` to match async gather usage |
+| `tests/` | 4 new `_resolve_manufacturer` tests (error, concurrent failure, parallel success, unknown MAC skip); `AsyncMock` for mac_lookup |
 
 ### Why
 
@@ -31,15 +36,18 @@ ISS-260326-slow-load: The integration was blocking HA startup by sequentially pi
 
 ISS-260320-deprecated-datetime: All remaining naive `datetime.now()` calls replaced with timezone-aware equivalents per HA coding standards.
 
+Entity cleanup services address long-standing user pain point: orphaned entities from removed interfaces, deleted firewall rules, or stale DHCP hosts that accumulate over time and require manual registry editing to remove.
+
 ### Quality Gate Results
 
 | Metric | Value | Gate |
 |--------|-------|------|
 | Ruff lint | 0 errors | ✅ |
 | Ruff format | 0 reformats needed | ✅ |
-| Tests | 461 passed, 5 skipped | ✅ |
+| Tests | 465 passed, 5 skipped | ✅ |
 | Code review | No bugs found | ✅ |
 | Silent-failure audit | 2 fixes applied (resource guard, ARP logging) | ✅ |
+| HA live test | Services working, zero errors in logs | ✅ |
 
 ---
 

@@ -18,6 +18,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.util import slugify
 
 from homeassistant.const import CONF_NAME, CONF_VERIFY_SSL
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import PLATFORMS, DOMAIN, DEFAULT_VERIFY_SSL
 from .coordinator import MikrotikData, MikrotikCoordinator, MikrotikTrackerCoordinator
@@ -41,14 +42,14 @@ def _collect_all_descriptions() -> list:
     from .button_types import SENSOR_TYPES as BUTTON_TYPES
     from .update_types import SENSOR_TYPES as UPDATE_TYPES
 
-    descriptions = []
-    descriptions.extend(SENSOR_TYPES)
-    descriptions.extend(BINARY_SENSOR_TYPES)
-    descriptions.extend(DEVICE_TRACKER_TYPES)
-    descriptions.extend(SWITCH_TYPES)
-    descriptions.extend(BUTTON_TYPES)
-    descriptions.extend(UPDATE_TYPES)
-    return descriptions
+    return [
+        *SENSOR_TYPES,
+        *BINARY_SENSOR_TYPES,
+        *DEVICE_TRACKER_TYPES,
+        *SWITCH_TYPES,
+        *BUTTON_TYPES,
+        *UPDATE_TYPES,
+    ]
 
 
 def _build_valid_unique_ids(inst: str, coordinator_data: dict) -> set[str]:
@@ -80,52 +81,59 @@ def _build_valid_unique_ids(inst: str, coordinator_data: dict) -> set[str]:
     return valid_ids
 
 
+def _get_mikrotik_data(
+    hass: HomeAssistant, entry_id: str
+) -> MikrotikData | None:
+    """Look up MikrotikData for a config entry, logging an error if missing."""
+    domain_data = hass.data.get(DOMAIN, {})
+    if entry_id in domain_data:
+        return domain_data[entry_id]
+
+    _LOGGER.error(
+        "Config entry '%s' not found. Available: %s",
+        entry_id,
+        list(domain_data.keys()),
+    )
+    return None
+
+
 async def async_cleanup_entities(call: ServiceCall) -> ServiceResponse:
     """Remove orphaned entities that no longer have backing data."""
     hass = call.hass
     entry_id = call.data["entry_id"]
 
-    if entry_id not in hass.data.get(DOMAIN, {}):
-        _LOGGER.error(
-            "Config entry '%s' not found. Available: %s",
-            entry_id,
-            list(hass.data.get(DOMAIN, {}).keys()),
+    mikrotik_data = _get_mikrotik_data(hass, entry_id)
+    if mikrotik_data is None:
+        raise HomeAssistantError(f"Config entry '{entry_id}' not found")
+
+    coordinator = mikrotik_data.data_coordinator
+    config_entry = coordinator.config_entry
+    inst = config_entry.data[CONF_NAME]
+
+    valid_ids = _build_valid_unique_ids(inst, coordinator.ds)
+    _LOGGER.debug("Built %d valid unique IDs for %s", len(valid_ids), inst)
+
+    entity_registry = er.async_get(hass)
+    removed: list[dict[str, str]] = []
+
+    for entity in list(entity_registry.entities.values()):
+        if entity.config_entry_id != entry_id:
+            continue
+        if entity.unique_id in valid_ids:
+            continue
+
+        _LOGGER.info(
+            "Removing orphaned entity %s (unique_id=%s)",
+            entity.entity_id,
+            entity.unique_id,
         )
-        return {"error": f"Config entry '{entry_id}' not found"}
+        removed.append(
+            {"entity_id": entity.entity_id, "unique_id": entity.unique_id}
+        )
+        entity_registry.async_remove(entity.entity_id)
 
-    try:
-        mikrotik_data: MikrotikData = hass.data[DOMAIN][entry_id]
-        coordinator = mikrotik_data.data_coordinator
-        config_entry = coordinator.config_entry
-        inst = config_entry.data[CONF_NAME]
-
-        valid_ids = _build_valid_unique_ids(inst, coordinator.ds)
-        _LOGGER.debug("Built %d valid unique IDs for %s", len(valid_ids), inst)
-
-        entity_registry = er.async_get(hass)
-        removed: list[dict[str, str]] = []
-
-        for entity in list(entity_registry.entities.values()):
-            if entity.config_entry_id != entry_id:
-                continue
-            if entity.unique_id in valid_ids:
-                continue
-
-            _LOGGER.info(
-                "Removing orphaned entity %s (unique_id=%s)",
-                entity.entity_id,
-                entity.unique_id,
-            )
-            removed.append(
-                {"entity_id": entity.entity_id, "unique_id": entity.unique_id}
-            )
-            entity_registry.async_remove(entity.entity_id)
-
-        _LOGGER.info("Cleanup complete: removed %d orphaned entities", len(removed))
-        return {"removed_count": len(removed), "removed_entities": removed}
-    except Exception as err:
-        _LOGGER.exception("cleanup_entities failed: %s", err)
-        return {"error": str(err)}
+    _LOGGER.info("Cleanup complete: removed %d orphaned entities", len(removed))
+    return {"removed_count": len(removed), "removed_entities": removed}
 
 
 SERVICE_CLEANUP_STALE_HOSTS = "cleanup_stale_hosts"
@@ -137,103 +145,97 @@ CLEANUP_STALE_HOSTS_SCHEMA = vol.Schema(
 )
 
 
+def _find_host_by_mac_slug(host_data: dict, mac_slug: str) -> dict | None:
+    """Find a host entry by slugified MAC address."""
+    for uid, hdata in host_data.items():
+        mac = hdata.get("mac-address", "")
+        if slugify(str(mac).lower()) == mac_slug:
+            return hdata
+    return None
+
+
+def _classify_host_entity(
+    entity, host_data: dict, prefix: str
+) -> dict | None:
+    """Return a stale-host info dict if the entity is stale, else None."""
+    unique_id = entity.unique_id
+    if not unique_id.startswith(prefix):
+        return None
+
+    mac_slug = unique_id[len(prefix) :]
+    host_entry = _find_host_by_mac_slug(host_data, mac_slug)
+
+    if host_entry is None:
+        return {
+            "entity_id": entity.entity_id,
+            "unique_id": unique_id,
+            "source": "unknown",
+            "available": False,
+            "last_seen": "never",
+            "reason": "not_in_coordinator_data",
+        }
+
+    if not host_entry.get("available", False):
+        return {
+            "entity_id": entity.entity_id,
+            "unique_id": unique_id,
+            "source": host_entry.get("source", "unknown"),
+            "available": False,
+            "last_seen": str(host_entry.get("last-seen", "unknown")),
+            "host_name": host_entry.get("host-name", "unknown"),
+            "mac_address": host_entry.get("mac-address", "unknown"),
+            "reason": "host_unavailable",
+        }
+
+    return None
+
+
 async def async_cleanup_stale_hosts(call: ServiceCall) -> ServiceResponse:
     """Report or remove device tracker entities for away/stale hosts."""
     hass = call.hass
     entry_id = call.data["entry_id"]
     dry_run = call.data.get("dry_run", True)
 
-    if entry_id not in hass.data.get(DOMAIN, {}):
-        _LOGGER.error(
-            "Config entry '%s' not found. Available: %s",
-            entry_id,
-            list(hass.data.get(DOMAIN, {}).keys()),
+    mikrotik_data = _get_mikrotik_data(hass, entry_id)
+    if mikrotik_data is None:
+        raise HomeAssistantError(f"Config entry '{entry_id}' not found")
+
+    coordinator = mikrotik_data.data_coordinator
+    inst = coordinator.config_entry.data[CONF_NAME].lower()
+    host_data = coordinator.ds.get("host", {})
+    entity_registry = er.async_get(hass)
+    prefix = f"{inst}-host-"
+
+    stale: list[dict[str, str]] = []
+    removed: list[dict[str, str]] = []
+
+    for entity in list(entity_registry.entities.values()):
+        if entity.config_entry_id != entry_id:
+            continue
+        if not entity.entity_id.startswith("device_tracker."):
+            continue
+
+        entry_info = _classify_host_entity(entity, host_data, prefix)
+        if entry_info is None:
+            continue
+
+        stale.append(entry_info)
+        if not dry_run:
+            entity_registry.async_remove(entity.entity_id)
+            removed.append(entry_info)
+
+    if dry_run:
+        _LOGGER.info(
+            "Stale hosts dry run: found %d stale host entities", len(stale)
         )
-        return {"error": f"Config entry '{entry_id}' not found"}
+        return {"stale_count": len(stale), "stale_hosts": stale}
 
-    try:
-        mikrotik_data: MikrotikData = hass.data[DOMAIN][entry_id]
-        coordinator = mikrotik_data.data_coordinator
-        config_entry = coordinator.config_entry
-        inst = config_entry.data[CONF_NAME].lower()
-
-        host_data = coordinator.ds.get("host", {})
-        entity_registry = er.async_get(hass)
-
-        stale: list[dict[str, str]] = []
-        removed: list[dict[str, str]] = []
-
-        for entity in list(entity_registry.entities.values()):
-            if entity.config_entry_id != entry_id:
-                continue
-            if not entity.entity_id.startswith("device_tracker."):
-                continue
-
-            # Parse unique_id: {inst}-host-{mac_slug}
-            unique_id = entity.unique_id
-            prefix = f"{inst}-host-"
-            if not unique_id.startswith(prefix):
-                continue
-
-            mac_slug = unique_id[len(prefix) :]
-            # Find matching host by slugified mac-address
-            host_entry = None
-            for uid, hdata in host_data.items():
-                mac = hdata.get("mac-address", "")
-                if slugify(str(mac).lower()) == mac_slug:
-                    host_entry = hdata
-                    break
-
-            if host_entry is None:
-                entry_info = {
-                    "entity_id": entity.entity_id,
-                    "unique_id": unique_id,
-                    "source": "unknown",
-                    "available": False,
-                    "last_seen": "never",
-                    "reason": "not_in_coordinator_data",
-                }
-                stale.append(entry_info)
-                if not dry_run:
-                    entity_registry.async_remove(entity.entity_id)
-                    removed.append(entry_info)
-                continue
-
-            is_available = host_entry.get("available", False)
-            source = host_entry.get("source", "unknown")
-            last_seen = host_entry.get("last-seen", "unknown")
-
-            if not is_available:
-                entry_info = {
-                    "entity_id": entity.entity_id,
-                    "unique_id": unique_id,
-                    "source": source,
-                    "available": False,
-                    "last_seen": str(last_seen),
-                    "host_name": host_entry.get("host-name", "unknown"),
-                    "mac_address": host_entry.get("mac-address", "unknown"),
-                    "reason": "host_unavailable",
-                }
-                stale.append(entry_info)
-                if not dry_run:
-                    entity_registry.async_remove(entity.entity_id)
-                    removed.append(entry_info)
-
-        if dry_run:
-            _LOGGER.info(
-                "Stale hosts dry run: found %d stale host entities", len(stale)
-            )
-            return {"stale_count": len(stale), "stale_hosts": stale}
-
-        _LOGGER.info("Stale hosts cleanup: removed %d host entities", len(removed))
-        return {
-            "stale_count": len(stale),
-            "removed_count": len(removed),
-            "removed_hosts": removed,
-        }
-    except Exception as err:
-        _LOGGER.exception("cleanup_stale_hosts failed: %s", err)
-        return {"error": str(err)}
+    _LOGGER.info("Stale hosts cleanup: removed %d host entities", len(removed))
+    return {
+        "stale_count": len(stale),
+        "removed_count": len(removed),
+        "removed_hosts": removed,
+    }
 
 
 # ---------------------------
@@ -300,6 +302,10 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         config_entry, PLATFORMS
     ):
         hass.data[DOMAIN].pop(config_entry.entry_id)
+
+        if not hass.data[DOMAIN]:
+            hass.services.async_remove(DOMAIN, SERVICE_CLEANUP_ENTITIES)
+            hass.services.async_remove(DOMAIN, SERVICE_CLEANUP_STALE_HOSTS)
 
     return unload_ok
 

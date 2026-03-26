@@ -19,6 +19,10 @@ Monitor and control your entire MikroTik network from Home Assistant. This HACS 
 
 **Faster startup** — The integration no longer blocks Home Assistant startup by sequentially pinging every tracked host. First-run host availability now uses the ARP table for instant results, with pings starting on the next 10-second tracker cycle. MAC vendor lookups are also parallelised instead of running one-by-one.
 
+**Entity cleanup services** — Two new service actions available in Developer Tools > Services:
+- `mikrotik_router.cleanup_entities` — removes orphaned entities that no longer have backing router data (deleted interfaces, old firewall rules)
+- `mikrotik_router.cleanup_stale_hosts` — reports or removes stale device tracker entities for away hosts (dry_run mode by default)
+
 **Bug fixes:**
 - Fixed chained comparison bug that could skip firmware v7+ client traffic processing
 - Fixed `voluptuous.Optional` incorrectly used as a type hint in API parser
