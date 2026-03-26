@@ -2826,6 +2826,135 @@ def test_dhcp_server_parsing():
     assert coordinator.ds["dhcp-server"]["defconf"]["interface"] == "bridge1"
 
 
+def test_dhcp_server_enriched_fields():
+    """DHCP server entries include address-pool, enabled, comment."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {
+                    "name": "defconf",
+                    "interface": "bridge1",
+                    "address-pool": "dhcp_pool0",
+                    "disabled": False,
+                    "comment": "LAN DHCP",
+                },
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    entry = coordinator.ds["dhcp-server"]["defconf"]
+    assert entry["address-pool"] == "dhcp_pool0"
+    assert entry["enabled"] is True
+    assert entry["comment"] == "LAN DHCP"
+
+
+def test_dhcp_server_enriched_defaults():
+    """DHCP server enriched fields default when absent from API response."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1"},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    entry = coordinator.ds["dhcp-server"]["defconf"]
+    assert entry["address-pool"] == "unknown"
+    assert entry["comment"] == ""
+    assert entry["lease-count"] == 0
+    # When "disabled" is absent, from_entry_bool returns default=False
+    # (reverse is NOT applied to defaults), so enabled=False → status="disabled"
+    assert entry["status"] == "disabled"
+
+
+def test_dhcp_server_status_running():
+    """Enabled DHCP server has status 'running'."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1", "disabled": False},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    assert coordinator.ds["dhcp-server"]["defconf"]["status"] == "running"
+
+
+def test_dhcp_server_status_disabled():
+    """Disabled DHCP server has status 'disabled'."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1", "disabled": True},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    assert coordinator.ds["dhcp-server"]["defconf"]["status"] == "disabled"
+
+
+def test_dhcp_server_lease_count():
+    """Lease count is calculated from DHCP entries."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.10",
+                    "host-name": "pc1",
+                    "server": "defconf",
+                    "status": "bound",
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:02",
+                    "address": "192.168.1.11",
+                    "host-name": "pc2",
+                    "server": "defconf",
+                    "status": "bound",
+                },
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:03",
+                    "address": "192.168.2.10",
+                    "host-name": "pc3",
+                    "server": "guest",
+                    "status": "bound",
+                },
+            ],
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1", "disabled": False},
+                {"name": "guest", "interface": "bridge-guest", "disabled": False},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp-server"]["defconf"]["lease-count"] == 2
+    assert coordinator.ds["dhcp-server"]["guest"]["lease-count"] == 1
+
+
+def test_dhcp_server_lease_count_unknown_server_ignored():
+    """Leases with unknown server don't crash the count."""
+    coordinator = make_coordinator(
+        api_responses={
+            "/ip/dhcp-server/lease": [
+                {
+                    "mac-address": "AA:BB:CC:DD:EE:01",
+                    "address": "192.168.1.10",
+                    "host-name": "pc1",
+                    "server": "nonexistent",
+                    "status": "bound",
+                },
+            ],
+            "/ip/dhcp-server": [
+                {"name": "defconf", "interface": "bridge1", "disabled": False},
+            ],
+        }
+    )
+    coordinator.get_dhcp_server()
+    coordinator.get_dhcp()
+    assert coordinator.ds["dhcp-server"]["defconf"]["lease-count"] == 0
+
+
 def test_dhcp_client_parsing():
     """DHCP client entries are parsed with interface as key."""
     coordinator = make_coordinator(
