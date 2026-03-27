@@ -10,60 +10,6 @@
 
 ## Active
 
----
-
-## Backlog
-
-### ISS-260321-cognitive-complexity — Reduce cognitive complexity to ≤15 per function
-**Type:** Quality
-**Priority:** High
-**Created:** 2026-03-21
-**Status:** 🔴 Closed — fixed in refactor/legacy-cleanup (PR #30 + round 2)
-
-**Context:**
-SonarCloud reports 14 functions exceeding cognitive complexity threshold of 15. Total project cognitive complexity is 1058. Worst offenders are upstream inherited code.
-
-**Functions by severity:**
-| Function | File | Complexity | Effort |
-|----------|------|-----------|--------|
-| `async_process_host()` | coordinator.py:2149 | 136 | 2h 6m |
-| `_async_update_data()` (main) | coordinator.py:576 | 65 | 55m |
-| `process_accounting()` | coordinator.py:2379 | 48 | 38m |
-| `parse_api()` | apiparser.py:85 | 30 | 20m |
-| `get_interface()` | coordinator.py:746 | 27 | 17m |
-| `process_interface_client()` | coordinator.py:980 | 27 | 17m |
-| `get_capabilities()` | coordinator.py:481 | 24 | 14m |
-| `_skip_sensor()` | entity.py:75 | 23 | 13m |
-| `async_process_host()` (tracker) | coordinator.py:1925 | 22 | 12m |
-| `_async_update_data()` (tracker) | coordinator.py:149 | 21 | 11m |
-| `extra_state_attributes` | switch.py:104 | 21 | 11m |
-| `from_entry_bool()` | apiparser.py:55 | 18 | 16m |
-| `query()` | mikrotikapi.py:189 | 18 | 8m |
-| `get_system_resource()` | coordinator.py:1509 | 17 | 7m |
-
-**Done (PR #29):**
-- ✅ `get_system_resource()`: extracted `_parse_uptime_to_seconds()` helper
-- ✅ `get_capabilities()`: consolidated duplicate wifi module branches
-
-**Done (PR #30 — feature/complexity-reduction):**
-- ✅ `async_process_host()` (136→~10 per helper): extracted `_merge_capsman_hosts`, `_merge_wireless_hosts`, `_merge_dhcp_hosts`, `_merge_arp_hosts`, `_recover_hass_hosts`, `_ensure_host_defaults`, `_update_host_availability`, `_update_host_address`, `_resolve_hostname`, `_dhcp_comment_for_host`, `_update_captive_portal`
-- ✅ `_async_update_data()` (65→~15): extracted `_async_update_hwinfo`, `_run_if_enabled`, optional sensor loop tables
-- ✅ `process_accounting()` (48→~10 per helper): extracted `_init_accounting_hosts`, `_classify_accounting_traffic`, `_check_accounting_threshold`, `_apply_accounting_throughput`
-- ✅ `get_interface()` (27→~10): extracted `_monitor_ethernet_port` with `_SFP_MONITOR_VALS`, `_COPPER_MONITOR_VALS`, `_POE_MONITOR_VALS` class constants
-- ✅ `_skip_sensor()` (23→~5 per helper): extracted `_skip_interface_traffic`, `_skip_binary_sensor`, `_skip_device_tracker`, `_skip_poe_sensor`
-- ✅ `extra_state_attributes` switch.py (21→~5): reused `_copy_attrs` from entity.py
-- ✅ `from_entry_bool()` (18→~8): extracted `_traverse_entry`, case-insensitive string matching via frozensets
-
-**Remaining:**
-- `process_interface_client()` (27) — not yet refactored
-- `async_process_host()` tracker (22) — not yet refactored
-- `_async_update_data()` tracker (21) — not yet refactored
-- `query()` mikrotikapi.py (18) — not yet refactored
-
-**Reference:** SonarCloud maintainability rating is A. 48 new tests cover extracted helpers.
-
----
-
 ### ISS-260320-new-device-discovery — New devices require HA restart to appear
 **Type:** Feature
 **Priority:** High
@@ -98,31 +44,7 @@ The `update_sensors` dispatcher was re-enabled in v2.3.6 to fix new devices not 
 
 ---
 
-### ISS-260321-silent-failures — Silent failure patterns from security audit
-**Type:** Bug/Quality
-**Priority:** Medium
-**Created:** 2026-03-21
-**Status:** 🔴 Closed — fixed in refactor/legacy-cleanup
-
-**Context:**
-Silent-failure audit (pr-review-toolkit:silent-failure-hunter) found 12 issues. Three critical/high items fixed in PR #30. Remaining items are pre-existing patterns.
-
-**Fixed in PR #30:**
-- ✅ `get_access()`: guard against KeyError when username not in router user list
-- ✅ MAC vendor lookup: log failures at debug level instead of silently swallowing
-- ✅ `_address_part_of_local_network()`: catch ValueError on malformed IPs
-
-**Remaining:**
-- switch.py: all `async_turn_on`/`async_turn_off` silently return when user lacks write access — should raise `HomeAssistantError` for UI feedback
-- switch.py (NAT/Mangle/Filter/Queue): `value=None` silently passed to API when rule not found after UID lookup loop — should log error and return
-- coordinator.py `get_queue()`: queue value parsing crashes on unexpected `split("/")` format — needs per-entry try/except
-- coordinator.py `get_firmware_update()`: version parse failure lets integration limp with `major_fw_version=0`, silently disabling features
-- entity.py `_handle_coordinator_update()`: KeyError if entity UID disappears from coordinator data
-- switch.py `MikrotikPortSwitch`: unguarded bracket access on `self._data["about"]` and `self._data["port-mac-address"]`
-- apiparser.py `from_entry()`: type coercion is identity operations (pre-existing)
-- apiparser.py `get_uid()`: dead code on line 157 masks empty-key entries (pre-existing)
-
----
+## Backlog
 
 ### ISS-260326-tracker-wireless-detection — Device tracker uses old wireless detection logic
 **Type:** Bug
@@ -150,6 +72,14 @@ On routers with empty registration tables (hAP ac2 with new WiFi package), wirel
 ### ISS-260320-test-coverage — Increase test coverage to ≥80%
 **Type:** Testing | **Priority:** High | **Created:** 2026-03-20
 **Status:** 🔴 Closed — 86% coverage achieved (565 tests, Phase 5 PR)
+
+### ISS-260321-cognitive-complexity — Reduce cognitive complexity to ≤15 per function
+**Type:** Quality | **Priority:** High | **Created:** 2026-03-21
+**Status:** 🔴 Closed — fixed in refactor/legacy-cleanup (PR #30 + PR #51)
+
+### ISS-260321-silent-failures — Silent failure patterns from security audit
+**Type:** Bug/Quality | **Priority:** Medium | **Created:** 2026-03-21
+**Status:** 🔴 Closed — fixed in refactor/legacy-cleanup (PR #30 + PR #51)
 
 ### ISS-260326-slow-load — Startup bottlenecks blocking HA loading
 **Type:** Bug/Performance | **Priority:** High | **Created:** 2026-03-26

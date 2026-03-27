@@ -108,7 +108,8 @@ async def test_migrate_entry_v1_to_v2_adds_verify_ssl():
     call_kwargs = hass.config_entries.async_update_entry.call_args
     new_data = call_kwargs.kwargs.get("data") or call_kwargs[1].get("data")
     assert new_data[CONF_VERIFY_SSL] == DEFAULT_VERIFY_SSL
-    assert call_kwargs.kwargs.get("version") or call_kwargs[1].get("version") == 2
+    version = call_kwargs.kwargs.get("version") or call_kwargs[1].get("version")
+    assert version == 2
 
 
 @pytest.mark.asyncio
