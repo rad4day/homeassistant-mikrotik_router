@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.mikrotik_router.switch import (
     MikrotikSwitch,
@@ -117,25 +118,27 @@ class TestMikrotikSwitch:
         )
 
     @pytest.mark.asyncio
-    async def test_async_turn_on_noop_without_write_access(self):
+    async def test_async_turn_on_raises_without_write_access(self):
         coord = make_mock_coordinator()
         coord.data["access"] = ["policy", "reboot"]  # no "write"
         coord.data["interface"] = {"ether1": {"name": "ether1", "enabled": True}}
         entity = _make_switch(
             coordinator=coord, desc_overrides={**_SWITCH_DESC}, uid="ether1"
         )
-        await entity.async_turn_on()
+        with pytest.raises(HomeAssistantError, match="Write access required"):
+            await entity.async_turn_on()
         coord.set_value.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_async_turn_off_noop_without_write_access(self):
+    async def test_async_turn_off_raises_without_write_access(self):
         coord = make_mock_coordinator()
         coord.data["access"] = ["policy"]
         coord.data["interface"] = {"ether1": {"name": "ether1", "enabled": True}}
         entity = _make_switch(
             coordinator=coord, desc_overrides={**_SWITCH_DESC}, uid="ether1"
         )
-        await entity.async_turn_off()
+        with pytest.raises(HomeAssistantError, match="Write access required"):
+            await entity.async_turn_off()
         coord.set_value.assert_not_called()
 
 
@@ -479,7 +482,8 @@ class TestMikrotikRawSwitch:
             desc_overrides={**_RAW_DESC},
             uid="rule1",
         )
-        await entity.async_turn_on()
+        with pytest.raises(HomeAssistantError, match="Write access required"):
+            await entity.async_turn_on()
         coord.set_value.assert_not_called()
 
 
@@ -559,7 +563,8 @@ class TestMikrotikContainerSwitch:
             desc_overrides={**_CONTAINER_DESC},
             uid="*1",
         )
-        await entity.async_turn_on()
+        with pytest.raises(HomeAssistantError, match="Write access required"):
+            await entity.async_turn_on()
         coord.execute.assert_not_called()
 
     @pytest.mark.asyncio

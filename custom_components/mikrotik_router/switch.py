@@ -9,6 +9,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .entity import MikrotikEntity, MikrotikInterfaceEntityMixin, async_add_entities
@@ -18,6 +19,10 @@ from .switch_types import (
 )
 
 _LOGGER = getLogger(__name__)
+
+_CAPSMAN_MANAGED = "managed by CAPsMAN"
+_RULE_NOT_FOUND_ENABLE = "Rule not found for %s, cannot enable"
+_RULE_NOT_FOUND_DISABLE = "Rule not found for %s, cannot disable"
 
 
 # ---------------------------
@@ -62,14 +67,49 @@ class MikrotikSwitch(MikrotikEntity, SwitchEntity, RestoreEntity):
         else:
             return self.entity_description.icon_disabled
 
+    def _require_write_access(self) -> None:
+        """Raise HomeAssistantError if write access is not available."""
+        if "write" not in self.coordinator.data["access"]:
+            raise HomeAssistantError("Write access required")
+
+    def _find_rule_id(
+        self, data_key: str, match_field: str, match_value: str
+    ) -> str | None:
+        """Find the .id of a rule in coordinator data by matching a field value."""
+        for uid in self.coordinator.data[data_key]:
+            if self.coordinator.data[data_key][uid][match_field] == match_value:
+                return self.coordinator.data[data_key][uid][".id"]
+        return None
+
+    async def _toggle_rule(
+        self, data_key: str, match_field: str, match_value: str, disable: bool
+    ) -> None:
+        """Toggle a firewall/queue rule by looking up its .id and calling set_value."""
+        self._require_write_access()
+
+        value = self._find_rule_id(data_key, match_field, match_value)
+        if value is None:
+            msg = _RULE_NOT_FOUND_DISABLE if disable else _RULE_NOT_FOUND_ENABLE
+            _LOGGER.error(msg, self.entity_id)
+            return
+
+        path = self.entity_description.data_switch_path
+        mod_param = self.entity_description.data_switch_parameter
+        await self.hass.async_add_executor_job(
+            self.coordinator.set_value, path, ".id", value, mod_param, disable
+        )
+        await self.coordinator.async_refresh()
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
+        self._require_write_access()
 
         path = self.entity_description.data_switch_path
         param = self.entity_description.data_reference
         value = self._data[self.entity_description.data_reference]
+        if value is None:
+            _LOGGER.error(_RULE_NOT_FOUND_ENABLE, self.entity_id)
+            return
         mod_param = self.entity_description.data_switch_parameter
         await self.hass.async_add_executor_job(
             self.coordinator.set_value, path, param, value, mod_param, False
@@ -78,12 +118,14 @@ class MikrotikSwitch(MikrotikEntity, SwitchEntity, RestoreEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
+        self._require_write_access()
 
         path = self.entity_description.data_switch_path
         param = self.entity_description.data_reference
         value = self._data[self.entity_description.data_reference]
+        if value is None:
+            _LOGGER.error(_RULE_NOT_FOUND_DISABLE, self.entity_id)
+            return
         mod_param = self.entity_description.data_switch_parameter
         await self.hass.async_add_executor_job(
             self.coordinator.set_value, path, param, value, mod_param, True
@@ -112,15 +154,14 @@ class MikrotikPortSwitch(MikrotikInterfaceEntityMixin, MikrotikSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> str | None:
         """Turn on the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
+        self._require_write_access()
 
         path = self.entity_description.data_switch_path
         param = self.entity_description.data_reference
-        if self._data["about"] == "managed by CAPsMAN":
+        if self._data.get("about") == _CAPSMAN_MANAGED:
             _LOGGER.error("Unable to enable %s, managed by CAPsMAN", self._data[param])
-            return "managed by CAPsMAN"
-        if "-" in self._data["port-mac-address"]:
+            return _CAPSMAN_MANAGED
+        if "-" in self._data.get("port-mac-address", ""):
             param = "name"
         value = self._data[self.entity_description.data_reference]
         mod_param = self.entity_description.data_switch_parameter
@@ -138,15 +179,14 @@ class MikrotikPortSwitch(MikrotikInterfaceEntityMixin, MikrotikSwitch):
 
     async def async_turn_off(self, **kwargs: Any) -> str | None:
         """Turn off the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
+        self._require_write_access()
 
         path = self.entity_description.data_switch_path
         param = self.entity_description.data_reference
-        if self._data["about"] == "managed by CAPsMAN":
+        if self._data.get("about") == _CAPSMAN_MANAGED:
             _LOGGER.error("Unable to disable %s, managed by CAPsMAN", self._data[param])
-            return "managed by CAPsMAN"
-        if "-" in self._data["port-mac-address"]:
+            return _CAPSMAN_MANAGED
+        if "-" in self._data.get("port-mac-address", ""):
             param = "name"
         value = self._data[self.entity_description.data_reference]
         mod_param = self.entity_description.data_switch_parameter
@@ -171,47 +211,11 @@ class MikrotikNATSwitch(MikrotikSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["nat"]:
-            if self.coordinator.data["nat"][uid]["uniq-id"] == (
-                f"{self._data['chain']},{self._data['action']},{self._data['protocol']},"
-                f"{self._data['in-interface']}:{self._data['dst-port']}-"
-                f"{self._data['out-interface']}:{self._data['to-addresses']}:{self._data['to-ports']}"
-            ):
-                value = self.coordinator.data["nat"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, False
-        )
-        await self.coordinator.async_refresh()
+        await self._toggle_rule("nat", "uniq-id", self._data["uniq-id"], disable=False)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["nat"]:
-            if self.coordinator.data["nat"][uid]["uniq-id"] == (
-                f"{self._data['chain']},{self._data['action']},{self._data['protocol']},"
-                f"{self._data['in-interface']}:{self._data['dst-port']}-"
-                f"{self._data['out-interface']}:{self._data['to-addresses']}:{self._data['to-ports']}"
-            ):
-                value = self.coordinator.data["nat"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, True
-        )
-        await self.coordinator.async_refresh()
+        await self._toggle_rule("nat", "uniq-id", self._data["uniq-id"], disable=True)
 
 
 # ---------------------------
@@ -222,49 +226,15 @@ class MikrotikMangleSwitch(MikrotikSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["mangle"]:
-            if self.coordinator.data["mangle"][uid]["uniq-id"] == (
-                f"{self._data['chain']},{self._data['action']},{self._data['protocol']},"
-                f"{self._data['src-address']}:{self._data['src-port']}-"
-                f"{self._data['dst-address']}:{self._data['dst-port']},"
-                f"{self._data['src-address-list']}-{self._data['dst-address-list']}"
-            ):
-                value = self.coordinator.data["mangle"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, False
+        await self._toggle_rule(
+            "mangle", "uniq-id", self._data["uniq-id"], disable=False
         )
-        await self.coordinator.async_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["mangle"]:
-            if self.coordinator.data["mangle"][uid]["uniq-id"] == (
-                f"{self._data['chain']},{self._data['action']},{self._data['protocol']},"
-                f"{self._data['src-address']}:{self._data['src-port']}-"
-                f"{self._data['dst-address']}:{self._data['dst-port']},"
-                f"{self._data['src-address-list']}-{self._data['dst-address-list']}"
-            ):
-                value = self.coordinator.data["mangle"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, True
+        await self._toggle_rule(
+            "mangle", "uniq-id", self._data["uniq-id"], disable=True
         )
-        await self.coordinator.async_refresh()
 
 
 # ---------------------------
@@ -275,47 +245,15 @@ class MikrotikFilterSwitch(MikrotikSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["filter"]:
-            if self.coordinator.data["filter"][uid]["uniq-id"] == (
-                f"{self._data['chain']},{self._data['action']},{self._data['protocol']},{self._data['layer7-protocol']},"
-                f"{self._data['in-interface']},{self._data['in-interface-list']}:{self._data['src-address']},{self._data['src-address-list']}:{self._data['src-port']}-"
-                f"{self._data['out-interface']},{self._data['out-interface-list']}:{self._data['dst-address']},{self._data['dst-address-list']}:{self._data['dst-port']}"
-            ):
-                value = self.coordinator.data["filter"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, False
+        await self._toggle_rule(
+            "filter", "uniq-id", self._data["uniq-id"], disable=False
         )
-        await self.coordinator.async_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["filter"]:
-            if self.coordinator.data["filter"][uid]["uniq-id"] == (
-                f"{self._data['chain']},{self._data['action']},{self._data['protocol']},{self._data['layer7-protocol']},"
-                f"{self._data['in-interface']},{self._data['in-interface-list']}:{self._data['src-address']},{self._data['src-address-list']}:{self._data['src-port']}-"
-                f"{self._data['out-interface']},{self._data['out-interface-list']}:{self._data['dst-address']},{self._data['dst-address-list']}:{self._data['dst-port']}"
-            ):
-                value = self.coordinator.data["filter"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, True
+        await self._toggle_rule(
+            "filter", "uniq-id", self._data["uniq-id"], disable=True
         )
-        await self.coordinator.async_refresh()
 
 
 # ---------------------------
@@ -326,39 +264,11 @@ class MikrotikQueueSwitch(MikrotikSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["queue"]:
-            if self.coordinator.data["queue"][uid]["name"] == f"{self._data['name']}":
-                value = self.coordinator.data["queue"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, False
-        )
-        await self.coordinator.async_refresh()
+        await self._toggle_rule("queue", "name", self._data["name"], disable=False)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["queue"]:
-            if self.coordinator.data["queue"][uid]["name"] == f"{self._data['name']}":
-                value = self.coordinator.data["queue"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, True
-        )
-        await self.coordinator.async_refresh()
+        await self._toggle_rule("queue", "name", self._data["name"], disable=True)
 
 
 # ---------------------------
@@ -369,8 +279,7 @@ class MikrotikKidcontrolPauseSwitch(MikrotikSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
+        self._require_write_access()
 
         path = self.entity_description.data_switch_path
         param = self.entity_description.data_reference
@@ -383,8 +292,7 @@ class MikrotikKidcontrolPauseSwitch(MikrotikSwitch):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
+        self._require_write_access()
 
         path = self.entity_description.data_switch_path
         param = self.entity_description.data_reference
@@ -404,51 +312,11 @@ class MikrotikRawSwitch(MikrotikSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["raw"]:
-            if self.coordinator.data["raw"][uid]["uniq-id"] == (
-                f"{self._data['chain']},{self._data['action']},{self._data['protocol']},"
-                f"{self._data['in-interface']},{self._data['in-interface-list']}:"
-                f"{self._data['src-address']},{self._data['src-address-list']}:{self._data['src-port']}-"
-                f"{self._data['out-interface']},{self._data['out-interface-list']}:"
-                f"{self._data['dst-address']},{self._data['dst-address-list']}:{self._data['dst-port']}"
-            ):
-                value = self.coordinator.data["raw"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, False
-        )
-        await self.coordinator.async_refresh()
+        await self._toggle_rule("raw", "uniq-id", self._data["uniq-id"], disable=False)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
-        if "write" not in self.coordinator.data["access"]:
-            return
-
-        path = self.entity_description.data_switch_path
-        param = ".id"
-        value = None
-        for uid in self.coordinator.data["raw"]:
-            if self.coordinator.data["raw"][uid]["uniq-id"] == (
-                f"{self._data['chain']},{self._data['action']},{self._data['protocol']},"
-                f"{self._data['in-interface']},{self._data['in-interface-list']}:"
-                f"{self._data['src-address']},{self._data['src-address-list']}:{self._data['src-port']}-"
-                f"{self._data['out-interface']},{self._data['out-interface-list']}:"
-                f"{self._data['dst-address']},{self._data['dst-address-list']}:{self._data['dst-port']}"
-            ):
-                value = self.coordinator.data["raw"][uid][".id"]
-
-        mod_param = self.entity_description.data_switch_parameter
-        await self.hass.async_add_executor_job(
-            self.coordinator.set_value, path, param, value, mod_param, True
-        )
-        await self.coordinator.async_refresh()
+        await self._toggle_rule("raw", "uniq-id", self._data["uniq-id"], disable=True)
 
 
 # ---------------------------
@@ -459,8 +327,7 @@ class MikrotikContainerSwitch(MikrotikSwitch):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Start the container."""
-        if "write" not in self.coordinator.data["access"]:
-            return
+        self._require_write_access()
 
         path = self.entity_description.data_switch_path
         await self.hass.async_add_executor_job(
@@ -470,8 +337,7 @@ class MikrotikContainerSwitch(MikrotikSwitch):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Stop the container."""
-        if "write" not in self.coordinator.data["access"]:
-            return
+        self._require_write_access()
 
         path = self.entity_description.data_switch_path
         await self.hass.async_add_executor_job(

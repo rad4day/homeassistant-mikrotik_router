@@ -5,9 +5,11 @@
 ![Project Stage](https://img.shields.io/badge/project%20stage-Production%20Ready-green.svg?style=plastic)
 ![GitHub all releases](https://img.shields.io/github/downloads/jnctech/homeassistant-mikrotik_router/total?style=plastic)
 
-![GitHub commits since latest release](https://img.shields.io/github/commits-since/jnctech/homeassistant-mikrotik_router/latest?style=plastic)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/jnctech/homeassistant-mikrotik_router?style=plastic)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/jnctech/homeassistant-mikrotik_router/ci.yml?style=plastic)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=coverage)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
 
 Monitor and control your entire MikroTik network from Home Assistant. This HACS custom integration connects to MikroTik routers, switches and access points running RouterOS v6 or v7 via the RouterOS API — surfacing system health, interface status, PoE monitoring, traffic sensors, wireless client counts, DHCP server monitoring, firewall rule control, network device tracking, firmware updates and more as native Home Assistant entities.
 

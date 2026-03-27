@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
 
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.entity import EntityCategory
@@ -27,6 +26,13 @@ from .const import DOMAIN
 from .iface_attributes import (
     DEVICE_ATTRIBUTES_IFACE,
 )
+
+# Icon constants (SonarCloud S1192 — avoid duplicated literals)
+ICON_THERMOMETER = "mdi:thermometer"
+ICON_LIGHTNING = "mdi:lightning-bolt"
+ICON_FAN = "mdi:fan"
+ICON_UPLOAD = "mdi:upload-network"
+ICON_DOWNLOAD = "mdi:download-network"
 
 DEVICE_ATTRIBUTES_IFACE_POE = [
     "default-name",
@@ -90,7 +96,7 @@ class MikrotikSensorEntityDescription(SensorEntityDescription):
     data_name_comment: bool = False
     data_uid: str | None = None
     data_reference: str | None = None
-    data_attributes_list: List = field(default_factory=lambda: [])
+    data_attributes_list: list = field(default_factory=list)
     func: str = "MikrotikSensor"
 
 
@@ -98,7 +104,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_temperature",
         name="Temperature",
-        icon="mdi:thermometer",
+        icon=ICON_THERMOMETER,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
@@ -115,7 +121,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_voltage",
         name="Voltage",
-        icon="mdi:lightning-bolt",
+        icon=ICON_LIGHTNING,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_display_precision=1,
@@ -132,7 +138,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_cpu-temperature",
         name="CPU temperature",
-        icon="mdi:thermometer",
+        icon=ICON_THERMOMETER,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
@@ -149,7 +155,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_switch-temperature",
         name="Switch temperature",
-        icon="mdi:thermometer",
+        icon=ICON_THERMOMETER,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
@@ -166,7 +172,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_board-temperature1",
         name="Board temperature",
-        icon="mdi:thermometer",
+        icon=ICON_THERMOMETER,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
@@ -183,7 +189,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_phy-temperature",
         name="PHY temperature",
-        icon="mdi:thermometer",
+        icon=ICON_THERMOMETER,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
@@ -234,7 +240,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_poe_in_voltage",
         name="PoE in voltage",
-        icon="mdi:lightning-bolt",
+        icon=ICON_LIGHTNING,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_display_precision=1,
@@ -286,7 +292,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="poe_out_voltage",
         name="PoE out voltage",
-        icon="mdi:lightning-bolt",
+        icon=ICON_LIGHTNING,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_display_precision=1,
@@ -346,7 +352,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_fan1-speed",
         name="Fan1 speed",
-        icon="mdi:fan",
+        icon=ICON_FAN,
         native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -361,7 +367,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_fan2-speed",
         name="Fan2 speed",
-        icon="mdi:fan",
+        icon=ICON_FAN,
         native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -376,7 +382,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_fan3-speed",
         name="Fan3 speed",
-        icon="mdi:fan",
+        icon=ICON_FAN,
         native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -391,7 +397,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_fan4-speed",
         name="Fan4 speed",
-        icon="mdi:fan",
+        icon=ICON_FAN,
         native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -423,7 +429,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_psu1_voltage",
         name="PSU 1 Voltage",
-        icon="mdi:lightning-bolt",
+        icon=ICON_LIGHTNING,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_display_precision=1,
@@ -457,7 +463,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="system_psu2_voltage",
         name="PSU 2 Voltage",
-        icon="mdi:lightning-bolt",
+        icon=ICON_LIGHTNING,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_unit_of_measurement=UnitOfElectricPotential.VOLT,
         suggested_display_precision=1,
@@ -653,7 +659,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="tx-total",
         name="TX total",
-        icon="mdi:upload-network",
+        icon=ICON_UPLOAD,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
         suggested_display_precision=1,
@@ -674,7 +680,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="rx-total",
         name="RX total",
-        icon="mdi:download-network",
+        icon=ICON_DOWNLOAD,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
         suggested_display_precision=1,
@@ -695,7 +701,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="client_traffic_lan_tx",
         name="LAN TX",
-        icon="mdi:upload-network",
+        icon=ICON_UPLOAD,
         native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
         suggested_unit_of_measurement=UnitOfDataRate.KILOBYTES_PER_SECOND,
         suggested_display_precision=1,
@@ -716,7 +722,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="client_traffic_lan_rx",
         name="LAN RX",
-        icon="mdi:download-network",
+        icon=ICON_DOWNLOAD,
         native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
         suggested_unit_of_measurement=UnitOfDataRate.KILOBYTES_PER_SECOND,
         suggested_display_precision=1,
@@ -737,7 +743,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="client_traffic_wan_tx",
         name="WAN TX",
-        icon="mdi:upload-network",
+        icon=ICON_UPLOAD,
         native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
         suggested_unit_of_measurement=UnitOfDataRate.KILOBYTES_PER_SECOND,
         suggested_display_precision=1,
@@ -758,7 +764,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="client_traffic_wan_rx",
         name="WAN RX",
-        icon="mdi:download-network",
+        icon=ICON_DOWNLOAD,
         native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
         suggested_unit_of_measurement=UnitOfDataRate.KILOBYTES_PER_SECOND,
         suggested_display_precision=1,
@@ -779,7 +785,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="client_traffic_tx",
         name="TX",
-        icon="mdi:upload-network",
+        icon=ICON_UPLOAD,
         native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
         suggested_unit_of_measurement=UnitOfDataRate.KILOBYTES_PER_SECOND,
         suggested_display_precision=1,
@@ -800,7 +806,7 @@ SENSOR_TYPES: tuple[MikrotikSensorEntityDescription, ...] = (
     MikrotikSensorEntityDescription(
         key="client_traffic_rx",
         name="RX",
-        icon="mdi:download-network",
+        icon=ICON_DOWNLOAD,
         native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
         suggested_unit_of_measurement=UnitOfDataRate.KILOBYTES_PER_SECOND,
         suggested_display_precision=1,
