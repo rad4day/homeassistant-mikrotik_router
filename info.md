@@ -2,6 +2,12 @@ Monitor and control your MikroTik router from Home Assistant.
 
 **Community-maintained fork** with active bug fixes for HA 2025.12+ compatibility, RouterOS 7 support, and more.
 
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=jnctech_homeassistant-mikrotik_router&metric=coverage)](https://sonarcloud.io/summary/new_code?id=jnctech_homeassistant-mikrotik_router)
+
 ![Mikrotik Logo](https://raw.githubusercontent.com/tomaae/homeassistant-mikrotik_router/master/docs/assets/images/ui/header.png)
 
 ### What's new in v2.3.13
