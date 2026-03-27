@@ -154,7 +154,7 @@ class MikrotikHostDeviceTracker(MikrotikDeviceTracker):
         if not self.option_track_network_hosts:
             return False
 
-        if self._data["source"] in ["capsman", "wireless"]:
+        if self._data.get("is_wireless", False):
             return self._data[self.entity_description.data_attribute]
 
         return bool(
@@ -166,7 +166,7 @@ class MikrotikHostDeviceTracker(MikrotikDeviceTracker):
     @property
     def icon(self) -> str:
         """Return the icon."""
-        if self._data["source"] in ["capsman", "wireless"]:
+        if self._data.get("is_wireless", False):
             if self._data[self.entity_description.data_attribute]:
                 return self.entity_description.icon_enabled
             else:
@@ -195,8 +195,8 @@ class MikrotikHostDeviceTracker(MikrotikDeviceTracker):
         if not attributes[format_attribute("last-seen")]:
             attributes[format_attribute("last-seen")] = "Unknown"
 
-        # Wireless metrics only for wireless/capsman hosts
-        if self._data.get("source") in ("capsman", "wireless"):
+        # Wireless metrics only for wireless hosts
+        if self._data.get("is_wireless", False):
             copy_attrs(attributes, self._data, DEVICE_ATTRIBUTES_HOST_WIRELESS)
 
         return attributes

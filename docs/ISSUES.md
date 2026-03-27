@@ -2,45 +2,13 @@
 
 ## Current Priorities
 
-1. ISS-260320-new-device-discovery — New devices require HA restart to appear
-2. ISS-260320-refactor-dedup — Refactor duplicated patterns
-3. ISS-260326-tracker-wireless-detection — Device tracker uses old wireless detection logic
+No open issues — all tracked issues resolved for v2.4.0.
 
 ---
 
 ## Active
 
-### ISS-260320-new-device-discovery — New devices require HA restart to appear
-**Type:** Feature
-**Priority:** High
-**Created:** 2026-03-20
-**Status:** 🟡 Backlog
-**Source:** coordinator.py line 692, entity.py lines 154-168
-
-**Context:**
-The `update_sensors` dispatcher was re-enabled in v2.3.6 to fix new devices not appearing, but it caused thousands of "does not generate unique IDs" log errors every 30s because `_check_entity_exists()` doesn't guard against re-adding existing entities. Reverted in v2.3.8.
-
-**Remaining:**
-- Track previously seen UIDs per data path in the coordinator (e.g. `self._known_uids["host"]`)
-- Only fire `async_dispatcher_send("update_sensors", self)` when new UIDs appear that weren't in the previous set
-- Alternatively, fix `_check_entity_exists()` to skip entities already in `platform.entities`
-- Test: add a new host to `ds["host"]` mid-run and verify entity is created without log errors
-
----
-
-### ISS-260320-refactor-dedup — Refactor duplicated patterns
-**Type:** Refactoring
-**Priority:** Medium
-**Created:** 2026-03-20
-**Status:** 🟡 Backlog
-
-**Remaining:**
-- coordinator.py: extract firewall rule dedup helper (get_nat/get_mangle/get_filter share ~75 LOC pattern)
-- switch.py: extract base class for NAT/Mangle/Filter/Queue UID lookup (~50 LOC)
-- ~~apiparser.py: extract shared path traversal from from_entry/from_entry_bool~~ ✅ Done in PR #30
-- *_types.py: extract shared entity description base class (~80 LOC)
-
-**Reference:** SonarCloud CPD exclusions already cover sensor_types.py and coordinator.py intentional repetition
+(none)
 
 ---
 
@@ -50,7 +18,7 @@ The `update_sensors` dispatcher was re-enabled in v2.3.6 to fix new devices not 
 **Type:** Bug
 **Priority:** Medium
 **Created:** 2026-03-26
-**Status:** 🟡 Backlog
+**Status:** 🔴 Closed — fixed in feature/v240-issues
 
 **Context:**
 `device_tracker.py` lines 157, 169, 199 check `source in ["capsman", "wireless"]` to determine wireless behavior (connection state, icon, attributes). The new `_is_wireless_host()` method in coordinator.py correctly detects wireless clients via bridge host table (fixing hAP ac2), but device_tracker still uses the old check.
@@ -68,6 +36,14 @@ On routers with empty registration tables (hAP ac2 with new WiFi package), wirel
 ---
 
 ## Completed
+
+### ISS-260320-new-device-discovery — New devices require HA restart to appear
+**Type:** Feature | **Priority:** High | **Created:** 2026-03-20
+**Status:** 🔴 Closed — fixed in feature/v240-issues (UID tracking + dispatcher guard + entity guard)
+
+### ISS-260320-refactor-dedup — Refactor duplicated patterns
+**Type:** Refactoring | **Priority:** Medium | **Created:** 2026-03-20
+**Status:** 🔴 Closed — firewall helper extracted (feature/v240-issues), switch toggle extracted (PR #51), apiparser extracted (PR #30). Entity description mixin deferred.
 
 ### ISS-260320-test-coverage — Increase test coverage to ≥80%
 **Type:** Testing | **Priority:** High | **Created:** 2026-03-20

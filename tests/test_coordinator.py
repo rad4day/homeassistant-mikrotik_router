@@ -79,6 +79,7 @@ def make_coordinator(options=None, api_responses=None, major_fw_version=6):
     coordinator.major_fw_version = major_fw_version
     coordinator.minor_fw_version = 0
     coordinator.api = MockMikrotikAPI(responses=api_responses or {})
+    coordinator._known_uids = {}
 
     cfg = MagicMock()
     cfg.options = options or {}
@@ -4559,3 +4560,98 @@ async def test_bridged_ap_wireless_count():
 
     assert coordinator.ds["resource"]["clients_wireless"] == 2
     assert coordinator.ds["resource"]["clients_wired"] == 1
+
+
+# ---------------------------------------------------------------------------
+# _has_new_uids — new device discovery dispatcher guard
+# ---------------------------------------------------------------------------
+
+
+def test_has_new_uids_first_run_returns_true():
+    """First run always returns True since _known_uids is empty."""
+    coordinator = make_coordinator()
+    coordinator.ds["interface"] = {"ether1": {"name": "ether1"}}
+    assert coordinator._has_new_uids() is True
+
+
+def test_has_new_uids_no_change_returns_false():
+    """No new UIDs returns False."""
+    coordinator = make_coordinator()
+    coordinator.ds["interface"] = {"ether1": {"name": "ether1"}}
+    coordinator._has_new_uids()  # populate tracking
+    assert coordinator._has_new_uids() is False
+
+
+def test_has_new_uids_new_uid_returns_true():
+    """Adding a new UID triggers True."""
+    coordinator = make_coordinator()
+    coordinator.ds["interface"] = {"ether1": {"name": "ether1"}}
+    coordinator._has_new_uids()  # populate tracking
+
+    coordinator.ds["interface"]["ether2"] = {"name": "ether2"}
+    assert coordinator._has_new_uids() is True
+
+
+def test_has_new_uids_removed_uid_returns_false():
+    """Removing a UID does not trigger (only new UIDs matter)."""
+    coordinator = make_coordinator()
+    coordinator.ds["interface"] = {"ether1": {}, "ether2": {}}
+    coordinator._has_new_uids()
+
+    del coordinator.ds["interface"]["ether2"]
+    assert coordinator._has_new_uids() is False
+
+
+def test_has_new_uids_skips_non_dict_paths():
+    """Non-dict ds paths (like access list) are skipped."""
+    coordinator = make_coordinator()
+    coordinator.ds["access"] = ["write", "policy"]  # list, not dict
+    coordinator.ds["interface"] = {"ether1": {}}
+    coordinator._has_new_uids()
+    assert coordinator._has_new_uids() is False
+
+
+def test_has_new_uids_new_host_triggers():
+    """New host appearing in ds triggers dispatcher."""
+    coordinator = make_coordinator()
+    coordinator.ds["host"] = {"mac1": {"host-name": "phone"}}
+    coordinator._has_new_uids()
+
+    coordinator.ds["host"]["mac2"] = {"host-name": "laptop"}
+    assert coordinator._has_new_uids() is True
+
+
+@pytest.mark.asyncio
+async def test_async_process_host_sets_is_wireless():
+    """async_process_host sets is_wireless field on each host."""
+    coordinator = make_coordinator_for_host(
+        host_entries={
+            "AA:BB:CC:DD:EE:01": {
+                "source": "wireless",
+                "address": "192.168.1.10",
+                "mac-address": "AA:BB:CC:DD:EE:01",
+                "interface": "wlan1",
+                "host-name": "phone",
+                "last-seen": False,
+                "available": True,
+                "manufacturer": "",
+                "is_wireless": False,
+            },
+            "AA:BB:CC:DD:EE:02": {
+                "source": "arp",
+                "address": "192.168.1.11",
+                "mac-address": "AA:BB:CC:DD:EE:02",
+                "interface": "ether1",
+                "host-name": "desktop",
+                "last-seen": False,
+                "available": True,
+                "manufacturer": "",
+                "is_wireless": False,
+            },
+        }
+    )
+
+    await coordinator.async_process_host()
+
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:01"]["is_wireless"] is True
+    assert coordinator.ds["host"]["AA:BB:CC:DD:EE:02"]["is_wireless"] is False
