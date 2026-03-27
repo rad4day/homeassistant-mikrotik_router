@@ -341,17 +341,19 @@ async def test_unload_entry_keeps_services_if_other_entries_remain():
 
 @pytest.mark.asyncio
 async def test_unload_entry_failure_keeps_data():
-    """Failed platform unload leaves domain data intact."""
+    """Failed platform unload leaves domain data and services intact."""
     hass = MagicMock()
     config_entry = _make_mock_config_entry()
 
     hass.data = {DOMAIN: {config_entry.entry_id: _make_mock_mikrotik_data()}}
     hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
+    hass.services.async_remove = MagicMock()
 
     result = await async_unload_entry(hass, config_entry)
 
     assert result is False
     assert config_entry.entry_id in hass.data[DOMAIN]
+    hass.services.async_remove.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -1038,7 +1040,7 @@ def test_collect_all_descriptions_includes_all_platforms():
 
 @pytest.mark.asyncio
 async def test_diagnostics_returns_redacted_data():
-    """Diagnostics returns entry, data, and tracker keys with redaction."""
+    """Diagnostics returns entry, data, and tracker keys with distinct data."""
     from custom_components.mikrotik_router.diagnostics import (
         async_get_config_entry_diagnostics,
     )
@@ -1047,11 +1049,15 @@ async def test_diagnostics_returns_redacted_data():
     config_entry.data = {CONF_NAME: "TestRouter", "username": "admin"}
     config_entry.options = {}
 
-    coordinator = MagicMock()
-    coordinator.data = {"resource": {"board-name": "hAP ax3"}}
+    data_coord = MagicMock()
+    data_coord.data = {"resource": {"board-name": "hAP ax3"}}
+
+    tracker_coord = MagicMock()
+    tracker_coord.data = {"host": {"mac1": {"available": True}}}
 
     mikrotik_data = MagicMock()
-    mikrotik_data.data_coordinator = coordinator
+    mikrotik_data.data_coordinator = data_coord
+    mikrotik_data.tracker_coordinator = tracker_coord
 
     hass = MagicMock()
     hass.data = {DOMAIN: {config_entry.entry_id: mikrotik_data}}
@@ -1063,3 +1069,5 @@ async def test_diagnostics_returns_redacted_data():
     assert "tracker" in result
     assert "data" in result["entry"]
     assert "options" in result["entry"]
+    # Verify data and tracker use different coordinators (catches copy-paste bug)
+    assert result["data"] != result["tracker"]
