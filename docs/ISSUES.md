@@ -2,34 +2,13 @@
 
 ## Current Priorities
 
-1. ISS-260320-test-coverage — Increase test coverage to ≥80% (Phase 5 pending)
-2. ISS-260320-new-device-discovery — New devices require HA restart to appear
-3. ISS-260320-refactor-dedup — Refactor duplicated patterns
+1. ISS-260320-new-device-discovery — New devices require HA restart to appear
+2. ISS-260320-refactor-dedup — Refactor duplicated patterns
+3. ISS-260326-tracker-wireless-detection — Device tracker uses old wireless detection logic
 
 ---
 
 ## Active
-
-### ISS-260320-test-coverage — Increase test coverage to ≥80%
-**Type:** Testing
-**Priority:** High
-**Created:** 2026-03-20
-**Status:** 🟡 Backlog — Phase 1-4 done, Phase 5 (full HA integration tests) pending
-
-**Done:**
-- ✅ Phase 1: `helper.py` (13 tests), `apiparser.py` (52 tests), `mikrotikapi.py` (30 tests), `coordinator.py` basics (12 tests) — PR #29
-- ✅ Phase 2: coordinator data methods — get_system_resource, get_firmware_update, get_nat/mangle/filter, get_interface, get_dhcp, get_access (38 tests) — PR #29
-- ✅ Phase 3: entity helpers — _skip_sensor, copy_attrs, MikrotikInterfaceEntityMixin (10 new tests), update.py pure functions (8 tests) — PR #29
-- ✅ Phase 3.5: coordinator extracted helpers — 58 new tests for host merging, hostname resolution, accounting classification, captive portal, etc. — PR #30
-- ✅ Phase 4: entity-level integration tests — 80 new tests covering all 6 platform entity types (sensor, binary_sensor, switch, button, device_tracker, update), MikrotikEntity base class, and init lifecycle — PR #31
-- ✅ Devcontainer setup for local testing with pytest-homeassistant-custom-component — PR #29
-- ✅ Ruff migration: all 32 source files pass lint and format — PR #29
-
-**Remaining (Phase 5 — future PR):**
-- Full HA integration tests: async_setup_entry, async_unload_entry (requires full HA platform machinery)
-- Full coverage measurement and gap analysis
-
-**Reference:** ~490 tests passing (303 PR #29, 58 PR #30, 80 PR #31, 20 upstream FR port, 8 wireless detection, 7 DHCP server sensors), target ≥80% for SonarCloud Grade A
 
 ---
 
@@ -167,6 +146,10 @@ On routers with empty registration tables (hAP ac2 with new WiFi package), wirel
 ---
 
 ## Completed
+
+### ISS-260320-test-coverage — Increase test coverage to ≥80%
+**Type:** Testing | **Priority:** High | **Created:** 2026-03-20
+**Status:** 🔴 Closed — 86% coverage achieved (565 tests, Phase 5 PR)
 
 ### ISS-260326-slow-load — Startup bottlenecks blocking HA loading
 **Type:** Bug/Performance | **Priority:** High | **Created:** 2026-03-26

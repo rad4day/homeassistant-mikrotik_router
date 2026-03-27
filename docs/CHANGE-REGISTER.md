@@ -4,6 +4,35 @@ Changes listed in reverse chronological order.
 
 ---
 
+## CR-260327-phase5-tests — Phase 5 integration tests and coverage gap closure
+
+**Date:** 2026-03-27
+**Branch:** `feature/phase5-integration-tests`
+**Status:** In Review (targeting dev)
+
+### What Changed
+
+| Area | Change |
+|------|--------|
+| `tests/test_init.py` | Rewrote with 44 tests (was 4): async_setup_entry, async_unload_entry, async_reload_entry lifecycle; service handlers (cleanup_entities, cleanup_stale_hosts) with orphan removal, dry run, error paths; all helper functions (_build_valid_unique_ids, _collect_ids_for_desc, _get_mikrotik_data, _find_host_by_mac_slug, _classify_host_entity); _collect_all_descriptions platform coverage; diagnostics |
+| `docs/ISSUES.md` | Closed ISS-260320-test-coverage (86% achieved); updated priorities |
+| `docs/CHANGE-REGISTER.md` | Added CR-260327-phase5-tests |
+
+### Why
+
+ISS-260320-test-coverage Phase 5: `__init__.py` was at 96% coverage with only 4 migration/device-removal tests. The lifecycle functions (setup, unload, reload), service handlers, and helper functions were completely untested. Phase 5 brings `__init__.py` to 100% and `diagnostics.py` from 0% to 100%. Total project coverage: 86% (565 tests).
+
+### Quality Gate Results
+
+| Metric | Value | Gate |
+|--------|-------|------|
+| Ruff lint | pending | ⏳ |
+| Ruff format | pending | ⏳ |
+| Tests | 565 passed, 5 skipped | ✅ |
+| Coverage | 86% | ✅ (target ≥80%) |
+
+---
+
 ## CR-260327-legacy-cleanup — SonarCloud remediation, complexity reduction, modernisation
 
 **Date:** 2026-03-27
